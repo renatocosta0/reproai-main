@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# env
+.env
+.env*.local
+
+# prisma
+*.db
+*.db-journal
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+ml/models/*.joblib
+ml/data/*.csv
+
+# misc
+.DS_Store
+*.log

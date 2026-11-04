@@ -1,0 +1,94 @@
+// ReproAI data model. No seed/mock data is provided; the database starts empty.
+// NOTE: SQLite does not support native enums. Role and FollowUpStatus are stored
+// as plain String columns. Valid values: Role = "PATIENT" | "CLINICIAN";
+// FollowUpStatus = "ALERT_RAISED" | "APPOINTMENT_SCHEDULED" | "IN_FOLLOW_UP" | "CLOSED" | "LOST"
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  /// One of: PATIENT | CLINICIAN
+  role      String
+  consentAt DateTime?
+  createdAt DateTime @default(now())
+  couple    Couple?  @relation(fields: [coupleId], references: [id])
+  coupleId  String?
+}
+
+model Couple {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  users        User[]
+  patients     Patient[]
+  predictions  Prediction[]
+  observations Observation[]
+  followUps    FollowUp[]
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  couple    Couple   @relation(fields: [coupleId], references: [id])
+  coupleId  String
+  // Clinical attributes used by the model. All optional until entered by a real user.
+  sex             String?
+  age             Int?
+  bmi             Float?
+  amh             Float?
+  spermCount      Float?
+  pcosHistory     Boolean?
+  infertilityDurationMonths Int?
+  priorCycles     Int?
+  createdAt       DateTime @default(now())
+}
+
+model Observation {
+  id        String   @id @default(cuid())
+  couple    Couple   @relation(fields: [coupleId], references: [id])
+  coupleId  String
+  // FHIR-aligned: code + value + unit (e.g. body temperature, sleep hours)
+  code      String
+  value     Float
+  unit      String?
+  effectiveAt DateTime @default(now())
+}
+
+model Prediction {
+  id            String   @id @default(cuid())
+  couple        Couple   @relation(fields: [coupleId], references: [id])
+  coupleId      String
+  probability   Float
+  confidenceLow Float?
+  confidenceHigh Float?
+  // JSON string of feature importances returned by the ML service
+  factors       String?
+  modelVersion  String?
+  createdAt     DateTime @default(now())
+}
+
+model FollowUp {
+  id        String         @id @default(cuid())
+  couple    Couple         @relation(fields: [coupleId], references: [id])
+  coupleId  String
+  /// One of: ALERT_RAISED | APPOINTMENT_SCHEDULED | IN_FOLLOW_UP | CLOSED | LOST
+  status    String @default("ALERT_RAISED")
+  note      String?
+  updatedAt DateTime       @updatedAt
+  createdAt DateTime       @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  resource  String
+  createdAt DateTime @default(now())
+}

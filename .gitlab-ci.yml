@@ -1,0 +1,23 @@
+stages:
+  - install
+  - lint
+  - build
+
+node-build:
+  stage: build
+  image: node:20
+  script:
+    - npm install
+    - npm run build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+ml-check:
+  stage: lint
+  image: python:3.11
+  script:
+    - pip install -r ml/requirements.txt
+    - python -c "import ml.schema"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
