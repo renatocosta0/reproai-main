@@ -5,9 +5,14 @@ import { getSession } from "@/lib/auth";
 // This endpoint allows client components to check authentication status
 // without directly importing next/headers (which only works in Server Components).
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ session: null }, { status: 401 });
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ session: null }, { status: 401 });
+    }
+    return NextResponse.json({ session });
+  } catch (error: any) {
+    console.error("[GET /api/auth/session] error:", error);
+    return NextResponse.json({ session: null, error: error?.message }, { status: 401 });
   }
-  return NextResponse.json({ session });
 }

@@ -7,52 +7,57 @@ import { buildReportPdf } from "@/lib/pdf";
 // prediction. Returns 404 when the couple does not exist and 409 when there is
 // no prediction to report on — nothing is invented.
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const couple = await prisma.couple.findUnique({
-    where: { id: params.id },
-    include: { patients: true, predictions: { orderBy: { createdAt: "desc" }, take: 1 } }
-  });
+  try {
+    const couple = await prisma.couple.findUnique({
+      where: { id: params.id },
+      include: { patients: true, predictions: { orderBy: { createdAt: "desc" }, take: 1 } }
+    });
 
-  if (!couple) {
-    return NextResponse.json({ error: "Couple not found" }, { status: 404 });
-  }
-  const latest = couple.predictions[0];
-  if (!latest) {
-    return NextResponse.json(
-      { error: "No prediction available to generate a report" },
-      { status: 409 }
-    );
-  }
-
-  const female = couple.patients.find((p) => p.sex === "female");
-  const male = couple.patients.find((p) => p.sex === "male");
-  const coupleNames =
-    female?.name && male?.name
-      ? `${female.name} & ${male.name}`
-      : female?.name || male?.name || undefined;
-
-  const protocols = suggestProtocols(
-    {
-      age: female?.age ?? undefined,
-      bmi: female?.bmi ?? undefined,
-      spermCount: male?.spermCount ?? undefined,
-      pcosHistory: female?.pcosHistory ?? undefined
-    },
-    latest.probability
-  );
-
-  const pdf = buildReportPdf({
-    coupleId: couple.id,
-    coupleNames,
-    probability: latest.probability,
-    modelVersion: latest.modelVersion ?? "unknown",
-    createdAt: latest.createdAt.toISOString(),
-    protocols
-  });
-
-  return new NextResponse(pdf, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="reproai-report-${couple.id.slice(0, 8)}.pdf"`
+    if (!couple) {
+      return NextResponse.json({ error: "Couple not found" }, { status: 404 });
     }
-  });
+    const latest = couple.predictions[0];
+    if (!latest) {
+      return NextResponse.json(
+        { error: "No prediction available to generate a report" },
+        { status: 409 }
+      );
+    }
+
+    const female = couple.patients.find((p) => p.sex === "female");
+    const male = couple.patients.find((p) => p.sex === "male");
+    const coupleNames =
+      female?.name && male?.name
+        ? `${female.name} & ${male.name}`
+        : female?.name || male?.name || undefined;
+
+    const protocols = suggestProtocols(
+      {
+        age: female?.age ?? undefined,
+        bmi: female?.bmi ?? undefined,
+        spermCount: male?.spermCount ?? undefined,
+        pcosHistory: female?.pcosHistory ?? undefined
+      },
+      latest.probability
+    );
+
+    const pdf = buildReportPdf({
+      coupleId: couple.id,
+      coupleNames,
+      probability: latest.probability,
+      modelVersion: latest.modelVersion ?? "unknown",
+      createdAt: latest.createdAt.toISOString(),
+      protocols
+    });
+
+    return new NextResponse(pdf, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="reproai-report-${couple.id.slice(0, 8)}.pdf"`
+      }
+    });
+  } catch (error: any) {
+    console.error("[GET /api/reports/:id] error:", error);
+    return NextResponse.json({ error: error?.message ?? "Report generation failed" }, { status: 500 });
+  }
 }

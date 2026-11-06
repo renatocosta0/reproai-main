@@ -45,9 +45,9 @@ function LoginForm() {
         body: JSON.stringify({ email: normalizedEmail, password })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(data.error ?? "Invalid email or password");
+        throw new Error(data?.error ?? `Login failed (${res.status}: ${res.statusText || "Server error"})`);
       }
 
       router.push(data.role === "CLINICIAN" ? "/clinician/dashboard" : "/patient/dashboard");

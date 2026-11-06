@@ -33,8 +33,10 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, role })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Registration failed");
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error ?? `Registration failed (${res.status}: ${res.statusText || "Server error"})`);
+      }
       router.push(role === "PATIENT" ? "/patient/onboarding" : "/clinician/dashboard");
       router.refresh();
     } catch (e) {
