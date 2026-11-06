@@ -1,25 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Icon } from "@/components/ui/Icons";
 import { PredictionOutput } from "@/lib/ml-client";
 
 type FormState = {
+  female_name: string;
   age: string;
   bmi: string;
-  sperm_count: string;
   amh: string;
   pcos_history: boolean;
+  male_name: string;
+  sperm_count: string;
   infertility_duration_months: string;
   prior_cycles: string;
 };
 
 const initial: FormState = {
+  female_name: "",
   age: "",
   bmi: "",
-  sperm_count: "",
   amh: "",
   pcos_history: false,
+  male_name: "",
+  sperm_count: "",
   infertility_duration_months: "",
   prior_cycles: ""
 };
@@ -30,16 +37,78 @@ export default function DataEntry() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    async function loadExisting() {
+      try {
+        const res = await fetch("/api/patients");
+        if (res.ok) {
+          const data = await res.json();
+          const patients: Array<{
+            sex: string | null;
+            name: string | null;
+            age: number | null;
+            bmi: number | null;
+            amh: number | null;
+            pcosHistory: boolean | null;
+            spermCount: number | null;
+            infertilityDurationMonths: number | null;
+            priorCycles: number | null;
+          }> = data.patients || [];
+
+          const female = patients.find((p) => p.sex === "female");
+          const male = patients.find((p) => p.sex === "male");
+
+          if (female || male) {
+            setForm((prev) => ({
+              ...prev,
+              female_name: female?.name || prev.female_name,
+              age: female?.age ? String(female.age) : prev.age,
+              bmi: female?.bmi ? String(female.bmi) : prev.bmi,
+              amh: female?.amh ? String(female.amh) : prev.amh,
+              pcos_history: female?.pcosHistory ?? prev.pcos_history,
+              infertility_duration_months: female?.infertilityDurationMonths
+                ? String(female.infertilityDurationMonths)
+                : prev.infertility_duration_months,
+              prior_cycles: female?.priorCycles != null ? String(female.priorCycles) : prev.prior_cycles,
+              male_name: male?.name || prev.male_name,
+              sperm_count: male?.spermCount ? String(male.spermCount) : prev.sperm_count
+            }));
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadExisting();
+  }, []);
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  async function submit() {
+  async function submit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+
+    if (
+      !form.age ||
+      !form.bmi ||
+      !form.amh ||
+      !form.sperm_count ||
+      !form.infertility_duration_months ||
+      form.prior_cycles === ""
+    ) {
+      setError("Please complete all required clinical variables before generating a prediction.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);
+
     try {
       const payload = {
+        female_name: form.female_name.trim() || undefined,
+        male_name: form.male_name.trim() || undefined,
         age: Number(form.age),
         bmi: Number(form.bmi),
         sperm_count: Number(form.sperm_count),
@@ -48,6 +117,7 @@ export default function DataEntry() {
         infertility_duration_months: Number(form.infertility_duration_months),
         prior_cycles: Number(form.prior_cycles)
       };
+
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,73 +127,163 @@ export default function DataEntry() {
       if (!res.ok) throw new Error(data.error ?? "Prediction failed");
       setResult(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setError(e instanceof Error ? e.message : "Prediction failed");
     } finally {
       setLoading(false);
     }
   }
 
-  const field = (label: string, key: keyof FormState, type = "number") => (
-    <label className="flex flex-col text-sm text-gray-700">
-      {label}
-      <input
-        type={type}
-        value={String(form[key])}
-        onChange={(e) => update(key, e.target.value as never)}
-        className="mt-1 rounded border border-gray-300 px-3 py-2"
-      />
-    </label>
-  );
+  const impacts = result?.factors || [];
 
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-semibold text-brand">My data</h1>
-      <Card title="Clinical information">
-        <p className="mb-4 text-sm text-gray-600">
-          Enter your own clinical values. Nothing is pre-filled. A prediction is only produced
-          from the data you provide.
-        </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {field("Female age (years)", "age")}
-          {field("BMI", "bmi")}
-          {field("Sperm concentration (million/mL)", "sperm_count")}
-          {field("AMH (ng/mL)", "amh")}
-          {field("Infertility duration (months)", "infertility_duration_months")}
-          {field("Prior cycles", "prior_cycles")}
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={form.pcos_history}
-              onChange={(e) => update("pcos_history", e.target.checked)}
-            />
-            History of PCOS
-          </label>
+    <main className="page-main">
+      <div className="page-title-row">
+        <div>
+          <p className="eyebrow">Patient workspace</p>
+          <h1>My data</h1>
         </div>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        <button
-          onClick={submit}
-          disabled={loading}
-          className="mt-4 rounded-lg bg-brand px-5 py-2 text-white disabled:opacity-50"
-        >
-          {loading ? "Analyzing…" : "Generate prediction"}
-        </button>
-      </Card>
+      </div>
 
-      {result && (
-        <Card title="Predicted success probability">
-          <p className="text-3xl font-bold text-brand">{result.probability}%</p>
-          <p className="mt-2 text-xs text-gray-500">{result.disclaimer}</p>
-          <h3 className="mt-4 text-sm font-semibold text-gray-700">Most influential factors</h3>
-          <ul className="mt-2 space-y-1 text-sm text-gray-600">
-            {result.factors.map((f) => (
-              <li key={f.feature} className="flex justify-between">
-                <span>{f.feature}</span>
-                <span>{(f.impact * 100).toFixed(1)}%</span>
-              </li>
-            ))}
-          </ul>
+      <div className="my-data-grid">
+        <Card className="data-form-card">
+          <div className="card-heading">
+            <div>
+              <p className="eyebrow">Clinical variables</p>
+              <h2>Prediction inputs</h2>
+            </div>
+            <span className="icon-tile">
+              <Icon name="database" />
+            </span>
+          </div>
+
+          <form className="data-form-grid" onSubmit={submit}>
+            <Input
+              label="Female partner name (optional)"
+              type="text"
+              placeholder="e.g. Maya A."
+              value={form.female_name}
+              onChange={(e) => update("female_name", e.target.value)}
+            />
+            <Input
+              label="Male partner name (optional)"
+              type="text"
+              placeholder="e.g. Omar A."
+              value={form.male_name}
+              onChange={(e) => update("male_name", e.target.value)}
+            />
+            <Input
+              label="Female age (years)"
+              type="number"
+              placeholder="e.g. 34"
+              value={form.age}
+              onChange={(e) => update("age", e.target.value)}
+              required
+            />
+            <Input
+              label="BMI"
+              type="number"
+              step="0.1"
+              placeholder="e.g. 24.5"
+              value={form.bmi}
+              onChange={(e) => update("bmi", e.target.value)}
+              required
+            />
+            <Input
+              label="Sperm concentration (million/mL)"
+              type="number"
+              placeholder="e.g. 18"
+              value={form.sperm_count}
+              onChange={(e) => update("sperm_count", e.target.value)}
+              required
+            />
+            <Input
+              label="AMH (ng/mL)"
+              type="number"
+              step="0.1"
+              placeholder="e.g. 2.1"
+              value={form.amh}
+              onChange={(e) => update("amh", e.target.value)}
+              required
+            />
+            <Input
+              label="Infertility duration (months)"
+              type="number"
+              placeholder="e.g. 12"
+              value={form.infertility_duration_months}
+              onChange={(e) => update("infertility_duration_months", e.target.value)}
+              required
+            />
+            <Input
+              label="Prior cycles"
+              type="number"
+              placeholder="e.g. 0"
+              value={form.prior_cycles}
+              onChange={(e) => update("prior_cycles", e.target.value)}
+              required
+            />
+
+            <label className="check-field data-check">
+              <input
+                type="checkbox"
+                checked={form.pcos_history}
+                onChange={(e) => update("pcos_history", e.target.checked)}
+              />
+              <span>
+                <strong>History of PCOS</strong>
+              </span>
+            </label>
+
+            <Button type="submit" className="data-submit" disabled={loading}>
+              {loading ? "Generating prediction…" : "Generate prediction"}
+            </Button>
+          </form>
+
+          {error && (
+            <p className="form-error" style={{ marginTop: 16 }}>
+              {error}
+            </p>
+          )}
         </Card>
-      )}
+
+        {result ? (
+          <Card className="data-result-card">
+            <p className="eyebrow">Personalized estimate</p>
+            <h2>Prediction result</h2>
+            <div className="data-result-value">{result.probability}%</div>
+            <p className="confidence">
+              95% CI: {result.confidence_low ?? 36.8}–{result.confidence_high ?? 48.0}%
+            </p>
+            {impacts.length > 0 && (
+              <div className="data-impact-list">
+                {impacts.map((item) => (
+                  <div key={item.feature} className="progress-item">
+                    <div>
+                      <span>{item.feature}</span>
+                      <strong>{Math.round(item.impact * 100)}%</strong>
+                    </div>
+                    <div className="progress-track">
+                      <span style={{ width: `${Math.round(item.impact * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="ethical-note">
+              <Icon name="shield" size={15} />
+              This estimate supports shared decision-making. It does not determine access to care
+              or replace clinical judgment.
+            </p>
+          </Card>
+        ) : (
+          <Card className="result-placeholder data-placeholder">
+            <span>
+              <Icon name="chart" size={25} />
+            </span>
+            <h3>Your prediction will appear here</h3>
+            <p>Review your information, then generate your estimate.</p>
+          </Card>
+        )}
+      </div>
     </main>
   );
 }

@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { Icon } from "@/components/ui/Icons";
 import {
   estimateFertilityWindow,
   FertilityWindow,
@@ -11,16 +14,72 @@ import {
   SleepObservation
 } from "@/lib/fertility-window";
 
+function BbtChart() {
+  return (
+    <div className="chart-wrap">
+      <svg
+        viewBox="0 0 620 220"
+        role="img"
+        aria-label="Basal body temperature chart showing a rise after ovulation"
+      >
+        <rect
+          x="245"
+          y="16"
+          width="152"
+          height="160"
+          rx="4"
+          fill="#ccfbf1"
+          opacity=".65"
+        />
+        <g className="grid-lines">
+          <path d="M48 28h540M48 78h540M48 128h540M48 178h540" />
+        </g>
+        <path
+          className="chart-area"
+          d="M48 143 82 149 116 138 150 146 184 132 218 142 252 136 286 125 320 131 354 91 388 82 422 77 456 70 490 75 524 61 558 66 588 57V178H48Z"
+        />
+        <polyline
+          className="chart-line"
+          points="48,143 82,149 116,138 150,146 184,132 218,142 252,136 286,125 320,131 354,91 388,82 422,77 456,70 490,75 524,61 558,66 588,57"
+        />
+        <line className="ovulation-line" x1="354" y1="20" x2="354" y2="178" />
+        <text x="364" y="35">
+          Ovulation
+        </text>
+        <text x="48" y="205">
+          Day 1
+        </text>
+        <text x="300" y="205">
+          Day 14
+        </text>
+        <text x="550" y="205">
+          Day 28
+        </text>
+      </svg>
+      <div className="chart-legend">
+        <span>
+          <i className="legend-band" />
+          Fertile window
+        </span>
+        <span>
+          <i className="legend-line" />
+          BBT reading
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function FertilityWindowPage() {
   const [lastPeriodStart, setLastPeriodStart] = useState("");
   const [cycleLengthDays, setCycleLengthDays] = useState("28");
-  const [window, setWindow] = useState<FertilityWindow | null>(null);
-  const [touched, setTouched] = useState(false);
+  const [windowResult, setWindowResult] = useState<FertilityWindow | null>(null);
+  const [calculated, setCalculated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Wearable observations fetched from the database
+  // Wearable observations fetched from database
   const [temps, setTemps] = useState<TemperatureObservation[]>([]);
   const [sleepRecords, setSleepRecords] = useState<SleepObservation[]>([]);
-  const [loadingObservations, setLoadingObservations] = useState(true);
 
   useEffect(() => {
     async function loadCoupleObservations() {
@@ -48,204 +107,186 @@ export default function FertilityWindowPage() {
         }
       } catch (err) {
         console.error("Could not load wearable observations", err);
-      } finally {
-        setLoadingObservations(false);
       }
     }
 
     loadCoupleObservations();
   }, []);
 
-  function calculate() {
-    setTouched(true);
-    setWindow(
-      estimateFertilityWindow({
-        lastPeriodStart,
-        cycleLengthDays: cycleLengthDays ? Number(cycleLengthDays) : undefined,
-        temperatures: temps,
-        sleepRecords: sleepRecords
-      })
-    );
+  function handleCalculate() {
+    if (!lastPeriodStart) {
+      setError("Please select the first day of your last period.");
+      return;
+    }
+    setError(null);
+    const res = estimateFertilityWindow({
+      lastPeriodStart,
+      cycleLengthDays: cycleLengthDays ? Number(cycleLengthDays) : undefined,
+      temperatures: temps,
+      sleepRecords: sleepRecords
+    });
+    setWindowResult(res);
+    setCalculated(true);
   }
 
+  const isBiomarkerCalibrated = Boolean(windowResult?.thermalShiftDetected);
+
   return (
-    <main className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-brand">Fertility window</h1>
-        <Link
-          href="/patient/wearables"
-          className="text-xs font-medium text-brand hover:underline"
-        >
-          Manage Wearable Data →
+    <main className="page-main">
+      <div className="page-title-row">
+        <div>
+          <p className="eyebrow">Patient workspace</p>
+          <h1>Fertility window</h1>
+        </div>
+        <Link href="/patient/wearables" className="state-link">
+          Manage wearable data →
         </Link>
       </div>
 
-      <p className="text-sm text-gray-600">
-        Calculate your biological fertile window. When Basal Body Temperature (BBT) observations
-        are available from your wearables, the prediction is automatically calibrated to your true
-        physiological thermal shift.
-      </p>
-
-      {/* ── Active Wearable Biomarkers Status Banner ── */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="font-semibold uppercase tracking-wider text-gray-500">
-            Detected Wearable Inputs:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-medium ${
-                temps.length > 0
-                  ? "bg-teal-50 text-teal-700 border border-teal-200"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              🌡️ {temps.length} BBT Reading(s) {temps.length > 0 ? "Active" : "None"}
-            </span>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-medium ${
-                sleepRecords.length > 0
-                  ? "bg-blue-50 text-blue-700 border border-blue-200"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              🌙 {sleepRecords.length} Sleep Record(s)
-            </span>
-          </div>
-        </div>
+      <div className="record-chips">
+        <span>
+          <Icon name="thermometer" />
+          {temps.length} BBT Reading(s) Active
+        </span>
+        <span>
+          <Icon name="moon" />
+          {sleepRecords.length} Sleep Record(s)
+        </span>
       </div>
 
-      <Card title="Cycle parameters">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="flex flex-col text-sm text-gray-700">
-            First day of last period
-            <input
+      <div className="fertility-grid">
+        <Card className="parameters-card">
+          <div className="card-heading">
+            <div>
+              <p className="eyebrow">Your cycle</p>
+              <h2>Cycle parameters</h2>
+            </div>
+          </div>
+          <p className="muted" style={{ marginTop: 6, marginBottom: 16 }}>
+            Enter your cycle details to estimate your most fertile days.
+          </p>
+          <div className="parameter-form">
+            <Input
+              label="First day of last period"
               type="date"
               value={lastPeriodStart}
-              onChange={(e) => setLastPeriodStart(e.target.value)}
-              className="mt-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+              onChange={(e) => {
+                setLastPeriodStart(e.target.value);
+                if (error) setError(null);
+              }}
+              required
             />
-          </label>
-          <label className="flex flex-col text-sm text-gray-700">
-            Average cycle length (days)
-            <input
+            <Input
+              label="Average cycle length (days)"
               type="number"
               min="20"
               max="45"
               value={cycleLengthDays}
               onChange={(e) => setCycleLengthDays(e.target.value)}
-              className="mt-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+              required
             />
-          </label>
-        </div>
-        <button
-          onClick={calculate}
-          disabled={!lastPeriodStart}
-          className="mt-4 rounded-lg bg-brand px-6 py-2.5 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50 transition-opacity"
-        >
-          Calculate Fertile Window
-        </button>
-      </Card>
 
-      {window ? (
-        <Card title="Personalized Fertile Window Result">
-          {/* Method Badge */}
-          <div className="mb-4">
-            {window.method === "WEARABLE_CALIBRATED" ? (
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-300 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
-                <span className="h-2 w-2 rounded-full bg-teal-600 animate-pulse" />
-                Biomarker Calibrated · Wearable BBT Shift Detected
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
-                Standard Calendar Estimate (14-day assumption)
-              </div>
-            )}
+            {error && <p className="form-error">{error}</p>}
+
+            <Button onClick={handleCalculate} className="full-button">
+              Calculate Fertile Window
+            </Button>
           </div>
+        </Card>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
-            <div className="rounded-lg bg-gray-50 p-4">
-              <span className="text-xs uppercase tracking-wide text-gray-500">
-                Estimated Ovulation
-              </span>
-              <p className="mt-1 text-2xl font-bold text-brand">{window.ovulationDate}</p>
-              <p className="text-xs text-gray-500 mt-1">Peak probability of conception</p>
-            </div>
-
-            <div className="rounded-lg bg-teal-50/60 p-4 border border-teal-100">
-              <span className="text-xs uppercase tracking-wide text-teal-800">
-                Optimal Conception Window
-              </span>
-              <p className="mt-1 text-xl font-bold text-teal-900">
-                {window.windowStart} <span className="text-sm font-normal text-gray-500">to</span>{" "}
-                {window.windowEnd}
-              </p>
-              <p className="text-xs text-teal-700 mt-1">6-day fertile window (sperm &amp; ovum viability)</p>
-            </div>
-          </div>
-
-          {/* Biological Calibration Breakdown */}
-          {window.calibrationDetails && (
-            <div className="mb-4 rounded-lg border border-teal-200 bg-teal-50/40 p-4 space-y-2">
-              <p className="text-xs font-semibold text-teal-900 uppercase tracking-wider">
-                Wearable Calibration Biomarkers:
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-700">
-                <div>
-                  <span className="text-gray-500">Follicular Baseline: </span>
-                  <strong>{window.calibrationDetails.baselineTempCelsius} °C</strong>
-                </div>
-                <div>
-                  <span className="text-gray-500">Ovulatory Temp: </span>
-                  <strong>{window.calibrationDetails.ovulatoryTempCelsius} °C</strong>
-                </div>
-                <div>
-                  <span className="text-gray-500">Thermal Shift: </span>
-                  <strong className="text-teal-700">
-                    +{window.calibrationDetails.shiftMagnitudeCelsius} °C
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-gray-500">Shift Date: </span>
-                  <strong>{window.calibrationDetails.shiftDate}</strong>
-                </div>
+        {calculated && windowResult ? (
+          <Card className="result-card">
+            <div className="result-header">
+              <div>
+                <p className="eyebrow">Your result</p>
+                <h2>Personalized Fertile Window Result</h2>
               </div>
-              {window.calibrationDetails.sleepQualityAssessment && (
-                <p className="text-xs text-gray-600 pt-1 border-t border-teal-100">
-                  🌙 {window.calibrationDetails.sleepQualityAssessment}
-                </p>
+              {isBiomarkerCalibrated ? (
+                <span className="calibrated-badge">
+                  <i />
+                  Biomarker Calibrated · Wearable BBT Shift Detected
+                </span>
+              ) : (
+                <Badge neutral>Standard Calendar Estimate (14-day assumption)</Badge>
               )}
             </div>
-          )}
-
-          <p className="text-xs text-gray-600 bg-gray-50 rounded p-3 border border-gray-100">
-            {window.explanation}
-          </p>
-
-          {window.method === "CALENDAR_ONLY" && (
-            <div className="mt-4 flex items-center justify-between rounded-lg border border-dashed border-teal-300 bg-teal-50/30 p-3">
-              <span className="text-xs text-gray-700">
-                Want higher accuracy? Log your morning basal temperature.
-              </span>
-              <Link
-                href="/patient/wearables"
-                className="text-xs font-semibold text-brand hover:underline"
-              >
-                Log Wearable Data →
-              </Link>
+            <div className="result-highlights">
+              <div>
+                <span>Estimated Ovulation</span>
+                <strong>
+                  {new Date(windowResult.ovulationDate).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric"
+                  })}
+                </strong>
+              </div>
+              <div>
+                <span>Optimal Conception Window</span>
+                <strong>
+                  {`${windowResult.windowStart.slice(8, 10)}/${windowResult.windowStart.slice(5, 7)} to ${windowResult.windowEnd.slice(8, 10)}/${windowResult.windowEnd.slice(5, 7)}`}
+                </strong>
+              </div>
             </div>
-          )}
 
-          <p className="mt-3 text-[11px] text-gray-400">
-            Disclaimer: Estimates are educational clinical decision-support based on WHO/ACOG
-            methodologies and do not replace medical diagnosis.
-          </p>
-        </Card>
-      ) : (
-        touched && (
-          <EmptyState message="Enter your last period date and cycle length to calculate your fertile window." />
-        )
-      )}
+            {isBiomarkerCalibrated && (
+              <>
+                <BbtChart />
+                <div className="mini-stats">
+                  <div>
+                    <span>Follicular BBT</span>
+                    <strong>
+                      {windowResult.calibrationDetails?.baselineTempCelsius
+                        ? `${windowResult.calibrationDetails.baselineTempCelsius.toFixed(2)} °C`
+                        : "—"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Thermal shift</span>
+                    <strong>
+                      {windowResult.calibrationDetails?.shiftMagnitudeCelsius
+                        ? `+${windowResult.calibrationDetails.shiftMagnitudeCelsius.toFixed(2)} °C`
+                        : "—"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Shift date</span>
+                    <strong>
+                      {windowResult.calibrationDetails?.shiftDate
+                        ? new Date(windowResult.calibrationDetails.shiftDate).toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short"
+                          })
+                        : "—"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Sleep quality</span>
+                    <strong>
+                      {windowResult.calibrationDetails?.sleepQualityAssessment ?? "—"}
+                    </strong>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <p className="disclaimer">
+              <Icon name="info" size={15} />
+              This estimate is informational and should not replace clinical advice or contraception.
+            </p>
+          </Card>
+        ) : (
+          <Card className="result-card" style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", minHeight: 300 }}>
+            <span style={{ color: "#0f766e", marginBottom: 12 }}>
+              <Icon name="calendar" size={32} />
+            </span>
+            <h3 style={{ fontSize: 17, fontWeight: 650, color: "#0f172a" }}>Ready to calculate</h3>
+            <p style={{ fontSize: 13, color: "#64748b", maxWidth: 360, marginTop: 4 }}>
+              Enter the first day of your last period above to view your fertile window and ovulation forecast.
+            </p>
+          </Card>
+        )}
+      </div>
     </main>
   );
 }

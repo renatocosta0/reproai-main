@@ -2,8 +2,9 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { Icon } from "@/components/ui/Icons";
 import { buildRecommendations } from "@/lib/guidelines";
+import { estimateFertilityWindow } from "@/lib/fertility-window";
 
 export const dynamic = "force-dynamic";
 
@@ -11,13 +12,14 @@ export default async function PatientDashboard() {
   const session = await getSession();
   const coupleId = session?.coupleId ?? null;
 
-  // Load couple data: latest prediction + patient profiles
+  // Load couple data: latest prediction + patient profiles + observations
   const couple = coupleId
     ? await prisma.couple.findUnique({
         where: { id: coupleId },
         include: {
           predictions: { orderBy: { createdAt: "desc" }, take: 1 },
-          patients: true
+          patients: true,
+          observations: { orderBy: { effectiveAt: "desc" }, take: 30 }
         }
       })
     : null;
@@ -25,7 +27,7 @@ export default async function PatientDashboard() {
   const latestPrediction = couple?.predictions[0] ?? null;
   const female = couple?.patients.find((p) => p.sex === "female") ?? null;
 
-  // Lifestyle recommendations derived from persisted patient data
+  // Lifestyle recommendations derived from real persisted patient data only
   const recs = female
     ? buildRecommendations({
         bmi: female.bmi ?? undefined,
@@ -43,98 +45,189 @@ export default async function PatientDashboard() {
     }
   }
 
+  // Dynamic cycle window calculation if observations exist
+  const bbtObs = couple?.observations
+    ?.filter((o) => o.code === "8310-5")
+    ?.map((o) => ({ date: o.effectiveAt.toISOString(), value: o.value })) || [];
+
+  const sleepObs = couple?.observations
+    ?.filter((o) => o.code === "93832-4")
+    ?.map((o) => ({ date: o.effectiveAt.toISOString(), hours: o.value })) || [];
+
+  // If there are observations or clinical cycle data, calculate dynamic window
+  let dynamicDays: Array<{ day: string; weekday: string; isPeak: boolean }> = [];
+  if (bbtObs.length > 0) {
+    const latestDate = new Date(bbtObs[0].date);
+    const windowRes = estimateFertilityWindow({
+      lastPeriodStart: latestDate.toISOString().slice(0, 10),
+      temperatures: bbtObs,
+      sleepRecords: sleepObs
+    });
+
+    if (windowRes && windowRes.windowStart && windowRes.windowEnd) {
+      const start = new Date(windowRes.windowStart);
+      const ovDate = new Date(windowRes.ovulationDate);
+      const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        dynamicDays.push({
+          day: String(d.getDate()).padStart(2, "0"),
+          weekday: weekdays[d.getDay()],
+          isPeak: d.toISOString().slice(0, 10) === ovDate.toISOString().slice(0, 10)
+        });
+      }
+    }
+  }
+
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-semibold text-brand">Your fertility journey</h1>
+    <main className="page-main">
+      <div className="page-title-row">
+        <div>
+          <p className="eyebrow">Patient workspace</p>
+          <h1>Overview</h1>
+        </div>
+      </div>
 
-      {/* ── Latest prediction ────────────────────────────────────────────── */}
-      <Card title="Latest prediction">
-        {latestPrediction ? (
-          <div className="space-y-4">
-            <div className="flex items-end gap-3">
-              <span className="text-5xl font-bold text-brand">
-                {latestPrediction.probability}%
-              </span>
-              {latestPrediction.confidenceLow != null &&
-                latestPrediction.confidenceHigh != null && (
-                  <span className="mb-1 text-sm text-gray-500">
-                    95% CI: {latestPrediction.confidenceLow}–{latestPrediction.confidenceHigh}%
-                  </span>
-                )}
+      <div className="overview-grid">
+        <Card className="prediction-card">
+          <div className="card-heading">
+            <div>
+              <p className="eyebrow">Personalized insight</p>
+              <h2>Latest prediction</h2>
             </div>
-            <p className="text-sm text-gray-500">
-              Estimated IVF success probability based on your clinical profile.
-              This is a decision-support estimate — not a medical diagnosis.
-            </p>
-            {factors.length > 0 && (
-              <>
-                <h3 className="text-sm font-semibold text-gray-700">Most influential factors</h3>
-                <ul className="space-y-2">
+            {latestPrediction && <span className="status-dot">Current</span>}
+          </div>
+
+          {latestPrediction ? (
+            <>
+              <div className="prediction-value">{latestPrediction.probability}%</div>
+              {latestPrediction.confidenceLow != null && latestPrediction.confidenceHigh != null && (
+                <p className="confidence">
+                  95% CI: {latestPrediction.confidenceLow}–{latestPrediction.confidenceHigh}%
+                </p>
+              )}
+              <p className="clinical-copy">
+                Your estimated probability reflects the information currently available. This
+                result can support a conversation with your clinician, but it is not a diagnosis.
+              </p>
+              {factors.length > 0 && (
+                <div className="factor-section">
+                  <h3>Most influential factors</h3>
                   {factors.map((f) => (
-                    <li key={f.feature} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700">{f.feature}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-100">
-                          <div
-                            className="h-full rounded-full bg-brand"
-                            style={{ width: `${Math.round(f.impact * 100)}%` }}
-                          />
-                        </div>
-                        <span className="w-10 text-right text-xs text-gray-500">
-                          {Math.round(f.impact * 100)}%
-                        </span>
+                    <div key={f.feature} className="progress-item">
+                      <div>
+                        <span>{f.feature}</span>
+                        <strong>{Math.round(f.impact * 100)}%</strong>
                       </div>
-                    </li>
+                      <div className="progress-track">
+                        <span style={{ width: `${Math.round(f.impact * 100)}%` }} />
+                      </div>
+                    </div>
                   ))}
-                </ul>
-              </>
-            )}
-            <p className="text-xs text-gray-400">
-              Model: {latestPrediction.modelVersion ?? "—"} ·{" "}
-              {new Date(latestPrediction.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-        ) : (
-          <EmptyState message="No prediction yet. Complete your data in 'My data' to generate your first personalized estimate." />
-        )}
-      </Card>
-
-      {/* ── Fertility window shortcut ─────────────────────────────────────── */}
-      <Card title="Fertility window">
-        <p className="mb-3 text-sm text-gray-600">
-          Calculate your estimated fertile days based on your cycle data.
-        </p>
-        <Link
-          href="/patient/fertility-window"
-          className="inline-block rounded-lg bg-brand px-5 py-2 text-sm text-white hover:opacity-90"
-        >
-          Open fertility window calculator →
-        </Link>
-      </Card>
-
-      {/* ── Lifestyle guidance ───────────────────────────────────────────── */}
-      <Card title="Lifestyle guidance">
-        {recs.length > 0 ? (
-          <div className="space-y-3">
-            {recs.map((r) => (
-              <div key={r.topic} className="rounded-lg bg-gray-50 p-3">
-                <p className="text-sm font-medium text-gray-800">{r.topic}</p>
-                <p className="text-sm text-gray-600">{r.message}</p>
-                <p className="mt-1 text-xs text-gray-400">Source: {r.source}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <EmptyState message="Personalized lifestyle guidance appears here once your data is entered." />
-            <div className="mt-2 text-center">
-              <Link href="/patient/lifestyle" className="text-sm text-brand hover:underline">
-                Go to lifestyle guidance →
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="empty-state">
+              <span>
+                <Icon name="chart" size={25} />
+              </span>
+              <h3>No prediction yet</h3>
+              <p>
+                Add your health and fertility information to generate a personalized estimate.
+              </p>
+              <Link href="/patient/data-entry" className="button button-primary" style={{ marginTop: 12 }}>
+                Go to My data
               </Link>
             </div>
-          </>
-        )}
-      </Card>
+          )}
+
+          <footer>
+            Model {latestPrediction?.modelVersion ?? "v1.0"} · Generated{" "}
+            {latestPrediction
+              ? new Date(latestPrediction.createdAt).toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric"
+                })
+              : "—"}
+          </footer>
+        </Card>
+
+        <div className="overview-side">
+          <Card className="side-card">
+            <div className="card-heading">
+              <div>
+                <p className="eyebrow">This cycle</p>
+                <h2>Fertility window</h2>
+              </div>
+              <span className="icon-tile">
+                <Icon name="calendar" />
+              </span>
+            </div>
+
+            {dynamicDays.length > 0 ? (
+              <div className="calendar-strip">
+                {dynamicDays.map((d) => (
+                  <div key={d.day} className={d.isPeak ? "peak" : ""}>
+                    <span>{d.weekday}</span>
+                    <strong>{d.day}</strong>
+                    {d.isPeak && <i />}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: "18px 0 14px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                <p>No cycle parameters or wearable data recorded yet.</p>
+                <p style={{ marginTop: 4, fontSize: "12px", color: "#94a3b8" }}>
+                  Calculate your fertile window to see your predicted fertile days.
+                </p>
+              </div>
+            )}
+
+            <Link href="/patient/fertility-window" className="inline-link">
+              Open fertility window calculator <Icon name="arrow" size={16} />
+            </Link>
+          </Card>
+
+          <Card className="side-card">
+            <div className="card-heading">
+              <div>
+                <p className="eyebrow">Evidence-based</p>
+                <h2>Lifestyle guidance</h2>
+              </div>
+              <span className="icon-tile">
+                <Icon name="leaf" />
+              </span>
+            </div>
+            {recs.length > 0 ? (
+              recs.map((r, i) => (
+                <div key={r.topic} className="guidance-row">
+                  <span className="guidance-icon">
+                    <Icon name={i === 0 ? "moon" : "heart"} />
+                  </span>
+                  <div>
+                    <strong>{r.topic}</strong>
+                    <p>{r.message}</p>
+                    <small>Source: {r.source}</small>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: "18px 0 14px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                <p>Personalized guidance will appear once health data is entered.</p>
+                <div style={{ marginTop: 10 }}>
+                  <Link href="/patient/lifestyle" className="inline-link">
+                    Explore lifestyle guidance <Icon name="arrow" size={14} />
+                  </Link>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
     </main>
   );
 }

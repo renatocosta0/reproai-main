@@ -25,6 +25,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const female = couple.patients.find((p) => p.sex === "female");
   const male = couple.patients.find((p) => p.sex === "male");
+  const coupleNames =
+    female?.name && male?.name
+      ? `${female.name} & ${male.name}`
+      : female?.name || male?.name || undefined;
+
   const protocols = suggestProtocols(
     {
       age: female?.age ?? undefined,
@@ -37,6 +42,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const pdf = buildReportPdf({
     coupleId: couple.id,
+    coupleNames,
     probability: latest.probability,
     modelVersion: latest.modelVersion ?? "unknown",
     createdAt: latest.createdAt.toISOString(),

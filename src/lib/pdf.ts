@@ -6,6 +6,7 @@ import { ProtocolSuggestion } from "@/lib/protocols";
 
 interface ReportData {
   coupleId: string;
+  coupleNames?: string;
   probability: number;
   modelVersion: string;
   createdAt: string;
@@ -17,10 +18,14 @@ function escapePdfText(s: string): string {
 }
 
 export function buildReportPdf(data: ReportData): Buffer {
+  const coupleDisplay = data.coupleNames
+    ? `${data.coupleNames} (${data.coupleId})`
+    : `Couple ${data.coupleId}`;
+
   const lines: string[] = [
     "ReproAI clinician report",
     "",
-    `Couple: ${data.coupleId}`,
+    `Patient(s): ${coupleDisplay}`,
     `Generated: ${new Date().toISOString()}`,
     `Prediction date: ${data.createdAt}`,
     `Model version: ${data.modelVersion}`,

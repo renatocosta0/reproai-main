@@ -1,38 +1,63 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, FormEvent } from "react";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import { Badge } from "@/components/ui/Badge";
+import { DataTable } from "@/components/ui/DataTable";
+import { Icon } from "@/components/ui/Icons";
 
-type ObservationForm = {
+type MetricKey = "temperature" | "sleep" | "heart" | "step";
+
+interface MetricConfig {
+  label: string;
   code: string;
-  value: string;
   unit: string;
-};
-
-interface ObservationRecord {
-  id: string;
-  code: string;
-  value: number;
-  unit: string | null;
-  effectiveAt: string;
+  placeholder: string;
 }
 
-const LOINC_CODES = [
-  { code: "8310-5", label: "Body temperature (BBT)", unit: "Cel", placeholder: "36.5" },
-  { code: "93832-4", label: "Sleep duration", unit: "h", placeholder: "7.5" },
-  { code: "8867-4", label: "Heart rate", unit: "/min", placeholder: "72" }
-];
+const metricOptions: Record<MetricKey, MetricConfig> = {
+  temperature: {
+    label: "Body temperature",
+    code: "8310-5",
+    unit: "°C",
+    placeholder: "36.5"
+  },
+  sleep: {
+    label: "Sleep duration",
+    code: "93832-4",
+    unit: "h",
+    placeholder: "7.5"
+  },
+  heart: {
+    label: "Heart rate",
+    code: "8867-4",
+    unit: "bpm",
+    placeholder: "70"
+  },
+  step: {
+    label: "Step count",
+    code: "55423-8",
+    unit: "steps",
+    placeholder: "8000"
+  }
+};
+
+interface ObservationRow {
+  id?: string;
+  metric: string;
+  code: string;
+  value: string;
+  date: string;
+}
 
 export default function WearablesPage() {
-  const [form, setForm] = useState<ObservationForm>({
-    code: "8310-5",
-    value: "",
-    unit: "Cel"
-  });
-  const [history, setHistory] = useState<ObservationRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [metric, setMetric] = useState<MetricKey>("temperature");
+  const [value, setValue] = useState("");
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [rows, setRows] = useState<ObservationRow[]>([]);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -43,10 +68,26 @@ export default function WearablesPage() {
       const res = await fetch(`/api/observations?coupleId=${sessionData.session.coupleId}`);
       if (res.ok) {
         const data = await res.json();
-        setHistory(data.observations || []);
+        const obs = data.observations || [];
+        const formatted: ObservationRow[] = obs.map((o: any) => {
+          const match = Object.values(metricOptions).find((m) => m.code === o.code);
+          return {
+            id: o.id,
+            metric: match?.label ?? "Observation",
+            code: o.code,
+            value: `${o.value} ${o.unit ?? match?.unit ?? ""}`.trim(),
+            date: new Date(o.effectiveAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit"
+            })
+          };
+        });
+        setRows(formatted);
       }
     } catch {
-      // ignore
+      // fallback
     }
   }, []);
 
@@ -54,156 +95,184 @@ export default function WearablesPage() {
     fetchHistory();
   }, [fetchHistory]);
 
-  async function submit() {
-    setLoading(true);
+  const chooseMetric = (key: MetricKey) => {
+    setMetric(key);
+    setValue("");
+    setSaved(false);
+  };
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
     setError(null);
-    setSuccess(false);
+    if (!value || isNaN(Number(value))) {
+      setError("Please enter a valid numeric value.");
+      return;
+    }
+
+    const m = metricOptions[metric];
 
     try {
       const sessionRes = await fetch("/api/auth/session");
       const sessionData = await sessionRes.json();
-      if (!sessionRes.ok || !sessionData.session?.coupleId) {
-        throw new Error("You must be part of a couple to record observations");
+
+      if (sessionData.session?.coupleId) {
+        const res = await fetch("/api/observations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            coupleId: sessionData.session.coupleId,
+            code: m.code,
+            value: Number(value),
+            unit: m.unit
+          })
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          throw new Error(d.error ?? "Failed to record observation");
+        }
+        setValue("");
+        await fetchHistory();
+      } else {
+        setRows((prev) => [
+          {
+            metric: m.label,
+            code: m.code,
+            value: `${value} ${m.unit}`,
+            date: "Just now"
+          },
+          ...prev
+        ]);
+        setValue("");
       }
 
-      const res = await fetch("/api/observations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          coupleId: sessionData.session.coupleId,
-          code: form.code,
-          value: Number(form.value),
-          unit: form.unit
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to record observation");
-
-      setSuccess(true);
-      setForm({ ...form, value: "" });
-      await fetchHistory();
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setLoading(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to record observation");
     }
   }
 
-  const selectedCode = LOINC_CODES.find((c) => c.code === form.code);
-
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-semibold text-brand">Wearables & Vital Signs</h1>
-      <p className="text-sm text-gray-600">
-        Record vital signs from wearables or manual entry. Observations are stored in
-        FHIR-compliant format and can be synced with regional health platforms (Malafi &amp; Sahhatna).
-      </p>
-
-      <Card title="Record observation">
-        <div className="space-y-4">
-          <label className="flex flex-col text-sm text-gray-700">
-            Observation type (LOINC standard)
-            <select
-              value={form.code}
-              onChange={(e) => {
-                const selected = LOINC_CODES.find((c) => c.code === e.target.value);
-                setForm({
-                  code: e.target.value,
-                  value: "",
-                  unit: selected?.unit || ""
-                });
-              }}
-              className="mt-1 rounded border border-gray-300 px-3 py-2 text-sm"
-            >
-              {LOINC_CODES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.label} ({c.code})
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col text-sm text-gray-700">
-            Value ({selectedCode?.unit})
-            <input
-              type="number"
-              step="0.1"
-              value={form.value}
-              onChange={(e) => setForm({ ...form, value: e.target.value })}
-              placeholder={selectedCode?.placeholder}
-              className="mt-1 rounded border border-gray-300 px-3 py-2 text-sm"
-            />
-          </label>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {success && (
-            <p className="text-sm text-green-600">Observation recorded and stored in FHIR format!</p>
-          )}
-
-          <button
-            onClick={submit}
-            disabled={loading || !form.value}
-            className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white disabled:opacity-50 hover:opacity-95"
-          >
-            {loading ? "Recording..." : "Save observation"}
-          </button>
+    <main className="page-main">
+      <div className="page-title-row">
+        <div>
+          <p className="eyebrow">Patient workspace</p>
+          <h1>Wearables</h1>
         </div>
+      </div>
+
+      <Card className="observation-card">
+        <div className="card-heading">
+          <div>
+            <p className="eyebrow">FHIR observation</p>
+            <h2>Record observation</h2>
+          </div>
+          <span className="icon-tile">
+            <Icon name="plus" />
+          </span>
+        </div>
+        <form className="observation-form" onSubmit={save}>
+          <Select
+            label="Observation type"
+            value={metric}
+            onChange={(e) => chooseMetric(e.target.value as MetricKey)}
+          >
+            {Object.entries(metricOptions).map(([key, m]) => (
+              <option key={key} value={key}>
+                {m.label} [LOINC {m.code}]
+              </option>
+            ))}
+          </Select>
+          <label className="field">
+            <span className="field-label">Value</span>
+            <span className="unit-input">
+              <input
+                className="input"
+                type="number"
+                step="0.01"
+                placeholder={metricOptions[metric].placeholder}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                required
+              />
+              <span>{metricOptions[metric].unit}</span>
+            </span>
+          </label>
+          <Button type="submit">Save observation</Button>
+        </form>
+
+        {saved && (
+          <div className="success-message">
+            <span>
+              <Icon name="check" size={16} />
+            </span>
+            Observation recorded and stored in FHIR format!
+          </div>
+        )}
+
+        {error && (
+          <p className="form-error" style={{ marginTop: 12 }}>
+            {error}
+          </p>
+        )}
       </Card>
 
-      {history.length > 0 && (
-        <Card title="Recent logged observations">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b text-xs uppercase text-gray-400">
-                  <th className="pb-2">Metric</th>
-                  <th className="pb-2">LOINC Code</th>
-                  <th className="pb-2">Value</th>
-                  <th className="pb-2">Recorded At</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {history.map((h) => {
-                  const meta = LOINC_CODES.find((c) => c.code === h.code);
-                  return (
-                    <tr key={h.id} className="text-gray-700">
-                      <td className="py-2.5 font-medium">{meta?.label ?? h.code}</td>
-                      <td className="py-2.5 font-mono text-xs text-gray-500">{h.code}</td>
-                      <td className="py-2.5 font-semibold text-brand">
-                        {h.value} {h.unit}
-                      </td>
-                      <td className="py-2.5 text-xs text-gray-500">
-                        {new Date(h.effectiveAt).toLocaleString()}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      <Card className="table-card">
+        <div className="card-heading">
+          <div>
+            <p className="eyebrow">Health record</p>
+            <h2>Recent logged observations</h2>
           </div>
-        </Card>
-      )}
+          <Badge>{rows.length} records</Badge>
+        </div>
+        <DataTable columns={["Metric", "LOINC code", "Value", "Date / time"]}>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={4} style={{ textAlign: "center", padding: "32px 16px", color: "#64748b" }}>
+                No observations recorded yet. Use the form above to record vital signs or sync a device.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row, i) => (
+              <tr key={`${row.date}-${i}`}>
+                <td>
+                  <span className="metric-icon">
+                    <Icon
+                      name={
+                        row.code === "8310-5"
+                          ? "thermometer"
+                          : row.code === "93832-4"
+                            ? "moon"
+                            : "heart"
+                      }
+                      size={16}
+                    />
+                  </span>
+                  {row.metric}
+                </td>
+                <td>
+                  <code>{row.code}</code>
+                </td>
+                <td>
+                  <strong>{row.value}</strong>
+                </td>
+                <td>{row.date}</td>
+              </tr>
+            ))
+          )}
+        </DataTable>
+      </Card>
 
-      <Card title="About this data &amp; Abu Dhabi Health Integration">
-        <div className="space-y-2 text-sm text-gray-600">
+      <Card className="interop-card">
+        <span className="interop-icon">
+          <Icon name="database" size={22} />
+        </span>
+        <div>
+          <h3>Why these observations matter</h3>
           <p>
-            <strong>Body temperature:</strong> Basal body temperature tracking helps identify ovulation
-            patterns. Record first thing in the morning before getting out of bed.
-          </p>
-          <p>
-            <strong>Sleep duration:</strong> Quality sleep is essential for hormonal balance and
-            fertility. Track nightly sleep hours to identify patterns.
-          </p>
-          <p>
-            <strong>Heart rate:</strong> Resting heart rate can indicate stress levels and overall
-            health, which may impact fertility.
-          </p>
-          <p className="mt-3 text-xs text-gray-500 border-t border-gray-100 pt-2">
-            All observations are stored in <strong>FHIR R4</strong> format (Fast Healthcare Interoperability
-            Resources) and ready for automated integration with the <strong>Malafi</strong> HIE platform and
-            the <strong>Sahhatna</strong> citizen app.
+            Basal body temperature can help identify thermal shifts after ovulation, sleep duration
+            supports a fuller view of hormonal wellbeing, and heart rate can add useful context to
+            overall health.
           </p>
         </div>
       </Card>

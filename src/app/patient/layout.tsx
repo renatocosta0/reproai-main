@@ -2,9 +2,9 @@ import { PatientNav } from "@/components/layout/PatientNav";
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen">
+    <div className="workspace">
       <PatientNav />
-      <div className="mx-auto max-w-4xl p-8">{children}</div>
+      {children}
     </div>
   );
 }

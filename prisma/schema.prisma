@@ -38,6 +38,7 @@ model Patient {
   id        String   @id @default(cuid())
   couple    Couple   @relation(fields: [coupleId], references: [id])
   coupleId  String
+  name      String?
   // Clinical attributes used by the model. All optional until entered by a real user.
   sex             String?
   age             Int?

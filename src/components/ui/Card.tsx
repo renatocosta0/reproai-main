@@ -1,13 +1,19 @@
+import { type CSSProperties, type ReactNode } from "react";
+
 export function Card({
   title,
+  className = "",
+  style,
   children
 }: {
   title?: string;
-  children: React.ReactNode;
+  className?: string;
+  style?: CSSProperties;
+  children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      {title && <h2 className="mb-3 text-lg font-semibold text-gray-800">{title}</h2>}
+    <section className={`card ${className}`} style={style}>
+      {title && <h2 className="card-title">{title}</h2>}
       {children}
     </section>
   );

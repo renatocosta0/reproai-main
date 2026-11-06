@@ -1,118 +1,167 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
-const DEMO_ACCOUNTS = [
-  { label: "Patient A (favourable)", email: "patient.a@reproai.dev", role: "Patient" },
-  { label: "Patient B (alert raised)", email: "patient.b@reproai.dev", role: "Patient" },
-  { label: "Clinician (Dr. Demo)", email: "clinician@reproai.dev", role: "Clinician" }
-];
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialRoleParam = searchParams.get("role") || "Patient";
+  const [role, setRole] = useState<string>(
+    initialRoleParam.toLowerCase().includes("clinician") ? "Clinician" : "Patient"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function submit(e?: React.FormEvent) {
-    if (e) e.preventDefault();
+  const quickFill = (demoEmail: string, demoRole: string) => {
+    setEmail(demoEmail);
+    setPassword("Demo1234!");
+    setRole(demoRole);
+    setError(null);
+  };
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: normalizedEmail, password })
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Login failed");
+      if (!res.ok) {
+        throw new Error(data.error ?? "Invalid email or password");
+      }
+
       router.push(data.role === "CLINICIAN" ? "/clinician/dashboard" : "/patient/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : "Invalid email or password");
     } finally {
       setLoading(false);
     }
   }
 
-  function fillDemo(demoEmail: string) {
-    setEmail(demoEmail);
-    setPassword("Demo1234!");
-    setError(null);
-  }
-
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-brand">Sign in to ReproAI</h1>
-        <Link href="/" className="text-xs text-gray-500 hover:text-brand">
-          ← Back to home
-        </Link>
-      </div>
+    <div className="login-page">
+      <main className="login-main">
+        <div className="login-shell">
+          <Link href="/" className="back-link">
+            <span aria-hidden="true">←</span> Back to home
+          </Link>
+          <Card className="login-card">
+            <div className="login-heading">
+              <span className="login-mark" aria-hidden="true">
+                <span />
+                <span />
+              </span>
+              <h1>Sign in</h1>
+              <p>Continue to your {role.toLowerCase()} ReproAI workspace.</p>
+            </div>
 
-      <Card>
-        <form onSubmit={submit} className="space-y-4">
-          <label className="flex flex-col text-sm text-gray-700">
-            Email
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-              placeholder="name@example.com"
-            />
-          </label>
-          <label className="flex flex-col text-sm text-gray-700">
-            Password
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-              placeholder="••••••••"
-            />
-          </label>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-brand px-5 py-2 text-white font-medium disabled:opacity-50 hover:opacity-95 transition-opacity"
-          >
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-          <p className="text-center text-sm text-gray-500">
-            No account? <Link href="/register" className="text-brand hover:underline">Register</Link>
-          </p>
-        </form>
+            <form className="login-form" onSubmit={submit} noValidate>
+              <Input
+                label="Email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                error={Boolean(error && !email)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  if (error) setError(null);
+                }}
+              />
+              <Input
+                label="Password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                value={password}
+                error={Boolean(error && !password)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  if (error) setError(null);
+                }}
+              />
 
-        <div className="mt-6 border-t border-gray-100 pt-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Quick demo credentials
-          </p>
-          <div className="flex flex-col gap-1.5">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => fillDemo(acc.email)}
-                className="flex items-center justify-between rounded border border-gray-200 bg-gray-50/70 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-              >
-                <span>
-                  <strong className="font-medium text-gray-900">{acc.label}</strong>
-                  <span className="block text-[11px] text-gray-500">{acc.email}</span>
-                </span>
-                <span className="text-[11px] font-medium text-brand">Fill →</span>
-              </button>
-            ))}
-          </div>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" className="full-button" disabled={loading}>
+                {loading ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
+
+            <p className="login-register">
+              No account?{" "}
+              <Link href="/register" className="text-link">
+                Register
+              </Link>
+            </p>
+
+            <div className="login-divider" />
+
+            <div className="quick-fill">
+              <span className="quick-fill-label">Demo quick-fill</span>
+              <div className="quick-fill-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="button-small"
+                  onClick={() => quickFill("patient.a@reproai.dev", "Patient")}
+                >
+                  Patient A (favourable)
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="button-small"
+                  onClick={() => quickFill("patient.b@reproai.dev", "Patient")}
+                >
+                  Patient B (alert raised)
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="button-small"
+                  onClick={() => quickFill("clinician@reproai.dev", "Clinician")}
+                >
+                  Clinician (Dr. Demo)
+                </Button>
+              </div>
+            </div>
+          </Card>
         </div>
-      </Card>
-    </main>
+      </main>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="login-page" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

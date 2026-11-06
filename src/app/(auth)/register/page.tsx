@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 
 type Role = "PATIENT" | "CLINICIAN";
 
@@ -15,7 +18,13 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function submit() {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!email || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -27,60 +36,82 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Registration failed");
       router.push(role === "PATIENT" ? "/patient/onboarding" : "/clinician/dashboard");
+      router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setError(e instanceof Error ? e.message : "Registration failed");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center p-8">
-      <h1 className="mb-6 text-2xl font-semibold text-brand">Create your ReproAI account</h1>
-      <Card>
-        <div className="space-y-4">
-          <label className="flex flex-col text-sm text-gray-700">
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 rounded border border-gray-300 px-3 py-2"
-            />
-          </label>
-          <label className="flex flex-col text-sm text-gray-700">
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 rounded border border-gray-300 px-3 py-2"
-            />
-          </label>
-          <label className="flex flex-col text-sm text-gray-700">
-            I am a
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-              className="mt-1 rounded border border-gray-300 px-3 py-2"
-            >
-              <option value="PATIENT">Patient</option>
-              <option value="CLINICIAN">Clinician</option>
-            </select>
-          </label>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            onClick={submit}
-            disabled={loading}
-            className="w-full rounded-lg bg-brand px-5 py-2 text-white disabled:opacity-50"
-          >
-            {loading ? "Creating…" : "Create account"}
-          </button>
-          <p className="text-center text-sm text-gray-500">
-            Already registered? <Link href="/login" className="text-brand hover:underline">Sign in</Link>
-          </p>
+    <div className="login-page">
+      <main className="login-main">
+        <div className="login-shell">
+          <Link href="/login" className="back-link">
+            <span aria-hidden="true">←</span> Back to home
+          </Link>
+          <Card className="login-card">
+            <div className="login-heading">
+              <span className="login-mark" aria-hidden="true">
+                <span />
+                <span />
+              </span>
+              <h1>Create your account</h1>
+              <p>Start your private, personalized fertility journey.</p>
+            </div>
+            <form className="login-form" onSubmit={submit}>
+              <Input
+                label="Email"
+                type="email"
+                required
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError(null);
+                }}
+              />
+              <Input
+                label="Password"
+                type="password"
+                required
+                minLength={6}
+                placeholder="Create a secure password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(null);
+                }}
+              />
+              <Select
+                label="I am a"
+                value={role}
+                onChange={(e) => setRole(e.target.value as Role)}
+              >
+                <option value="PATIENT">Patient</option>
+                <option value="CLINICIAN">Clinician</option>
+              </Select>
+
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" className="full-button" disabled={loading}>
+                {loading ? "Creating…" : "Create account"}
+              </Button>
+            </form>
+            <p className="login-register">
+              Already registered?{" "}
+              <Link href="/login" className="text-link">
+                Sign in
+              </Link>
+            </p>
+          </Card>
         </div>
-      </Card>
-    </main>
+      </main>
+    </div>
   );
 }

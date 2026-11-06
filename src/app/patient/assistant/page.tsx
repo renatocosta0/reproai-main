@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icons";
 
 interface Message {
   role: "user" | "assistant";
@@ -14,14 +16,17 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send() {
+  async function send(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     const text = input.trim();
-    if (!text) return;
+    if (!text || loading) return;
+
     const next = [...messages, { role: "user" as const, content: text }];
     setMessages(next);
     setInput("");
     setLoading(true);
     setError(null);
+
     try {
       const res = await fetch("/api/assistant", {
         method: "POST",
@@ -29,57 +34,103 @@ export default function AssistantPage() {
         body: JSON.stringify({ messages: next })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Assistant unavailable");
+      if (!res.ok) throw new Error(data.error ?? "Assistant temporarily unavailable");
       setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      setError(e instanceof Error ? e.message : "The assistant is temporarily unavailable. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl font-semibold text-brand">Your assistant</h1>
-      <Card title="A supportive, judgement-free guide">
-        <p className="mb-4 text-sm text-gray-600">
-          Ask questions about fertility, PCOS or your treatment journey. The assistant is
-          educational and does not provide a diagnosis.
-        </p>
-        <div className="mb-4 space-y-3">
-          {messages.length === 0 && (
-            <p className="text-sm text-gray-400">No messages yet. Start the conversation below.</p>
-          )}
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={
-                m.role === "user"
-                  ? "ml-auto max-w-[80%] rounded-lg bg-brand px-4 py-2 text-sm text-white"
-                  : "mr-auto max-w-[80%] rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-800"
-              }
-            >
-              {m.content}
-            </div>
-          ))}
+    <main className="page-main">
+      <div className="page-title-row">
+        <div>
+          <p className="eyebrow">Patient workspace</p>
+          <h1>Your assistant</h1>
         </div>
-        {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
-        <div className="flex gap-2">
+      </div>
+
+      <aside className={`info-banner ${error ? "banner-error" : ""}`}>
+        <span className="banner-icon">
+          <Icon name={error ? "alert" : "info"} />
+        </span>
+        <p>
+          {error
+            ? error
+            : "Educational, non-diagnostic guidance. This assistant does not replace medical advice."}
+        </p>
+      </aside>
+
+      <Card className="chat-card">
+        <div className="chat-thread">
+          <div className="assistant-message">
+            <span className="assistant-avatar">
+              <Icon name="spark" />
+            </span>
+            <div>
+              <div className="bubble assistant">
+                <p>
+                  Living with reproductive health concerns can feel complex, but small lifestyle
+                  changes and evidence-based guidance may support your wellbeing.
+                </p>
+                <p>
+                  Regular movement, balanced nutrition, restorative sleep, and thermal shift
+                  tracking can all help. What would you like to explore today?
+                </p>
+              </div>
+              <div className="chips">
+                <span>WHO guideline</span>
+                <span>Clinical guidance</span>
+              </div>
+            </div>
+          </div>
+
+          {messages.map((m, i) =>
+            m.role === "user" ? (
+              <div className="bubble user" key={i}>
+                {m.content}
+              </div>
+            ) : (
+              <div className="assistant-message" key={i}>
+                <span className="assistant-avatar">
+                  <Icon name="spark" />
+                </span>
+                <div>
+                  <div className="bubble assistant" style={{ whiteSpace: "pre-line" }}>
+                    {m.content}
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+
+          {loading && (
+            <div className="assistant-message">
+              <span className="assistant-avatar">
+                <Icon name="spark" />
+              </span>
+              <div className="bubble assistant typing">
+                <i />
+                <i />
+                <i />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <form className="chat-input" onSubmit={send}>
           <input
+            placeholder="Type your question..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Type your question…"
-            className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
-          />
-          <button
-            onClick={send}
             disabled={loading}
-            className="rounded-lg bg-brand px-5 py-2 text-white disabled:opacity-50"
-          >
-            {loading ? "…" : "Send"}
-          </button>
-        </div>
+          />
+          <Button type="submit" disabled={loading || !input.trim()}>
+            Send <Icon name="send" size={16} />
+          </Button>
+        </form>
       </Card>
     </main>
   );

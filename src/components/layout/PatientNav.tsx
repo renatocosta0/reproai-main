@@ -1,39 +1,62 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { Icon, IconName, Wordmark } from "@/components/ui/Icons";
 
-const links = [
-  { href: "/patient/dashboard", label: "Overview" },
-  { href: "/patient/assistant", label: "Assistant" },
-  { href: "/patient/fertility-window", label: "Fertility window" },
-  { href: "/patient/wearables", label: "Wearables" },
-  { href: "/patient/lifestyle", label: "Lifestyle" },
-  { href: "/patient/data-entry", label: "My data" }
+const navItems: { href: string; label: string; icon: IconName }[] = [
+  { href: "/patient/dashboard", label: "Overview", icon: "chart" },
+  { href: "/patient/assistant", label: "Assistant", icon: "spark" },
+  { href: "/patient/fertility-window", label: "Fertility window", icon: "calendar" },
+  { href: "/patient/wearables", label: "Wearables", icon: "heart" },
+  { href: "/patient/lifestyle", label: "Lifestyle", icon: "leaf" },
+  { href: "/patient/data-entry", label: "My data", icon: "database" }
 ];
 
 export function PatientNav() {
   const router = useRouter();
+  const pathname = usePathname();
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // ignore
+    }
+    router.push("/");
+    router.refresh();
   }
 
   return (
-    <nav className="flex flex-wrap items-center gap-4 border-b border-gray-200 bg-white px-8 py-4">
-      <span className="font-semibold text-brand">ReproAI</span>
-      {links.map((l) => (
-        <Link key={l.href} href={l.href} className="text-sm text-gray-600 hover:text-brand">
-          {l.label}
-        </Link>
-      ))}
-      <button
-        onClick={handleLogout}
-        className="ml-auto text-sm text-gray-500 hover:text-red-600"
-      >
-        Logout
-      </button>
-    </nav>
+    <header className="app-header">
+      <div className="app-nav">
+        <Wordmark href="/patient/dashboard" />
+        <nav>
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/patient/dashboard" && pathname?.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={isActive ? "active" : ""}
+              >
+                <Icon name={item.icon} size={16} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <button
+          className="avatar-button"
+          onClick={handleLogout}
+          title="Sign out / Switch account"
+          type="button"
+        >
+          PA
+        </button>
+      </div>
+    </header>
   );
 }
