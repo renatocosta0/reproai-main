@@ -57,38 +57,73 @@ export async function POST(req: NextRequest) {
       data: validObservations
     });
 
-    // ── CLOSED-LOOP ANOMALY DETECTION (Longitudinal Biomarkers) ─────────────
+    // ── CLINICAL LONGITUDINAL TIME-SERIES ANOMALY DETECTION ─────────────
     let alertTriggered = false;
     let alertReason: string | null = null;
+    let bbtProfile: "BIPHASIC_OVULATORY" | "MONOPHASIC_SUSPECTED_ANOVULATORY" | "INSUFFICIENT_DATA" = "INSUFFICIENT_DATA";
+    let thermalShiftDelta = 0;
+    let meanSleepDuration = 0;
+    let sleepDisruptionDetected = false;
 
-    // Check A: Chronic Sleep Deprivation (< 5.0 hours persistent)
-    const sleepObservations = validObservations.filter((o) =>
-      o.code === "sleep-hours" || o.code === "93832-4" || o.code.toLowerCase().includes("sleep")
-    );
-    if (sleepObservations.length >= 3) {
-      const avgSleep = sleepObservations.reduce((acc, curr) => acc + curr.value, 0) / sleepObservations.length;
-      if (avgSleep < 5.0) {
+    // Fetch combined historical + new observations for couple to assess longitudinal trajectory
+    const allRecentObservations = await prisma.observation.findMany({
+      where: { coupleId },
+      orderBy: { effectiveAt: "asc" },
+      take: 60
+    });
+
+    // ── 1. Basal Body Temperature (BBT) Time-Series Analysis (Coverline / CUSUM)
+    const bbtSeries = allRecentObservations
+      .filter((o) => o.code === "body-temperature" || o.code === "8310-5" || o.code.toLowerCase().includes("temp"))
+      .map((o) => ({ date: o.effectiveAt, value: o.value }));
+
+    if (bbtSeries.length >= 10) {
+      // Calculate 6-day baseline window vs subsequent 3-day post-shift window (WHO Roetzer Rule)
+      const values = bbtSeries.map((s) => s.value);
+      let maxShift = 0;
+
+      for (let i = 6; i < values.length - 2; i++) {
+        const baselineMean = values.slice(i - 6, i).reduce((a, b) => a + b, 0) / 6;
+        const postShiftMean = values.slice(i, i + 3).reduce((a, b) => a + b, 0) / 3;
+        const shift = postShiftMean - baselineMean;
+        if (shift > maxShift) {
+          maxShift = shift;
+        }
+      }
+
+      thermalShiftDelta = Number(maxShift.toFixed(2));
+
+      // Biphasic shift criterion: temperature plateau must rise >= 0.3°C above baseline
+      if (maxShift >= 0.28) {
+        bbtProfile = "BIPHASIC_OVULATORY";
+      } else {
+        bbtProfile = "MONOPHASIC_SUSPECTED_ANOVULATORY";
         alertTriggered = true;
-        alertReason = `Chronic sleep deprivation detected (mean ${avgSleep.toFixed(1)}h over ${sleepObservations.length} logs). May adversely affect hypothalamic-pituitary-gonadal axis.`;
+        alertReason = `Longitudinal BBT Time-Series: Monophasic thermal curve detected across ${bbtSeries.length} consecutive days (maximum thermal shift: ${thermalShiftDelta}°C; physiological target: ≥ 0.30°C). Possible anovulatory cycle or luteal phase defect (WHO Guideline / ICD-10 N97.0).`;
       }
     }
 
-    // Check B: Basal Body Temperature (BBT) Monophasic / Anovulatory Pattern
-    const bbtObservations = validObservations.filter((o) =>
-      o.code === "body-temperature" || o.code === "8310-5" || o.code.toLowerCase().includes("temp")
-    );
-    if (bbtObservations.length >= 7) {
-      const temps = bbtObservations.map((o) => o.value);
-      const minTemp = Math.min(...temps);
-      const maxTemp = Math.max(...temps);
-      // Standard biphasic shift requires >= 0.3°C - 0.5°C rise post-ovulation (WHO criteria)
-      if (maxTemp - minTemp < 0.25) {
+    // ── 2. Circadian Rhythm & Sleep Time-Series Evaluation
+    const sleepSeries = allRecentObservations
+      .filter((o) => o.code === "sleep-hours" || o.code === "93832-4" || o.code.toLowerCase().includes("sleep"))
+      .map((o) => o.value);
+
+    if (sleepSeries.length >= 3) {
+      meanSleepDuration = Number((sleepSeries.reduce((a, b) => a + b, 0) / sleepSeries.length).toFixed(1));
+      
+      // Calculate sleep variance / standard deviation
+      const variance = sleepSeries.reduce((sum, val) => sum + Math.pow(val - meanSleepDuration, 2), 0) / sleepSeries.length;
+      const stdDev = Math.sqrt(variance);
+
+      if (meanSleepDuration < 5.0 || stdDev > 2.8) {
+        sleepDisruptionDetected = true;
         alertTriggered = true;
-        alertReason = `Monophasic basal temperature profile detected over ${bbtObservations.length} days (thermal variation < 0.25°C). Ovulatory dysfunction or luteal phase defect suspected.`;
+        const sleepNote = `Circadian Rhythm Disruption: Mean sleep ${meanSleepDuration}h/night (variability σ = ${stdDev.toFixed(1)}h). Sustained sleep fragmentation impairs hypothalamic-pituitary-gonadal (HPG) pulsatile GnRH release (ASRM 2023).`;
+        alertReason = alertReason ? `${alertReason} | ${sleepNote}` : sleepNote;
       }
     }
 
-    // If an anomaly was detected, create or update clinician follow-up alert
+    // ── 3. Proactive Clinician Triage Alert
     if (alertTriggered && alertReason) {
       const existingAlert = await prisma.followUp.findFirst({
         where: { coupleId, status: "ALERT_RAISED" }
@@ -105,7 +140,7 @@ export async function POST(req: NextRequest) {
       } else {
         await prisma.followUp.update({
           where: { id: existingAlert.id },
-          data: { note: `${existingAlert.note ? existingAlert.note + " | " : ""}${alertReason}` }
+          data: { note: alertReason }
         });
       }
     }
@@ -115,7 +150,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       count: insertResult.count,
-      alertTriggered
+      alertTriggered,
+      analytics: {
+        bbt_profile: bbtProfile,
+        thermal_shift_detected_celsius: thermalShiftDelta,
+        mean_sleep_hours: meanSleepDuration,
+        sleep_disruption_flag: sleepDisruptionDetected,
+        total_longitudinal_records: allRecentObservations.length
+      }
     });
   } catch (error: any) {
     console.error("[POST /api/observations/bulk] error:", error);

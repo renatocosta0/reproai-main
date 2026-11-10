@@ -6,7 +6,7 @@
 //
 // Docs: https://console.groq.com/docs/openai
 
-import type { ChatMessage } from "@/lib/azure/openai";
+import type { ChatMessage, ChatOptions, ChatResult, RawToolCall } from "@/lib/azure/openai";
 
 export class GroqNotConfigured extends Error {
   constructor() {
@@ -21,12 +21,10 @@ export interface GroqConfig {
 }
 
 // Models tried in order if the configured model returns 404/model_not_found.
-// llama-3.1-8b-instant is reliably available on the free developer plan.
-// Override the first choice with GROQ_MODEL in .env.
+// llama-3.1-8b-instant and llama-3.3-70b-versatile support OpenAI tool-calling.
 const FALLBACK_MODELS = [
-  "llama-3.1-8b-instant",    // free tier — always available
-  "llama-3.3-70b-versatile", // enterprise; available if plan allows
-  "openai/gpt-oss-20b"       // paid tier fallback
+  "llama-3.1-8b-instant",    // free tier — always available, fast tool-calling
+  "llama-3.3-70b-versatile"  // high reasoning & tool use
 ];
 
 export function getGroqConfig(): GroqConfig | null {
@@ -34,11 +32,55 @@ export function getGroqConfig(): GroqConfig | null {
   if (!apiKey) return null;
   return {
     apiKey,
-    // llama-3.1-8b-instant is on Groq's free developer plan.
-    // llama-3.3-70b-versatile requires an Enterprise plan.
-    // Override with GROQ_MODEL in .env if needed.
     model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
     baseUrl: "https://api.groq.com/openai/v1"
+  };
+}
+
+// Low-level Groq chat call that supports function/tool calling in OpenAI format
+export async function groqChatRaw(
+  messages: unknown[],
+  options: ChatOptions = {}
+): Promise<ChatResult> {
+  const cfg = getGroqConfig();
+  if (!cfg) throw new GroqNotConfigured();
+
+  const body: Record<string, unknown> = {
+    model: cfg.model,
+    messages,
+    temperature: options.temperature ?? 0.3,
+    max_tokens: options.maxTokens ?? 700
+  };
+
+  if (options.tools && options.tools.length > 0) {
+    body.tools = options.tools;
+    body.tool_choice = "auto";
+  }
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${cfg.apiKey}`
+    },
+    body: JSON.stringify(body),
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Groq error (${res.status}): ${detail}`);
+  }
+
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string; tool_calls?: RawToolCall[] } }>;
+  };
+
+  const message = data.choices?.[0]?.message;
+  return {
+    content: message?.content ?? null,
+    toolCalls: message?.tool_calls ?? [],
+    raw: message ?? null
   };
 }
 
@@ -83,7 +125,6 @@ export async function groqChatCompletion(
   const cfg = getGroqConfig();
   if (!cfg) throw new GroqNotConfigured();
 
-  // Try configured model first, then fallbacks if model is not found on this plan
   const modelsToTry = [
     cfg.model,
     ...FALLBACK_MODELS.filter((m) => m !== cfg.model)
@@ -95,12 +136,11 @@ export async function groqChatCompletion(
       return await callGroq(cfg.apiKey, model, messages, options);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
-      // Only fall through if the model itself is unavailable
       if (msg.includes("model_not_found") || msg.includes("model_decommissioned") || msg.includes("404")) {
         lastError = e instanceof Error ? e : new Error(msg);
         continue;
       }
-      throw e; // Other errors (auth, rate limit, etc.) — propagate immediately
+      throw e;
     }
   }
 

@@ -32,5 +32,6 @@ export interface AgentMessage {
 export interface AgentResult {
   reply: string;
   toolsUsed: string[];
+  provider?: "azure" | "groq";
 }
 

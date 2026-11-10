@@ -22,16 +22,16 @@ export async function POST(req: NextRequest) {
     const messages = body.messages as AgentMessage[];
     const system: AgentMessage = { role: "system", content: buildGroundedSystemPrompt([]) };
 
-    const { reply, toolsUsed } = await runAgent([system, ...messages]);
+    const { reply, toolsUsed, provider } = await runAgent([system, ...messages]);
     await audit(session.userId, "agent_message", `user:${session.userId}`);
-    return NextResponse.json({ reply, toolsUsed });
+    return NextResponse.json({ reply, toolsUsed, provider });
   } catch (e: any) {
     console.error("[POST /api/agent] error:", e);
-    if (e instanceof AzureNotConfigured) {
+    if (e instanceof AzureNotConfigured || e?.message?.includes("Neither Azure OpenAI nor Groq")) {
       return NextResponse.json(
         {
           error:
-            "The agent is not configured yet. Add Azure OpenAI credentials to enable it."
+            "The agent is not configured yet. Add Azure OpenAI or Groq credentials to enable autonomous agent execution."
         },
         { status: 503 }
       );
