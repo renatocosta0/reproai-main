@@ -35,9 +35,21 @@ export function getAzureSearchConfig(): AzureSearchConfig | null {
   return { endpoint: endpoint.replace(/\/$/, ""), apiKey, index };
 }
 
+export interface McpConfig {
+  url: string;
+  token?: string;
+}
+
+export function getMcpConfig(): McpConfig | null {
+  const url = process.env.MCP_SERVER_URL;
+  if (!url) return null;
+  return { url: url.replace(/\/$/, ""), token: process.env.MCP_SERVER_TOKEN || undefined };
+}
+
 export function azureStatus() {
   return {
     openAI: getAzureOpenAIConfig() !== null,
-    search: getAzureSearchConfig() !== null
+    search: getAzureSearchConfig() !== null,
+    mcp: getMcpConfig() !== null
   };
 }

@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server";
+import { runAgent, AgentMessage } from "@/lib/agents/orchestrator";
+import { buildGroundedSystemPrompt } from "@/lib/azure/prompt";
+import { AzureNotConfigured } from "@/lib/azure/openai";
+import { getSession } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+
+// Agentic assistant endpoint. Runs the Azure-backed agent with built-in and MCP
+// tools. Never fabricates answers: returns 503 when Azure is not configured.
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => null);
+    if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
+      return NextResponse.json({ error: "messages are required" }, { status: 400 });
+    }
+
+    const messages = body.messages as AgentMessage[];
+    const system: AgentMessage = { role: "system", content: buildGroundedSystemPrompt([]) };
+
+    const { reply, toolsUsed } = await runAgent([system, ...messages]);
+    await audit(session.userId, "agent_message", `user:${session.userId}`);
+    return NextResponse.json({ reply, toolsUsed });
+  } catch (e: any) {
+    console.error("[POST /api/agent] error:", e);
+    if (e instanceof AzureNotConfigured) {
+      return NextResponse.json(
+        {
+          error:
+            "The agent is not configured yet. Add Azure OpenAI credentials to enable it."
+        },
+        { status: 503 }
+      );
+    }
+    const message = e instanceof Error ? e.message : "Agent error";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+}
+

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { FOLLOW_UP_STATUSES } from "@/lib/follow-up";
+import { getSession } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 
 // Lists and updates closed-loop follow-up records. Operates only on persisted
 // data; no records are fabricated.
@@ -30,6 +32,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const session = await getSession();
     const body = await req.json().catch(() => null);
     if (!body || !body.id || !FOLLOW_UP_STATUSES.includes(body.status)) {
       return NextResponse.json({ error: "id and a valid status are required" }, { status: 400 });
@@ -38,6 +41,10 @@ export async function PATCH(req: NextRequest) {
       where: { id: body.id },
       data: { status: body.status, note: body.note }
     });
+
+    const actorId = session?.userId ?? "clinician_system";
+    await audit(actorId, "status_transition", `follow_up:${body.id}:${body.status}`);
+
     return NextResponse.json({ item });
   } catch (error: any) {
     console.error("[PATCH /api/follow-up] error:", error);

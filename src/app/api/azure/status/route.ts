@@ -10,7 +10,8 @@ export async function GET() {
     // Azure (preferred)
     azure: {
       openAI: azure.openAI,
-      search: azure.search
+      search: azure.search,
+      mcp: azure.mcp
     },
     // Free-tier fallback
     groq: {

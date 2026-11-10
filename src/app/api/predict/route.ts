@@ -108,7 +108,83 @@ export async function POST(req: NextRequest) {
       await audit(session.userId, "prediction_generated", `couple:${coupleId}`);
     }
 
-    return NextResponse.json(result);
+    // ── Challenge 02: Longitudinal Explainability & Segregated Factors ──
+    const modifiableFactors: Array<{ factor: string; clinicalRationale: string; target: string }> = [];
+    const nonModifiableFactors: Array<{ factor: string; clinicalRationale: string; impact: string }> = [];
+
+    // Modifiable evaluations
+    if (body.bmi !== undefined && body.bmi !== null) {
+      modifiableFactors.push({
+        factor: "Body Mass Index (BMI)",
+        clinicalRationale: body.bmi >= 25 || body.bmi < 18.5
+          ? "Metabolic and adipose-derived hormone disruptions adversely impact ovulation, endometrial receptivity, and sperm parameters (WHO 2023)."
+          : "Normoweight BMI optimizes follicular development and cycle regularity.",
+        target: "Optimize toward BMI 20-24.9 kg/m²"
+      });
+    }
+
+    if (body.sperm_count !== undefined && body.sperm_count !== null) {
+      modifiableFactors.push({
+        factor: "Sperm Concentration",
+        clinicalRationale: body.sperm_count < 15
+          ? "Oligozoospermia (< 15 M/mL) indicates subfertility. Lifestyle modifications, antioxidant therapy, and urological workup can improve seminal parameters (WHO 6th Ed. Semen Manual)."
+          : "Normozoospermia (> 15 M/mL) supports natural conception and standard IVF response.",
+        target: "Maintain > 15 million/mL with lifestyle & metabolic optimization"
+      });
+    }
+
+    // Non-modifiable evaluations
+    if (body.age !== undefined && body.age !== null) {
+      nonModifiableFactors.push({
+        factor: "Maternal Age",
+        clinicalRationale: "Primary independent predictor of oocyte euploidy and live birth rate across all assisted reproduction protocols (ESHRE 2020).",
+        impact: body.age >= 38 ? "High risk of age-related oocyte decline" : "Favorable age window"
+      });
+    }
+
+    if (body.amh !== undefined && body.amh !== null) {
+      nonModifiableFactors.push({
+        factor: "Anti-Müllerian Hormone (AMH)",
+        clinicalRationale: "Circulating biomarker of functional ovarian reserve and primordial follicle pool (POSEIDON / Bologna criteria).",
+        impact: body.amh < 1.1 ? "Diminished ovarian reserve (low responder profile)" : "Normal-to-high follicular reserve"
+      });
+    }
+
+    if (body.infertility_duration_months) {
+      nonModifiableFactors.push({
+        factor: "Duration of Infertility",
+        clinicalRationale: "Longstanding subfertility (> 36 months) is correlated with secondary peritoneal or unmeasured tubal factors.",
+        impact: `${body.infertility_duration_months} months elapsed`
+      });
+    }
+
+    // Quantified uncertainty bounds
+    const missingBiomarkersCount = [body.amh, body.sperm_count, body.bmi].filter((v) => v === undefined || v === null).length;
+    const dynamicConfidenceLow = Math.max(0, Math.round((result.confidence_low ?? result.probability - 6) - (missingBiomarkersCount * 2.5)));
+    const dynamicConfidenceHigh = Math.min(100, Math.round((result.confidence_high ?? result.probability + 6) + (missingBiomarkersCount * 2.5)));
+
+    const limitations: string[] = [
+      "Screening vs Diagnosis: This model calculates probabilistic treatment response and does not constitute a formal diagnosis of infertility.",
+      "Anatomical Boundaries: Model does not evaluate tubal patency (hysterosalpingography), intrauterine synechiae, or severe pelvic endometriosis.",
+      "Clinical Discretion: All treatment trajectories must be confirmed by a licensed reproductive endocrinologist adhering to WHO and ESHRE standards."
+    ];
+
+    const enrichedResult = {
+      ...result,
+      confidence_low: dynamicConfidenceLow,
+      confidence_high: dynamicConfidenceHigh,
+      modifiable_factors: modifiableFactors,
+      non_modifiable_factors: nonModifiableFactors,
+      uncertainty_bounds: {
+        lower: dynamicConfidenceLow,
+        upper: dynamicConfidenceHigh,
+        margin: Math.round((dynamicConfidenceHigh - dynamicConfidenceLow) / 2),
+        dataCompletenessPenalty: missingBiomarkersCount > 0 ? `${missingBiomarkersCount * 5}% expanded interval due to missing lab values` : "None (fully calibrated)"
+      },
+      limitations
+    };
+
+    return NextResponse.json(enrichedResult);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 502 });

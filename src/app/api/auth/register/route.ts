@@ -24,15 +24,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
 
-    // Patients get a couple created so both partners can share one record.
-    const couple = role === "PATIENT" ? await prisma.couple.create({ data: {} }) : null;
+    // Patients get a couple created so both partners can share one record,
+    // or link to an existing couple invited by a clinician.
+    let coupleId: string | null = null;
+    if (role === "PATIENT") {
+      if (body.token) {
+        const inv = await prisma.invitation.findUnique({ where: { token: String(body.token) } });
+        if (inv && inv.status === "PENDING") {
+          coupleId = inv.coupleId;
+          await prisma.invitation.update({
+            where: { id: inv.id },
+            data: { status: "ACCEPTED", acceptedAt: new Date() }
+          });
+        }
+      }
+      if (!coupleId) {
+        const couple = await prisma.couple.create({ data: {} });
+        coupleId = couple.id;
+      }
+    }
 
     const user = await prisma.user.create({
       data: {
         email,
         password: await hashPassword(password),
         role: role as Role,
-        coupleId: couple?.id ?? null
+        coupleId
       }
     });
 
