@@ -4,16 +4,22 @@
 export interface PredictionInput {
   age: number;
   bmi: number;
-  sperm_count: number;
-  amh: number;
-  pcos_history: boolean;
-  infertility_duration_months: number;
-  prior_cycles: number;
+  sperm_count?: number | null;
+  amh?: number | null;
+  sex?: "female" | "male";
+  scope?: "INDIVIDUAL" | "COUPLE";
+  pcos_history?: boolean;
+  infertility_duration_months?: number;
+  prior_cycles?: number;
+  preservation_intent?: boolean;
+  antral_follicle_count?: number | null;
 }
 
 export interface FeatureImportance {
   feature: string;
   impact: number;
+  direction?: string;
+  shapley_value?: number;
 }
 
 export interface PredictionOutput {
@@ -23,6 +29,10 @@ export interface PredictionOutput {
   factors: FeatureImportance[];
   model_version: string;
   disclaimer: string;
+  scope?: "INDIVIDUAL" | "COUPLE";
+  tier?: string | null;
+  preservation_guidance?: string | null;
+  age_adjusted_percentile?: number | null;
 }
 
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8000";

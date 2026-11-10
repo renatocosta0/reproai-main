@@ -13,10 +13,12 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const coupleId = searchParams.get("coupleId");
+    const userId = searchParams.get("userId");
     const code = searchParams.get("code");
 
     const where: Record<string, unknown> = {};
     if (coupleId) where.coupleId = coupleId;
+    if (userId) where.userId = userId;
     if (code) where.code = code;
 
     const observations = await prisma.observation.findMany({
@@ -26,8 +28,12 @@ export async function GET(req: NextRequest) {
     });
 
     // Also include FHIR RiskAssessment resource from predictions if available
+    const predWhere: Record<string, unknown> = {};
+    if (coupleId) predWhere.coupleId = coupleId;
+    if (userId) predWhere.userId = userId;
+
     const predictions = await prisma.prediction.findMany({
-      where: coupleId ? { coupleId } : {},
+      where: predWhere,
       orderBy: { createdAt: "desc" },
       take: 10
     });
@@ -66,8 +72,8 @@ export async function GET(req: NextRequest) {
             text: loinc.display
           },
           subject: {
-            reference: `Patient/${obs.coupleId}`,
-            display: `Couple ${obs.coupleId.slice(0, 8)}`
+            reference: `Patient/${obs.userId ?? obs.coupleId ?? "anonymous"}`,
+            display: obs.coupleId ? `Couple ${obs.coupleId.slice(0, 8)}` : `Individual ${obs.userId?.slice(0, 8) ?? "User"}`
           },
           effectiveDateTime: obs.effectiveAt.toISOString(),
           valueQuantity: {
@@ -90,12 +96,12 @@ export async function GET(req: NextRequest) {
         id: pred.id,
         status: "final",
         subject: {
-          reference: `Patient/${pred.coupleId}`,
-          display: `Couple ${pred.coupleId.slice(0, 8)}`
+          reference: `Patient/${pred.userId ?? pred.coupleId ?? "anonymous"}`,
+          display: pred.coupleId ? `Couple ${pred.coupleId.slice(0, 8)}` : `Individual ${pred.userId?.slice(0, 8) ?? "User"}`
         },
         occurrenceDateTime: pred.createdAt.toISOString(),
         basis: [
-          { reference: `Observation?coupleId=${pred.coupleId}` }
+          { reference: pred.coupleId ? `Observation?coupleId=${pred.coupleId}` : `Observation?userId=${pred.userId}` }
         ],
         method: {
           coding: [

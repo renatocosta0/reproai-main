@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 
-// Lists patients for the authenticated couple/clinician. Returns only persisted
-// records; empty array when none exist. No mock records are injected.
-export async function GET() {
+// Lists patients. Supports filtering by coupleId or userId.
+export async function GET(req: NextRequest) {
   try {
-    const patients = await prisma.patient.findMany({ orderBy: { createdAt: "desc" } });
+    const session = await getSession();
+    const coupleId = req.nextUrl.searchParams.get("coupleId");
+    const userId = req.nextUrl.searchParams.get("userId");
+
+    const where: any = {};
+    if (coupleId) where.coupleId = coupleId;
+    if (userId) where.userId = userId;
+
+    const patients = await prisma.patient.findMany({
+      where,
+      orderBy: { createdAt: "desc" }
+    });
     return NextResponse.json({ patients });
   } catch (error: any) {
     console.error("[GET /api/patients] error:", error);
@@ -15,11 +26,22 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
     const body = await req.json().catch(() => null);
-    if (!body || !body.coupleId) {
-      return NextResponse.json({ error: "coupleId is required" }, { status: 400 });
+    if (!body) {
+      return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
     }
-    const patient = await prisma.patient.create({ data: body });
+
+    const coupleId = body.coupleId ?? session?.coupleId ?? null;
+    const userId = body.userId ?? session?.userId ?? null;
+
+    const patient = await prisma.patient.create({
+      data: {
+        ...body,
+        coupleId,
+        userId
+      }
+    });
     return NextResponse.json({ patient }, { status: 201 });
   } catch (error: any) {
     console.error("[POST /api/patients] error:", error);

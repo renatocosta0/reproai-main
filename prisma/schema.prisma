@@ -23,6 +23,12 @@ model User {
   createdAt DateTime @default(now())
   couple    Couple?  @relation(fields: [coupleId], references: [id])
   coupleId  String?
+
+  // Individual-First architecture relations
+  patientProfile      Patient?
+  observations        Observation[]
+  predictions         Prediction[]
+  sentPairingInvites  PairingInvite[] @relation("SentPairingInvites")
 }
 
 model Couple {
@@ -38,11 +44,16 @@ model Couple {
 
 model Patient {
   id        String   @id @default(cuid())
-  couple    Couple   @relation(fields: [coupleId], references: [id])
-  coupleId  String
+  // Individual owner link
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id])
+  // Optional shared couple link (when paired)
+  coupleId  String?
+  couple    Couple?  @relation(fields: [coupleId], references: [id])
+
   name      String?
-  // Clinical attributes used by the model. All optional until entered by a real user.
-  sex             String?
+  // Clinical attributes used by the model
+  sex             String?  // "female" | "male"
   age             Int?
   bmi             Float?
   amh             Float?
@@ -50,13 +61,21 @@ model Patient {
   pcosHistory     Boolean?
   infertilityDurationMonths Int?
   priorCycles     Int?
+  antralFollicleCount       Int?
+  cycleRegularity           String? // "REGULAR" | "IRREGULAR" | "AMENORRHEA"
+  preservationIntent        Boolean? @default(false)
   createdAt       DateTime @default(now())
 }
 
 model Observation {
   id        String   @id @default(cuid())
-  couple    Couple   @relation(fields: [coupleId], references: [id])
-  coupleId  String
+  // Individual owner
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  // Optional couple association
+  coupleId  String?
+  couple    Couple?  @relation(fields: [coupleId], references: [id])
+
   // FHIR-aligned: code + value + unit (e.g. body temperature, sleep hours)
   code      String
   value     Float
@@ -66,11 +85,19 @@ model Observation {
 
 model Prediction {
   id            String   @id @default(cuid())
-  couple        Couple   @relation(fields: [coupleId], references: [id])
-  coupleId      String
+  // Individual owner
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  // Optional couple association
+  coupleId      String?
+  couple        Couple?  @relation(fields: [coupleId], references: [id])
+
+  scope         String   @default("COUPLE") // "INDIVIDUAL" | "COUPLE"
   probability   Float
   confidenceLow Float?
   confidenceHigh Float?
+  tier          String?  // "OPTIMAL" | "AGE_APPROPRIATE" | "REDUCED_RESERVE" | "CLINICAL_ATTENTION_NEEDED"
+  preservationGuidance String?
   // JSON string of feature importances returned by the ML service
   factors       String?
   modelVersion  String?
@@ -117,4 +144,16 @@ model ApiKey {
   clinicName  String?
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
+}
+
+model PairingInvite {
+  id              String    @id @default(cuid())
+  senderId        String
+  sender          User      @relation("SentPairingInvites", fields: [senderId], references: [id])
+  recipientEmail  String
+  token           String    @unique
+  status          String    @default("PENDING") // PENDING | ACCEPTED | REVOKED | EXPIRED
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+  acceptedAt      DateTime?
 }

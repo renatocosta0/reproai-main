@@ -67,6 +67,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Also update individual Patient profile
+    if (body.name || femaleName || maleName) {
+      const preferredName = (femaleName || maleName || body.name || "").trim();
+      if (preferredName) {
+        const indProfile = await prisma.patient.findUnique({ where: { userId: session.userId } });
+        if (indProfile) {
+          await prisma.patient.update({
+            where: { id: indProfile.id },
+            data: { name: preferredName }
+          });
+        }
+      }
+    }
+
     await audit(session.userId, "consent", `user:${session.userId}`);
     return NextResponse.json({ ok: true, consentAt: consentAt.toISOString() });
   } catch (error: any) {

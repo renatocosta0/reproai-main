@@ -7,105 +7,120 @@ import { audit } from "@/lib/audit";
 interface ExtendedPredictionInput extends PredictionInput {
   female_name?: string;
   male_name?: string;
+  sex?: "female" | "male";
+  scope?: "INDIVIDUAL" | "COUPLE";
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as ExtendedPredictionInput;
-    const result = await predict(body);
 
-    // If an authenticated patient couple is making the request, persist records
+    // Detect scope if not specified: if either sperm_count or amh is absent, it's an individual assessment
+    const isExplicitIndividual = body.scope === "INDIVIDUAL" || (body.sperm_count === undefined && body.amh !== undefined) || (body.amh === undefined && body.sperm_count !== undefined);
+    const scope = isExplicitIndividual ? "INDIVIDUAL" : (body.scope ?? "COUPLE");
+
+    const result = await predict({
+      ...body,
+      scope: scope as "INDIVIDUAL" | "COUPLE"
+    });
+
     const session = await getSession();
-    if (session?.coupleId) {
-      const coupleId = session.coupleId;
+    let predictionRecordId: string | null = null;
 
-      // 1. Persist prediction in DB
-      await prisma.prediction.create({
+    if (session) {
+      const coupleId = session.coupleId ?? null;
+      const userId = session.userId;
+
+      // 1. Persist prediction in DB with scope, tier, and guidance
+      const pred = await prisma.prediction.create({
         data: {
           coupleId,
+          userId,
+          scope,
           probability: result.probability,
           confidenceLow: result.confidence_low ?? null,
           confidenceHigh: result.confidence_high ?? null,
+          tier: result.tier ?? null,
+          preservationGuidance: result.preservation_guidance ?? null,
           factors: JSON.stringify(result.factors),
           modelVersion: result.model_version
         }
       });
+      predictionRecordId = pred.id;
 
-      // 2. Upsert Female Partner profile
-      const female = await prisma.patient.findFirst({
-        where: { coupleId, sex: "female" }
-      });
+      // 2. Individual profile update for the authenticated user
+      const userProfile = await prisma.patient.findUnique({ where: { userId } });
+      const inferredSex = body.sex ?? (body.sperm_count && !body.amh ? "male" : "female");
 
-      if (female) {
+      if (userProfile) {
         await prisma.patient.update({
-          where: { id: female.id },
+          where: { id: userProfile.id },
           data: {
-            name: body.female_name ? body.female_name.trim() : female.name,
-            age: body.age ? Math.round(body.age) : female.age,
-            bmi: body.bmi,
-            amh: body.amh,
-            pcosHistory: body.pcos_history,
-            infertilityDurationMonths: body.infertility_duration_months,
-            priorCycles: body.prior_cycles
-          }
-        });
-      } else {
-        await prisma.patient.create({
-          data: {
-            coupleId,
-            sex: "female",
-            name: body.female_name ? body.female_name.trim() : null,
-            age: body.age ? Math.round(body.age) : null,
-            bmi: body.bmi,
-            amh: body.amh,
-            pcosHistory: body.pcos_history,
-            infertilityDurationMonths: body.infertility_duration_months,
-            priorCycles: body.prior_cycles
+            name: (inferredSex === "female" ? body.female_name : body.male_name) ?? userProfile.name,
+            age: body.age ? Math.round(body.age) : userProfile.age,
+            bmi: body.bmi ?? userProfile.bmi,
+            amh: body.amh !== undefined ? body.amh : userProfile.amh,
+            spermCount: body.sperm_count !== undefined ? body.sperm_count : userProfile.spermCount,
+            pcosHistory: body.pcos_history !== undefined ? body.pcos_history : userProfile.pcosHistory,
+            infertilityDurationMonths: body.infertility_duration_months ?? userProfile.infertilityDurationMonths,
+            priorCycles: body.prior_cycles ?? userProfile.priorCycles,
+            antralFollicleCount: body.antral_follicle_count ?? userProfile.antralFollicleCount,
+            preservationIntent: body.preservation_intent ?? userProfile.preservationIntent
           }
         });
       }
 
-      // 3. Upsert Male Partner profile
-      const male = await prisma.patient.findFirst({
-        where: { coupleId, sex: "male" }
-      });
-
-      if (male) {
-        await prisma.patient.update({
-          where: { id: male.id },
-          data: {
-            name: body.male_name ? body.male_name.trim() : male.name,
-            spermCount: body.sperm_count
+      // 3. Backwards-compatible sync for Couple container
+      if (coupleId) {
+        if (inferredSex === "female" || scope === "COUPLE") {
+          const female = await prisma.patient.findFirst({ where: { coupleId, sex: "female" } });
+          if (female) {
+            await prisma.patient.update({
+              where: { id: female.id },
+              data: {
+                name: body.female_name ? body.female_name.trim() : female.name,
+                age: body.age ? Math.round(body.age) : female.age,
+                bmi: body.bmi,
+                amh: body.amh ?? female.amh,
+                pcosHistory: body.pcos_history ?? female.pcosHistory,
+                infertilityDurationMonths: body.infertility_duration_months ?? female.infertilityDurationMonths,
+                priorCycles: body.prior_cycles ?? female.priorCycles
+              }
+            });
           }
-        });
-      } else {
-        await prisma.patient.create({
-          data: {
-            coupleId,
-            sex: "male",
-            name: body.male_name ? body.male_name.trim() : null,
-            spermCount: body.sperm_count
-          }
-        });
-      }
+        }
 
-      // 4. Closed-loop follow-up alert if success probability is low (< 25%)
-      if (result.probability < 25) {
-        const existingAlert = await prisma.followUp.findFirst({
-          where: { coupleId, status: "ALERT_RAISED" }
-        });
-        if (!existingAlert) {
-          await prisma.followUp.create({
-            data: {
-              coupleId,
-              status: "ALERT_RAISED",
-              note: `Low-response probability detected (${result.probability}%). Multidisciplinary case review suggested.`
-            }
+        if (inferredSex === "male" || (scope === "COUPLE" && body.sperm_count !== undefined)) {
+          const male = await prisma.patient.findFirst({ where: { coupleId, sex: "male" } });
+          if (male) {
+            await prisma.patient.update({
+              where: { id: male.id },
+              data: {
+                name: body.male_name ? body.male_name.trim() : male.name,
+                spermCount: body.sperm_count ?? male.spermCount
+              }
+            });
+          }
+        }
+
+        // 4. Closed-loop triage alert if success probability is low (< 25%) in couple mode
+        if (scope === "COUPLE" && result.probability < 25) {
+          const existingAlert = await prisma.followUp.findFirst({
+            where: { coupleId, status: "ALERT_RAISED" }
           });
+          if (!existingAlert) {
+            await prisma.followUp.create({
+              data: {
+                coupleId,
+                status: "ALERT_RAISED",
+                note: `Low-response probability detected (${result.probability}%). Multidisciplinary case review suggested.`
+              }
+            });
+          }
         }
       }
 
-      await audit(session.userId, "prediction_generated", `couple:${coupleId}`);
+      await audit(session.userId, "prediction_generated", `scope:${scope}:id:${predictionRecordId}`);
     }
 
     // ── Challenge 02: Longitudinal Explainability & Segregated Factors ──
@@ -136,7 +151,7 @@ export async function POST(req: NextRequest) {
     // Non-modifiable evaluations
     if (body.age !== undefined && body.age !== null) {
       nonModifiableFactors.push({
-        factor: "Maternal Age",
+        factor: "Chronological Age",
         clinicalRationale: "Primary independent predictor of oocyte euploidy and live birth rate across all assisted reproduction protocols (ESHRE 2020).",
         impact: body.age >= 38 ? "High risk of age-related oocyte decline" : "Favorable age window"
       });
@@ -164,13 +179,30 @@ export async function POST(req: NextRequest) {
     const dynamicConfidenceHigh = Math.min(100, Math.round((result.confidence_high ?? result.probability + 6) + (missingBiomarkersCount * 2.5)));
 
     const limitations: string[] = [
-      "Screening vs Diagnosis: This model calculates probabilistic treatment response and does not constitute a formal diagnosis of infertility.",
+      "Screening vs Diagnosis: This model calculates probabilistic treatment response across the life course and does not constitute a formal diagnosis of infertility.",
       "Anatomical Boundaries: Model does not evaluate tubal patency (hysterosalpingography), intrauterine synechiae, or severe pelvic endometriosis.",
-      "Clinical Discretion: All treatment trajectories must be confirmed by a licensed reproductive endocrinologist adhering to WHO and ESHRE standards."
+      "Clinical Discretion: All treatment and preservation trajectories must be confirmed by a licensed reproductive endocrinologist adhering to WHO and ESHRE standards."
+    ];
+
+    const recommendedOptions = scope === "INDIVIDUAL" ? [
+      "Individual health & lifestyle metabolic optimization",
+      result.tier === "OPTIMAL" || result.tier === "AGE_APPROPRIATE"
+        ? "Fertility preservation discussion (Elective oocyte/sperm vitrification prior to age-related decline)"
+        : "Specialist consultation (Early ovarian reserve workup or andrology evaluation)",
+      "Longitudinal wearable cycle and basal body temperature tracking"
+    ] : [
+      "Preconception couple counseling",
+      "Comprehensive semen analysis & ovulatory confirmation",
+      "Specialist referral for assisted reproduction protocols (IUI / IVF)"
     ];
 
     const enrichedResult = {
       ...result,
+      scope,
+      tier: result.tier ?? (scope === "INDIVIDUAL" ? "OPTIMAL" : "COUPLE_BIVARIATE"),
+      preservation_guidance: result.preservation_guidance,
+      age_adjusted_percentile: result.age_adjusted_percentile,
+      recommended_options: recommendedOptions,
       confidence_low: dynamicConfidenceLow,
       confidence_high: dynamicConfidenceHigh,
       modifiable_factors: modifiableFactors,
@@ -186,6 +218,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(enrichedResult);
   } catch (err) {
+    console.error("[POST /api/predict] error:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 502 });
   }

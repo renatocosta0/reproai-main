@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (body.sperm_count !== undefined && body.sperm_count < 15) {
+    if (body.sperm_count !== undefined && body.sperm_count !== null && body.sperm_count < 15) {
       modifiableFactors.push({
         factor: "Sperm Concentration",
         value: body.sperm_count,

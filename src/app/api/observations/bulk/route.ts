@@ -21,24 +21,25 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => null);
-    if (!body || !body.coupleId || !Array.isArray(body.observations) || body.observations.length === 0) {
+    const coupleId = body?.coupleId ? String(body.coupleId) : session.coupleId;
+
+    if (!body || !Array.isArray(body.observations) || body.observations.length === 0) {
       return NextResponse.json(
-        { error: "coupleId and non-empty observations array are required" },
+        { error: "non-empty observations array is required" },
         { status: 400 }
       );
     }
 
-    const coupleId = String(body.coupleId);
-
     // Authorization: patient can only log for their couple; clinician can log for any
-    if (session.role === "PATIENT" && session.coupleId !== coupleId) {
+    if (session.role === "PATIENT" && body.coupleId && session.coupleId !== body.coupleId) {
       return NextResponse.json({ error: "Forbidden: couple mismatch" }, { status: 403 });
     }
 
     const validObservations = (body.observations as ObservationItem[])
       .filter((obs) => obs && typeof obs.code === "string" && typeof obs.value === "number" && !isNaN(obs.value))
       .map((obs) => ({
-        coupleId,
+        coupleId: coupleId ?? null,
+        userId: session.userId,
         code: obs.code.trim(),
         value: obs.value,
         unit: obs.unit ? obs.unit.trim() : null,
@@ -65,9 +66,9 @@ export async function POST(req: NextRequest) {
     let meanSleepDuration = 0;
     let sleepDisruptionDetected = false;
 
-    // Fetch combined historical + new observations for couple to assess longitudinal trajectory
+    // Fetch combined historical + new observations for couple or individual to assess longitudinal trajectory
     const allRecentObservations = await prisma.observation.findMany({
-      where: { coupleId },
+      where: coupleId ? { coupleId } : { userId: session.userId },
       orderBy: { effectiveAt: "asc" },
       take: 60
     });
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Proactive Clinician Triage Alert
-    if (alertTriggered && alertReason) {
+    if (coupleId && alertTriggered && alertReason) {
       const existingAlert = await prisma.followUp.findFirst({
         where: { coupleId, status: "ALERT_RAISED" }
       });

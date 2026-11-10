@@ -24,9 +24,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
 
-    // Patients get a couple created so both partners can share one record,
-    // or link to an existing couple invited by a clinician.
+    // Patients get an individual record and a couple container so both partners
+    // can share one record when paired, or link to an existing couple invited by a clinician.
     let coupleId: string | null = null;
+    let sex: string | null = body.sex ?? null;
+    let name: string | null = body.name ?? null;
+
     if (role === "PATIENT") {
       if (body.token) {
         const inv = await prisma.invitation.findUnique({ where: { token: String(body.token) } });
@@ -53,10 +56,28 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // Individual-First: Create dedicated Patient profile directly linked to user
+    if (role === "PATIENT") {
+      await prisma.patient.create({
+        data: {
+          userId: user.id,
+          coupleId: user.coupleId,
+          name: name ? name.trim() : null,
+          sex: sex || (body.token ? "female" : null),
+          age: body.age ? Number(body.age) : null,
+          bmi: body.bmi ? Number(body.bmi) : null,
+          amh: body.amh ? Number(body.amh) : null,
+          spermCount: body.sperm_count ? Number(body.sperm_count) : null,
+          pcosHistory: body.pcos_history ? Boolean(body.pcos_history) : null,
+          preservationIntent: body.preservation_intent ? Boolean(body.preservation_intent) : false
+        }
+      });
+    }
+
     await createSession({ userId: user.id, role: user.role as Role, coupleId: user.coupleId });
     await audit(user.id, "register", `user:${user.id}`);
 
-    return NextResponse.json({ ok: true, role: user.role }, { status: 201 });
+    return NextResponse.json({ ok: true, role: user.role, userId: user.id, coupleId: user.coupleId }, { status: 201 });
   } catch (error: any) {
     console.error("[POST /api/auth/register] error:", error);
     return NextResponse.json(
