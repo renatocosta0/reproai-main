@@ -32,13 +32,29 @@ export async function POST(req: NextRequest) {
 
     if (role === "PATIENT") {
       if (body.token) {
+        // 1. Check clinician prescription invitation
         const inv = await prisma.invitation.findUnique({ where: { token: String(body.token) } });
         if (inv && inv.status === "PENDING") {
           coupleId = inv.coupleId;
+          sex = sex || inv.sex || null;
+          name = name || inv.name || null;
           await prisma.invitation.update({
             where: { id: inv.id },
             data: { status: "ACCEPTED", acceptedAt: new Date() }
           });
+        } else {
+          // 2. Check partner pairing invitation
+          const pairInv = await prisma.pairingInvite.findUnique({
+            where: { token: String(body.token) },
+            include: { sender: true }
+          });
+          if (pairInv && pairInv.status === "PENDING" && new Date() <= pairInv.expiresAt) {
+            coupleId = pairInv.sender.coupleId;
+            await prisma.pairingInvite.update({
+              where: { id: pairInv.id },
+              data: { status: "ACCEPTED", acceptedAt: new Date() }
+            });
+          }
         }
       }
       if (!coupleId) {

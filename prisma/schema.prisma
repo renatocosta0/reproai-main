@@ -124,17 +124,22 @@ model AuditLog {
 }
 
 model Invitation {
-  id          String    @id @default(cuid())
-  coupleId    String
-  couple      Couple    @relation(fields: [coupleId], references: [id])
-  femaleEmail String
-  maleEmail   String?
-  token       String    @unique
-  notes       String?
-  invitedBy   String    // Clinician userId
-  status      String    @default("PENDING") // PENDING | ACCEPTED | EXPIRED
-  acceptedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  id           String    @id @default(cuid())
+  coupleId     String
+  couple       Couple    @relation(fields: [coupleId], references: [id])
+  scope        String    @default("COUPLE") // INDIVIDUAL | COUPLE
+  email        String?   // primary or individual email
+  partnerEmail String?   // optional partner email
+  sex          String?   // female | male
+  name         String?   // patient name
+  femaleEmail  String?   // preserved for legacy compatibility
+  maleEmail    String?
+  token        String    @unique
+  notes        String?
+  invitedBy    String    // Clinician userId
+  status       String    @default("PENDING") // PENDING | ACCEPTED | EXPIRED
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
 }
 
 model ApiKey {
