@@ -126,3 +126,4 @@ export async function GET() {
     return NextResponse.json({ error: error?.message ?? "Failed to fetch invitations" }, { status: 500 });
   }
 }
+
