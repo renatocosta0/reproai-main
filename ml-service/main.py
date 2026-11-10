@@ -19,7 +19,7 @@ Architecture:
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 import math
 
 app = FastAPI(
@@ -39,16 +39,32 @@ app.add_middleware(
 # ── Input / Output schemas ────────────────────────────────────────────────────
 
 class PredictionInput(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     age: float = Field(..., ge=18, le=55, description="Female age in years")
     bmi: float = Field(..., ge=10, le=60, description="Female BMI (kg/m²)")
     sperm_count: float = Field(..., ge=0, description="Sperm concentration (million/mL)")
     amh: float = Field(..., ge=0, description="Anti-Müllerian hormone (ng/mL)")
-    pcos_history: bool = Field(..., description="Documented history of PCOS")
-    infertility_duration_months: int = Field(..., ge=0, description="Duration of infertility in months")
-    prior_cycles: int = Field(..., ge=0, description="Number of prior IVF/treatment cycles")
+    pcos_history: bool = Field(default=False, description="Documented history of PCOS")
+    infertility_duration_months: int = Field(default=12, ge=0, description="Duration of infertility in months")
+    prior_cycles: int = Field(default=0, ge=0, description="Number of prior IVF/treatment cycles")
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_aliases(cls, data):
+        if isinstance(data, dict):
+            # Map female_age -> age if age missing
+            if "age" not in data and "female_age" in data:
+                data["age"] = data["female_age"]
+            # Map sperm_concentration -> sperm_count if missing
+            if "sperm_count" not in data and "sperm_concentration" in data:
+                data["sperm_count"] = data["sperm_concentration"]
+        return data
 
 
 class FeatureImportance(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     feature: str
     impact: float
     direction: str = "neutral"  # "positive" | "negative" | "neutral"
@@ -56,6 +72,8 @@ class FeatureImportance(BaseModel):
 
 
 class PredictionOutput(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     probability: float          # 0–100 (percentage)
     confidence_low: float       # lower bound of 95% CI
     confidence_high: float      # upper bound of 95% CI
