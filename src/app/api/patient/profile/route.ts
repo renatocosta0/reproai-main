@@ -160,3 +160,4 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? "Failed to update profile" }, { status: 500 });
   }
 }
+
