@@ -26,8 +26,11 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email: email.trim(), password })
       });
-      // The account's real role decides where to go, whichever tab was selected.
-      router.replace(homeForRole(result.role));
+      // Honour ?next= for same-site paths only (e.g. returning to a partner invite);
+      // otherwise the account's real role decides where to go.
+      const next = new URLSearchParams(window.location.search).get("next");
+      const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+      router.replace(safeNext ?? homeForRole(result.role));
       router.refresh();
     } catch (err) {
       setError(

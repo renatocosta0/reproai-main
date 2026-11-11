@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { createSession, getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 
@@ -75,6 +75,9 @@ export async function POST(req: NextRequest) {
     });
 
     await audit(session.userId, "pairing_accepted", `couple:${sharedCoupleId}:sender:${invite.senderId}`);
+
+    // The session JWT carries coupleId; reissue it so later requests use the shared couple.
+    await createSession({ userId: session.userId, role: session.role, coupleId: sharedCoupleId });
 
     return NextResponse.json({
       ok: true,

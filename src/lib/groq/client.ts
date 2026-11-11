@@ -57,19 +57,29 @@ export async function groqChatRaw(
     body.tool_choice = "auto";
   }
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${cfg.apiKey}`
-    },
-    body: JSON.stringify(body),
-    cache: "no-store"
-  });
+  // Same fallback as groqChatCompletion: if the configured model is retired or
+  // unavailable to this key, try the next tool-calling model.
+  const modelsToTry = [cfg.model, ...FALLBACK_MODELS.filter((m) => m !== cfg.model)];
+  let res: Response | null = null;
+  let lastDetail = "";
+  for (const model of modelsToTry) {
+    res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cfg.apiKey}`
+      },
+      body: JSON.stringify({ ...body, model }),
+      cache: "no-store"
+    });
+    if (res.ok) break;
+    lastDetail = await res.text();
+    const unavailable = res.status === 404 || /model_not_found|model_decommissioned/.test(lastDetail);
+    if (!unavailable) break;
+  }
 
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Groq error (${res.status}): ${detail}`);
+  if (!res || !res.ok) {
+    throw new Error(`Groq error (${res?.status ?? "no response"}): ${lastDetail}`);
   }
 
   const data = (await res.json()) as {
