@@ -23,9 +23,10 @@ interface Props {
   name: string | null;
   sex: string | null;
   senderName: string | null;
+  emailHint?: string;
 }
 
-export function RegisterForm({ token, kind, email: invitedEmail, name: invitedName, sex: invitedSex, senderName }: Props) {
+export function RegisterForm({ token, kind, email: invitedEmail, name: invitedName, sex: invitedSex, senderName, emailHint }: Props) {
   const router = useRouter();
   const [name, setName] = useState(invitedName ?? "");
   const [email, setEmail] = useState(invitedEmail);
@@ -97,7 +98,7 @@ export function RegisterForm({ token, kind, email: invitedEmail, name: invitedNa
         readOnly={Boolean(invitedEmail)}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        hint={invitedEmail ? "This is the address your invitation was sent to." : undefined}
+        hint={invitedEmail ? "This is the address your invitation was sent to." : emailHint}
       />
 
       <div className="field">

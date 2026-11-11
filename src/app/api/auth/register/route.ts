@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      if (invite.kind === "CLINIC") {
+      // The invitation's name/sex describe the primary invitee only, not a partner.
+      if (invite.kind === "CLINIC" && email === invite.allowedEmails[0]) {
         sex = sex || invite.sex || null;
         name = name || invite.name || null;
       }
@@ -60,10 +61,18 @@ export async function POST(req: NextRequest) {
 
       if (invite.kind === "CLINIC") {
         coupleId = invite.coupleId;
-        await prisma.invitation.update({
-          where: { id: invite.id },
-          data: { status: "ACCEPTED", acceptedAt: new Date() }
-        });
+        // A couple prescription covers two emails: keep it open until both have
+        // registered, so the second partner joins the same shared record.
+        const others = invite.allowedEmails.filter((e) => e !== email);
+        const othersRegistered = others.length
+          ? await prisma.user.count({ where: { email: { in: others } } })
+          : 0;
+        if (othersRegistered >= others.length) {
+          await prisma.invitation.update({
+            where: { id: invite.id },
+            data: { status: "ACCEPTED", acceptedAt: new Date() }
+          });
+        }
       } else {
         coupleId = invite.coupleId;
         await prisma.pairingInvite.update({

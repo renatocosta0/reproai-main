@@ -11,6 +11,8 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   badge?: number;
+  /** Other path prefixes that should highlight this item (e.g. detail pages). */
+  match?: string[];
 }
 
 interface PortalShellProps {
@@ -31,7 +33,12 @@ export function PortalShell({ theme, navLabel, nav, user, sidebarFooter, topActi
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const current = nav.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
+  const current = nav.find(
+    (n) =>
+      pathname === n.href ||
+      pathname.startsWith(n.href + "/") ||
+      (n.match ?? []).some((m) => pathname === m || pathname.startsWith(m + "/"))
+  );
 
   async function logout() {
     setSigningOut(true);

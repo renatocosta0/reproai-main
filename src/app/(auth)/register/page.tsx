@@ -50,9 +50,15 @@ export default async function RegisterPage({
       <RegisterForm
         token={token}
         kind={invite.kind}
-        email={invite.allowedEmails[0] ?? ""}
-        name={invite.kind === "CLINIC" ? invite.name : null}
-        sex={invite.kind === "CLINIC" ? invite.sex : null}
+        // A couple prescription is valid for either partner's email, so let them type it.
+        email={invite.allowedEmails.length === 1 ? invite.allowedEmails[0] : ""}
+        emailHint={
+          invite.allowedEmails.length > 1
+            ? "Use the email address your clinic sent this invitation to (either partner's)."
+            : undefined
+        }
+        name={invite.kind === "CLINIC" && invite.allowedEmails.length === 1 ? invite.name : null}
+        sex={invite.kind === "CLINIC" && invite.allowedEmails.length === 1 ? invite.sex : null}
         senderName={invite.kind === "PARTNER" ? invite.senderName : null}
       />
     </AuthShell>
