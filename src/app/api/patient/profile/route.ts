@@ -70,12 +70,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Fetch latest individual prediction
+    // 3. Latest prediction: the user's own, or a joint one for their current couple.
+    // A partner's INDIVIDUAL predictions share the coupleId but stay private to them.
     const latestPrediction = await prisma.prediction.findFirst({
       where: {
         OR: [
-          { userId: session.userId },
-          { coupleId: session.coupleId }
+          { userId: session.userId, scope: "INDIVIDUAL" },
+          ...(session.coupleId ? [{ coupleId: session.coupleId, scope: "COUPLE" }] : [])
         ]
       },
       orderBy: { createdAt: "desc" }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 
 // FHIR R4 Observation export endpoint.
 // Returns patient observations in FHIR JSON format for interoperability
@@ -11,29 +12,38 @@ import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
+    // Clinicians export one case at a time; patients may only export their own record.
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
     const searchParams = req.nextUrl.searchParams;
-    const coupleId = searchParams.get("coupleId");
-    const userId = searchParams.get("userId");
+    const coupleId = session.role === "CLINICIAN" ? searchParams.get("coupleId") : null;
+    const userId = session.role === "CLINICIAN" ? searchParams.get("userId") : session.userId;
     const code = searchParams.get("code");
+    if (!coupleId && !userId) {
+      return NextResponse.json({ error: "coupleId or userId is required" }, { status: 400 });
+    }
 
-    const where: Record<string, unknown> = {};
-    if (coupleId) where.coupleId = coupleId;
-    if (userId) where.userId = userId;
-    if (code) where.code = code;
+    // A couple's export also covers records its current members made before
+    // pairing (stored under their earlier container).
+    let scope: Record<string, unknown>;
+    if (userId) {
+      scope = { userId };
+    } else {
+      const members = await prisma.user.findMany({ where: { coupleId: coupleId! }, select: { id: true } });
+      const ids = members.map((m) => m.id);
+      scope = { OR: [{ coupleId }, ...(ids.length ? [{ userId: { in: ids } }] : [])] };
+    }
 
     const observations = await prisma.observation.findMany({
-      where,
-      include: { couple: { include: { patients: true } } },
+      where: code ? { AND: [scope, { code }] } : scope,
       orderBy: { effectiveAt: "desc" }
     });
 
     // Also include FHIR RiskAssessment resource from predictions if available
-    const predWhere: Record<string, unknown> = {};
-    if (coupleId) predWhere.coupleId = coupleId;
-    if (userId) predWhere.userId = userId;
-
     const predictions = await prisma.prediction.findMany({
-      where: predWhere,
+      where: scope,
       orderBy: { createdAt: "desc" },
       take: 10
     });
@@ -133,11 +143,26 @@ export async function GET(req: NextRequest) {
       }
     }));
 
+    // FHIR Patient resources for the people in scope (minimal: id, name, gender).
+    const patients = await prisma.patient.findMany({
+      where: userId ? { userId } : { coupleId: coupleId! }
+    });
+    const patientEntries = patients.map((p) => ({
+      resource: {
+        resourceType: "Patient",
+        id: p.userId ?? p.id,
+        ...(p.name ? { name: [{ text: p.name }] } : {}),
+        ...(p.sex === "female" || p.sex === "male" ? { gender: p.sex } : {}),
+        meta: { source: "ReproAI", lastUpdated: p.createdAt.toISOString() }
+      }
+    }));
+
     const fhirBundle = {
       resourceType: "Bundle",
       type: "collection",
-      total: observationEntries.length + riskAssessmentEntries.length,
-      entry: [...observationEntries, ...riskAssessmentEntries]
+      timestamp: new Date().toISOString(),
+      total: patientEntries.length + observationEntries.length + riskAssessmentEntries.length,
+      entry: [...patientEntries, ...observationEntries, ...riskAssessmentEntries]
     };
 
     return NextResponse.json(fhirBundle, {

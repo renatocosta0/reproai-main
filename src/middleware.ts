@@ -31,7 +31,7 @@ export async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/clinician") && role !== "CLINICIAN") {
     const url = req.nextUrl.clone();
-    url.pathname = "/patient/dashboard";
+    url.pathname = "/patient/overview";
     return NextResponse.redirect(url);
   }
   if (pathname.startsWith("/patient") && role !== "PATIENT") {

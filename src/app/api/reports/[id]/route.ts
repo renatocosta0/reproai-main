@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 import { suggestProtocols } from "@/lib/protocols";
 import { buildReportPdf } from "@/lib/pdf";
 
@@ -8,6 +9,15 @@ import { buildReportPdf } from "@/lib/pdf";
 // no prediction to report on — nothing is invented.
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Patients may only download their own couple's report; clinicians any.
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+    if (session.role !== "CLINICIAN" && session.coupleId !== params.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const couple = await prisma.couple.findUnique({
       where: { id: params.id },
       include: { patients: true, predictions: { orderBy: { createdAt: "desc" }, take: 1 } }

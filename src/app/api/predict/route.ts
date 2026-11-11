@@ -48,11 +48,13 @@ export async function POST(req: NextRequest) {
       });
       predictionRecordId = pred.id;
 
-      // 2. Individual profile update for the authenticated user
+      // 2. Individual profile update for the authenticated user. Only for
+      // INDIVIDUAL scope: in COUPLE scope `age`/`amh`/`bmi` describe the female
+      // partner, so step 3 below writes them to the right partner by sex.
       const userProfile = await prisma.patient.findUnique({ where: { userId } });
       const inferredSex = body.sex ?? (body.sperm_count && !body.amh ? "male" : "female");
 
-      if (userProfile) {
+      if (userProfile && scope === "INDIVIDUAL") {
         await prisma.patient.update({
           where: { id: userProfile.id },
           data: {
