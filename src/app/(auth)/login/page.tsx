@@ -1,13 +1,22 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, HeartHandshake, Leaf, LockKeyhole, Mail, ShieldCheck, Stethoscope } from "lucide-react";
+import { ArrowRight, HeartHandshake, Leaf, LockKeyhole, Mail, PlayCircle, ShieldCheck, Stethoscope, UserRound, type LucideIcon } from "lucide-react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Field } from "@/components/ui/Field";
 import { ClinicalNotice, FormError } from "@/components/ui/Notice";
 import { api, ApiError, homeForRole, userMessage } from "@/lib/api-client";
 import type { Role } from "@/types";
+
+type DemoPersona = "CLINICIAN" | "FEMALE" | "MALE" | "COUPLE";
+
+const DEMO_PERSONAS: { persona: DemoPersona; label: string; detail: string; icon: LucideIcon }[] = [
+  { persona: "CLINICIAN", label: "Clinician", detail: "Cohort and follow-up", icon: Stethoscope },
+  { persona: "FEMALE", label: "Female patient", detail: "Ovarian reserve, BBT", icon: UserRound },
+  { persona: "MALE", label: "Male patient", detail: "Semen health, sleep", icon: UserRound },
+  { persona: "COUPLE", label: "Couple", detail: "Joint estimate", icon: HeartHandshake }
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,6 +25,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  const [demoLoading, setDemoLoading] = useState<DemoPersona | null>(null);
+
+  useEffect(() => {
+    api<{ enabled: boolean }>("/api/auth/demo")
+      .then((r) => setDemoEnabled(r.enabled))
+      .catch(() => setDemoEnabled(false));
+  }, []);
+
+  async function demoLogin(persona: DemoPersona) {
+    setDemoLoading(persona);
+    setError("");
+    try {
+      const result = await api<{ ok: true; role: Role }>("/api/auth/demo", {
+        method: "POST",
+        body: JSON.stringify({ persona })
+      });
+      router.replace(homeForRole(result.role));
+      router.refresh();
+    } catch (err) {
+      setError(userMessage(err, "Demo sign-in failed. Please try again."));
+      setDemoLoading(null);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -110,6 +143,26 @@ export default function LoginPage() {
           <div className="login-note">
             <ShieldCheck size={15} aria-hidden /> Clinician accounts are provisioned by your
             organisation
+          </div>
+        )}
+
+        {demoEnabled && (
+          <div className="demo-login">
+            <div className="demo-divider"><span>Or explore the demo</span></div>
+            <div className="demo-buttons">
+              {DEMO_PERSONAS.map(({ persona, label, detail, icon: Icon }) => (
+                <button key={persona} type="button" className="secondary" onClick={() => demoLogin(persona)} disabled={demoLoading !== null}>
+                  <Icon size={16} aria-hidden />
+                  <span>
+                    <strong>{demoLoading === persona ? "Opening…" : label}</strong>
+                    <small>{detail}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="demo-note">
+              <PlayCircle size={13} aria-hidden /> Demo accounts use sample data. No password needed.
+            </p>
           </div>
         )}
       </form>

@@ -43,7 +43,7 @@ async function main() {
     create: { id: "a3f9c2" }
   });
 
-  await prisma.user.upsert({
+  const patientA = await prisma.user.upsert({
     where: { email: "patient.a@reproai.dev" },
     update: { coupleId: couple1.id },
     create: {
@@ -57,9 +57,10 @@ async function main() {
 
   await prisma.patient.upsert({
     where: { id: "patient-1-female" },
-    update: { name: "Maya A." },
+    update: { name: "Maya A.", userId: patientA.id },
     create: {
       id: "patient-1-female",
+      userId: patientA.id,
       coupleId: couple1.id,
       name: "Maya A.",
       sex: "female",
@@ -129,11 +130,13 @@ async function main() {
   for (const obs of sampleObservations) {
     const obsDate = new Date(now);
     obsDate.setDate(now.getDate() - obs.daysAgo);
+    // Owned by the patient so it shows in her portal (patients only see their own readings).
     await prisma.observation.upsert({
       where: { id: obs.id },
-      update: {},
+      update: { userId: patientA.id },
       create: {
         id: obs.id,
+        userId: patientA.id,
         coupleId: couple1.id,
         code: obs.code,
         value: obs.value,
