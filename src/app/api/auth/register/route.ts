@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { resolveInviteToken } from "@/lib/invites";
 import type { Role } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -11,7 +12,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
     }
 
-    const { email, password, role } = body;
+    const { password, role } = body;
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     if (!email || !password || (role !== "PATIENT" && role !== "CLINICIAN")) {
       return NextResponse.json(
         { error: "email, password and a valid role are required" },
@@ -31,32 +33,45 @@ export async function POST(req: NextRequest) {
     let name: string | null = body.name ?? null;
 
     if (role === "PATIENT") {
-      if (body.token) {
-        // 1. Check clinician prescription invitation
-        const inv = await prisma.invitation.findUnique({ where: { token: String(body.token) } });
-        if (inv && inv.status === "PENDING") {
-          coupleId = inv.coupleId;
-          sex = sex || inv.sex || null;
-          name = name || inv.name || null;
-          await prisma.invitation.update({
-            where: { id: inv.id },
-            data: { status: "ACCEPTED", acceptedAt: new Date() }
-          });
-        } else {
-          // 2. Check partner pairing invitation
-          const pairInv = await prisma.pairingInvite.findUnique({
-            where: { token: String(body.token) },
-            include: { sender: true }
-          });
-          if (pairInv && pairInv.status === "PENDING" && new Date() <= pairInv.expiresAt) {
-            coupleId = pairInv.sender.coupleId;
-            await prisma.pairingInvite.update({
-              where: { id: pairInv.id },
-              data: { status: "ACCEPTED", acceptedAt: new Date() }
-            });
-          }
-        }
+      // B2B2C rule: patients can only register with a valid clinician prescription
+      // or partner pairing token, and only with the email the invite was issued to.
+      const invite = body.token ? await resolveInviteToken(String(body.token)) : null;
+      if (!invite) {
+        return NextResponse.json(
+          { error: "A valid clinic prescription or partner invitation is required to register." },
+          { status: 403 }
+        );
       }
+      if (invite.allowedEmails.length > 0 && !invite.allowedEmails.includes(email)) {
+        return NextResponse.json(
+          { error: "This invitation was issued to a different email address." },
+          { status: 403 }
+        );
+      }
+
+      if (invite.kind === "CLINIC") {
+        sex = sex || invite.sex || null;
+        name = name || invite.name || null;
+      }
+      // Validate before consuming the token so a bad request doesn't burn the invite.
+      if (sex !== "female" && sex !== "male") {
+        return NextResponse.json({ error: "Biological sex (female or male) is required." }, { status: 400 });
+      }
+
+      if (invite.kind === "CLINIC") {
+        coupleId = invite.coupleId;
+        await prisma.invitation.update({
+          where: { id: invite.id },
+          data: { status: "ACCEPTED", acceptedAt: new Date() }
+        });
+      } else {
+        coupleId = invite.coupleId;
+        await prisma.pairingInvite.update({
+          where: { id: invite.id },
+          data: { status: "ACCEPTED", acceptedAt: new Date() }
+        });
+      }
+
       if (!coupleId) {
         const couple = await prisma.couple.create({ data: {} });
         coupleId = couple.id;
@@ -79,7 +94,7 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           coupleId: user.coupleId,
           name: name ? name.trim() : null,
-          sex: sex || (body.token ? "female" : null),
+          sex,
           age: body.age ? Number(body.age) : null,
           bmi: body.bmi ? Number(body.bmi) : null,
           amh: body.amh ? Number(body.amh) : null,
