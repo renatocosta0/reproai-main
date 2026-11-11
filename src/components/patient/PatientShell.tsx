@@ -2,14 +2,14 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Activity, ClipboardList, HeartHandshake, Home, MessageCircle, UserRound } from "lucide-react";
+import { Activity, ClipboardCheck, HeartHandshake, Home, MessageCircle, UserRound } from "lucide-react";
 import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
 import { firstName, initials, usePatient } from "@/components/patient/PatientContext";
 
 const NAV: NavItem[] = [
   { href: "/patient/overview", label: "Today", icon: Home },
-  { href: "/patient/assessment", label: "My trajectory", icon: ClipboardList },
-  { href: "/patient/wearables", label: "Home tracking", icon: Activity },
+  { href: "/patient/assessment", label: "My assessment", icon: ClipboardCheck },
+  { href: "/patient/wearables", label: "Health tracking", icon: Activity },
   { href: "/patient/assistant", label: "Ask ReproAI", icon: MessageCircle },
   { href: "/patient/pairing", label: "Couple link", icon: HeartHandshake }
 ];

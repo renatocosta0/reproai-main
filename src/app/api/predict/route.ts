@@ -9,8 +9,6 @@ interface ExtendedPredictionInput extends PredictionInput {
   male_name?: string;
   sex?: "female" | "male";
   scope?: "INDIVIDUAL" | "COUPLE";
-  targetCoupleId?: string;
-  targetUserId?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -18,10 +16,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as ExtendedPredictionInput;
 
     // Detect scope if not specified: if either sperm_count or amh is absent, it's an individual assessment
-    const isExplicitIndividual =
-      body.scope === "INDIVIDUAL" ||
-      (body.sperm_count === undefined && body.amh !== undefined) ||
-      (body.amh === undefined && body.sperm_count !== undefined);
+    const isExplicitIndividual = body.scope === "INDIVIDUAL" || (body.sperm_count === undefined && body.amh !== undefined) || (body.amh === undefined && body.sperm_count !== undefined);
     const scope = isExplicitIndividual ? "INDIVIDUAL" : (body.scope ?? "COUPLE");
 
     const result = await predict({
@@ -33,20 +28,14 @@ export async function POST(req: NextRequest) {
     let predictionRecordId: string | null = null;
 
     if (session) {
-      const isClinician = session.role === "CLINICIAN";
-      const coupleId = (isClinician ? (body.targetCoupleId ?? null) : session.coupleId) ?? null;
-      let targetUserId = isClinician ? (body.targetUserId ?? null) : session.userId;
-
-      if (isClinician && !targetUserId && coupleId) {
-        const caseUser = await prisma.user.findFirst({ where: { coupleId, role: "PATIENT" } });
-        targetUserId = caseUser?.id ?? null;
-      }
+      const coupleId = session.coupleId ?? null;
+      const userId = session.userId;
 
       // 1. Persist prediction in DB with scope, tier, and guidance
       const pred = await prisma.prediction.create({
         data: {
           coupleId,
-          userId: targetUserId ?? (isClinician ? null : session.userId),
+          userId,
           scope,
           probability: result.probability,
           confidenceLow: result.confidence_low ?? null,
@@ -59,8 +48,10 @@ export async function POST(req: NextRequest) {
       });
       predictionRecordId = pred.id;
 
-      // 2. Individual profile update for the target user (if known)
-      const userProfile = targetUserId ? await prisma.patient.findUnique({ where: { userId: targetUserId } }) : null;
+      // 2. Individual profile update for the authenticated user. Only for
+      // INDIVIDUAL scope: in COUPLE scope `age`/`amh`/`bmi` describe the female
+      // partner, so step 3 below writes them to the right partner by sex.
+      const userProfile = await prisma.patient.findUnique({ where: { userId } });
       const inferredSex = body.sex ?? (body.sperm_count && !body.amh ? "male" : "female");
 
       if (userProfile && scope === "INDIVIDUAL") {
@@ -84,20 +75,15 @@ export async function POST(req: NextRequest) {
       // 3. Backwards-compatible sync for Couple container
       if (coupleId) {
         if (inferredSex === "female" || scope === "COUPLE") {
-          const female =
-            (await prisma.patient.findFirst({ where: { coupleId, sex: "female" } })) ??
-            (scope === "INDIVIDUAL" && inferredSex === "female"
-              ? await prisma.patient.findFirst({ where: { coupleId } })
-              : null);
+          const female = await prisma.patient.findFirst({ where: { coupleId, sex: "female" } });
           if (female) {
             await prisma.patient.update({
               where: { id: female.id },
               data: {
                 name: body.female_name ? body.female_name.trim() : female.name,
                 age: body.age ? Math.round(body.age) : female.age,
-                bmi: body.bmi ?? female.bmi,
+                bmi: body.bmi,
                 amh: body.amh ?? female.amh,
-                antralFollicleCount: body.antral_follicle_count ?? female.antralFollicleCount,
                 pcosHistory: body.pcos_history ?? female.pcosHistory,
                 infertilityDurationMonths: body.infertility_duration_months ?? female.infertilityDurationMonths,
                 priorCycles: body.prior_cycles ?? female.priorCycles
@@ -107,21 +93,13 @@ export async function POST(req: NextRequest) {
         }
 
         if (inferredSex === "male" || (scope === "COUPLE" && body.sperm_count !== undefined)) {
-          const male =
-            (await prisma.patient.findFirst({ where: { coupleId, sex: "male" } })) ??
-            (scope === "INDIVIDUAL" && inferredSex === "male"
-              ? await prisma.patient.findFirst({ where: { coupleId } })
-              : null);
+          const male = await prisma.patient.findFirst({ where: { coupleId, sex: "male" } });
           if (male) {
             await prisma.patient.update({
               where: { id: male.id },
               data: {
                 name: body.male_name ? body.male_name.trim() : male.name,
-                age: scope === "INDIVIDUAL" && body.age ? Math.round(body.age) : male.age,
-                bmi: scope === "INDIVIDUAL" && body.bmi ? body.bmi : male.bmi,
-                spermCount: body.sperm_count ?? male.spermCount,
-                infertilityDurationMonths: body.infertility_duration_months ?? male.infertilityDurationMonths,
-                priorCycles: body.prior_cycles ?? male.priorCycles
+                spermCount: body.sperm_count ?? male.spermCount
               }
             });
           }
@@ -155,10 +133,9 @@ export async function POST(req: NextRequest) {
     if (body.bmi !== undefined && body.bmi !== null) {
       modifiableFactors.push({
         factor: "Body Mass Index (BMI)",
-        clinicalRationale:
-          body.bmi >= 25 || body.bmi < 18.5
-            ? "Metabolic and adipose-derived hormone disruptions adversely impact ovulation, endometrial receptivity, and sperm parameters (WHO 2023)."
-            : "Normoweight BMI optimizes follicular development and cycle regularity.",
+        clinicalRationale: body.bmi >= 25 || body.bmi < 18.5
+          ? "Metabolic and adipose-derived hormone disruptions adversely impact ovulation, endometrial receptivity, and sperm parameters (WHO 2023)."
+          : "Normoweight BMI optimizes follicular development and cycle regularity.",
         target: "Optimize toward BMI 20-24.9 kg/m²"
       });
     }
@@ -166,10 +143,9 @@ export async function POST(req: NextRequest) {
     if (body.sperm_count !== undefined && body.sperm_count !== null) {
       modifiableFactors.push({
         factor: "Sperm Concentration",
-        clinicalRationale:
-          body.sperm_count < 15
-            ? "Oligozoospermia (< 15 M/mL) indicates subfertility. Lifestyle modifications, antioxidant therapy, and urological workup can improve seminal parameters (WHO 6th Ed. Semen Manual)."
-            : "Normozoospermia (> 15 M/mL) supports natural conception and standard IVF response.",
+        clinicalRationale: body.sperm_count < 15
+          ? "Oligozoospermia (< 15 M/mL) indicates subfertility. Lifestyle modifications, antioxidant therapy, and urological workup can improve seminal parameters (WHO 6th Ed. Semen Manual)."
+          : "Normozoospermia (> 15 M/mL) supports natural conception and standard IVF response.",
         target: "Maintain > 15 million/mL with lifestyle & metabolic optimization"
       });
     }
@@ -178,8 +154,7 @@ export async function POST(req: NextRequest) {
     if (body.age !== undefined && body.age !== null) {
       nonModifiableFactors.push({
         factor: "Chronological Age",
-        clinicalRationale:
-          "Primary independent predictor of oocyte euploidy and live birth rate across all assisted reproduction protocols (ESHRE 2020).",
+        clinicalRationale: "Primary independent predictor of oocyte euploidy and live birth rate across all assisted reproduction protocols (ESHRE 2020).",
         impact: body.age >= 38 ? "High risk of age-related oocyte decline" : "Favorable age window"
       });
     }
@@ -187,8 +162,7 @@ export async function POST(req: NextRequest) {
     if (body.amh !== undefined && body.amh !== null) {
       nonModifiableFactors.push({
         factor: "Anti-Müllerian Hormone (AMH)",
-        clinicalRationale:
-          "Circulating biomarker of functional ovarian reserve and primordial follicle pool (POSEIDON / Bologna criteria).",
+        clinicalRationale: "Circulating biomarker of functional ovarian reserve and primordial follicle pool (POSEIDON / Bologna criteria).",
         impact: body.amh < 1.1 ? "Diminished ovarian reserve (low responder profile)" : "Normal-to-high follicular reserve"
       });
     }
@@ -196,24 +170,15 @@ export async function POST(req: NextRequest) {
     if (body.infertility_duration_months) {
       nonModifiableFactors.push({
         factor: "Duration of Infertility",
-        clinicalRationale:
-          "Longstanding subfertility (> 36 months) is correlated with secondary peritoneal or unmeasured tubal factors.",
+        clinicalRationale: "Longstanding subfertility (> 36 months) is correlated with secondary peritoneal or unmeasured tubal factors.",
         impact: `${body.infertility_duration_months} months elapsed`
       });
     }
 
     // Quantified uncertainty bounds
-    const missingBiomarkersCount = [body.amh, body.sperm_count, body.bmi].filter(
-      (v) => v === undefined || v === null
-    ).length;
-    const dynamicConfidenceLow = Math.max(
-      0,
-      Math.round((result.confidence_low ?? result.probability - 6) - missingBiomarkersCount * 2.5)
-    );
-    const dynamicConfidenceHigh = Math.min(
-      100,
-      Math.round((result.confidence_high ?? result.probability + 6) + missingBiomarkersCount * 2.5)
-    );
+    const missingBiomarkersCount = [body.amh, body.sperm_count, body.bmi].filter((v) => v === undefined || v === null).length;
+    const dynamicConfidenceLow = Math.max(0, Math.round((result.confidence_low ?? result.probability - 6) - (missingBiomarkersCount * 2.5)));
+    const dynamicConfidenceHigh = Math.min(100, Math.round((result.confidence_high ?? result.probability + 6) + (missingBiomarkersCount * 2.5)));
 
     const limitations: string[] = [
       "Screening vs Diagnosis: This model calculates probabilistic treatment response across the life course and does not constitute a formal diagnosis of infertility.",
@@ -221,20 +186,17 @@ export async function POST(req: NextRequest) {
       "Clinical Discretion: All treatment and preservation trajectories must be confirmed by a licensed reproductive endocrinologist adhering to WHO and ESHRE standards."
     ];
 
-    const recommendedOptions =
-      scope === "INDIVIDUAL"
-        ? [
-            "Individual health & lifestyle metabolic optimization",
-            result.tier === "OPTIMAL" || result.tier === "AGE_APPROPRIATE"
-              ? "Fertility preservation discussion (Elective oocyte/sperm vitrification prior to age-related decline)"
-              : "Specialist consultation (Early ovarian reserve workup or andrology evaluation)",
-            "Longitudinal wearable cycle and basal body temperature tracking"
-          ]
-        : [
-            "Preconception couple counseling",
-            "Comprehensive semen analysis & ovulatory confirmation",
-            "Specialist referral for assisted reproduction protocols (IUI / IVF)"
-          ];
+    const recommendedOptions = scope === "INDIVIDUAL" ? [
+      "Individual health & lifestyle metabolic optimization",
+      result.tier === "OPTIMAL" || result.tier === "AGE_APPROPRIATE"
+        ? "Fertility preservation discussion (Elective oocyte/sperm vitrification prior to age-related decline)"
+        : "Specialist consultation (Early ovarian reserve workup or andrology evaluation)",
+      "Longitudinal wearable cycle and basal body temperature tracking"
+    ] : [
+      "Preconception couple counseling",
+      "Comprehensive semen analysis & ovulatory confirmation",
+      "Specialist referral for assisted reproduction protocols (IUI / IVF)"
+    ];
 
     const enrichedResult = {
       ...result,
@@ -251,10 +213,7 @@ export async function POST(req: NextRequest) {
         lower: dynamicConfidenceLow,
         upper: dynamicConfidenceHigh,
         margin: Math.round((dynamicConfidenceHigh - dynamicConfidenceLow) / 2),
-        dataCompletenessPenalty:
-          missingBiomarkersCount > 0
-            ? `${missingBiomarkersCount * 5}% expanded interval due to missing lab values`
-            : "None (fully calibrated)"
+        dataCompletenessPenalty: missingBiomarkersCount > 0 ? `${missingBiomarkersCount * 5}% expanded interval due to missing lab values` : "None (fully calibrated)"
       },
       limitations
     };
