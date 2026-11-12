@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { resolveInviteToken } from "@/lib/invites";
+import { PURPOSES, PURPOSE_INFO, setConsent } from "@/lib/consent";
 import type { Role } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -19,6 +20,12 @@ export async function POST(req: NextRequest) {
         { error: "email, password and a valid role are required" },
         { status: 400 }
       );
+    }
+
+    // Clinician accounts are provisioned by the organisation, never self-registered.
+    // ALLOW_CLINICIAN_SIGNUP="true" exists only to bootstrap a fresh deployment.
+    if (role === "CLINICIAN" && process.env.ALLOW_CLINICIAN_SIGNUP !== "true") {
+      return NextResponse.json({ error: "Clinician accounts are provisioned by your organisation." }, { status: 403 });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -105,13 +112,18 @@ export async function POST(req: NextRequest) {
           name: name ? name.trim() : null,
           sex,
           age: body.age ? Number(body.age) : null,
-          bmi: body.bmi ? Number(body.bmi) : null,
-          amh: body.amh ? Number(body.amh) : null,
-          spermCount: body.sperm_count ? Number(body.sperm_count) : null,
-          pcosHistory: body.pcos_history ? Boolean(body.pcos_history) : null,
+          // Laboratory values are never self-registered: clinicians record them with provenance.
           preservationIntent: body.preservation_intent ? Boolean(body.preservation_intent) : false
         }
       });
+
+      // Granular consent chosen at activation (defaults apply to anything not sent).
+      const choices = typeof body.consents === "object" && body.consents ? body.consents : {};
+      for (const purpose of PURPOSES) {
+        const granted = typeof choices[purpose] === "boolean" ? choices[purpose] : PURPOSE_INFO[purpose].defaultGranted;
+        await setConsent(user.id, purpose, granted);
+      }
+      await prisma.user.update({ where: { id: user.id }, data: { consentAt: new Date() } });
     }
 
     await createSession({ userId: user.id, role: user.role as Role, coupleId: user.coupleId });

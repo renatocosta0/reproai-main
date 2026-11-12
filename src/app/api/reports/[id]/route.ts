@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { canAccessCase } from "@/lib/clinician-scope";
 import { suggestProtocols } from "@/lib/protocols";
 import { buildReportPdf } from "@/lib/pdf";
 
@@ -14,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     if (!session) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
-    if (session.role !== "CLINICIAN" && session.coupleId !== params.id) {
+    if (session.role === "CLINICIAN" ? !(await canAccessCase(session.userId, params.id)) : session.coupleId !== params.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

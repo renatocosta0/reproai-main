@@ -5,6 +5,51 @@
 
 ---
 
+### 0. READ FIRST: OFFICIAL BRIEF, BENCHMARK AND CURRENT STATUS (added 12 Nov 2026, issue #2)
+
+**Deadline: working prototype + technical documentation, assumptions and limitations due 20 November 2026.** Evaluation 20–30 November; top three present at GITEX (7–11 December).
+
+The full analysis is in [`docs/challenge-02-benchmark.md`](docs/challenge-02-benchmark.md). Its conclusions override any conflicting instruction later in this file.
+
+#### 0.1 The official Challenge 02 brief (what judges score against)
+The challenge "is not to provide a deterministic 'fertility score'; it is to create an evidence-led, understandable view of change over time that supports informed choices without creating anxiety, discrimination or false certainty." A solution should provide:
+- **R1 Longitudinal view:** combine only the inputs a user is authorised and willing to share, showing **direction of change rather than a one-off label**.
+- **R2 Plain-language interpretation:** modifiable vs non-modifiable, the **evidence** behind the assessment, and **where missing data or uncertainty limits the result**.
+- **R3 Timely, personalised options:** health optimisation, testing, preconception counselling, preservation discussion, specialist referral, **without prescribing beyond intended use**.
+- **R4 Clinician and system usefulness:** concise clinician view **plus population-level insight**; individual decisions stay with professionals.
+- **R5 Privacy, non-discrimination, user control:** **granular, revocable consent**; no use for employment, insurance or unrelated decisions.
+- **R6 Evidence of earlier action:** time from risk signal to counselling/assessment, informed-choice quality, referral completion, equitable reach, **calibration and false-reassurance risks reported**.
+
+Judging criteria (unweighted): health impact and clinical relevance; technical depth and architecture; working solution and demo quality; **responsible AI, safety and data governance**; scalability and deployment readiness; **commercial viability and path to pilot**.
+
+#### 0.2 Non-negotiable principles from the reference demo (Inception42 Brain Health Agent Lab)
+1. **Numbers come only from deterministic, versioned tools. The LLM only explains** tool output, and a failed LLM call is shown as a labelled fallback, never as live AI.
+2. **Gated pipeline:** consent → data completeness → calculation → explanation → **clinician review and approval** → release → follow-up → audit. A failed gate stops later stages; missing critical inputs stop the assessment or visibly widen uncertainty. **Never impute a missing biomarker silently.**
+3. **Provenance on every value:** self-reported, clinician-verified, device, or calculated. Observations, calculated findings and AI-generated text are visually separate.
+4. **Compare each person with their own baseline** and age-specific reference ranges; show direction of change with intervals.
+5. **Honest evidence labels:** "runs in prototype", "simulated", "proposed for production", "not clinically validated". No unsupported performance claims.
+6. **Measure it:** an evaluation view with denominators and Wilson 95% intervals, equity breakdowns and a list of what a pilot must still measure.
+7. **English and Arabic** for patient-facing summaries.
+
+#### 0.3 Real-world grounding (Abu Dhabi)
+- Entry points that already exist: **mandatory premarital screening** (with a genetic panel), **IFHAS adult screening** for Thiqa holders (booked through Sahatna, now TAMM), the ADPHC **Biological Health Age** model, primary care and OB-GYN, fertility clinics, oncology.
+- Use the **Daman Thiqa ART guideline (v3.6, Nov 2025)** as the local rule source: reduced ovarian reserve = **AMH < 1.1 ng/mL or AFC < 5–7**; WHO semen lower limits (concentration 15 M/mL, total 39 M, total motility 40% / progressive 32%, morphology 4%); refer earlier than 12 months if female age > 35 or red flags; women 18–47, BMI 19–40. **Social egg freezing is covered for eligible single Thiqa members since Oct 2025:** max two cycles per lifetime, 5 years' storage, mandatory psychological assessment.
+- WHO's first global infertility guideline (Nov 2025): prevention and education in primary care, stepped care, male-factor assessment, psychosocial support.
+
+#### 0.4 Corrections to the plan below
+1. **Entry is governed, not only clinic-prescribed.** Keep "no open self-registration", but allow **programme invitations** (premarital screening, IFHAS, primary care) as well as clinician prescriptions, so the product reaches people *before* they are trying to conceive.
+2. **Patients enter what they know; clinicians verify labs.** Patients complete a short *self-reported* intake (history, cycle pattern, symptoms, lifestyle, family history). AMH, AFC and semen analysis are entered or verified by a clinician (Malaffi import in production) and labelled as such.
+3. **No single probability as the patient headline.** For individuals, lead with marker trajectories (AMH-for-age percentile, semen parameters vs WHO reference, cycle and BBT pattern) and a data-completeness indicator. The live-birth probability is shown only for couples who are trying, in clinician-reviewed context, always with its interval.
+4. **Clinician sign-off before release.** Patients see an assessment only after a clinician has reviewed it, added a note and approved it.
+
+#### 0.5 What is already built (do not rebuild)
+**P0-1 to P0-7 implemented on 12 Nov 2026** (branch `feat/challenge02-benchmark`): missing-data gates, trajectory-first patient view, clinician-verified labs and sign-off, pathway rules engine, granular consent with clinician scoping, evidence dashboard, and `docs/technical-documentation.md`. Remaining: P1 items in 5A.
+
+
+Design system and auth pages; patient portal (Today, assessment, tracking with BBT coverline and sleep, assistant, couple link, `/pair`); clinician portal (cohort dashboard with couples/individuals tabs, prescribe dialog, follow-up kanban, case record with estimate history, wearable charts, FHIR R4 export, PDF); demo personas (`npm run demo:setup`, `DEMO_LOGIN_ENABLED`); auth on all clinical APIs; revocable pairing. See the README for details.
+
+---
+
 ### 1. EXECUTIVE STRATEGY & STRATEGIC REALIGNMENT
 
 #### 1.1 The Clinical Reality & Challenge Mandate
@@ -210,6 +255,66 @@ All views must adhere to the design system established in `Build ReproAI Fertili
 
 ---
 
+### 5A. REVISED ROADMAP TO 20 NOVEMBER (supersedes Section 5 ordering)
+
+Section 5 below lists the original steps; most are built (see 0.5). Work in this order instead. Each item names the brief requirement (R1–R6) or judging criterion it serves.
+
+#### P0-1 Data-completeness gates and honest uncertainty (R2, Responsible AI)
+- `ml-service/main.py`: remove the silent defaults (`amh → 1.5`, `sperm_count → 15.0`). For each scope, define **required** and **optional** inputs. Missing required inputs → return `status: "insufficient_data"` with `missing: [...]` and no probability. Missing optional inputs → result with a visibly wider interval and `completeness` (0–1).
+- Remove the hard-coded `calibration_metric` claim ("ROC-AUC 0.792 … isotonic scaling"). Replace with `evidence_status: "literature-derived scoring, not clinically validated"` and the model version.
+- `/api/predict` passes completeness, missing inputs and evidence status through; UI shows a **Data completeness** meter, what is missing, and how to get it (e.g. "an AMH blood test"), in place of a number when the gate fails.
+- Add evidence-status chips to results and the README: *Runs in prototype*, *Simulated*, *Proposed for production*, *Not clinically validated*.
+
+#### P0-2 Trajectory-first patient view (R1, R2)
+- Persist `age_adjusted_percentile` and per-marker values on each assessment (schema: add `percentile Float?`, `completeness Float?`, `inputs String?` JSON to `Prediction`; add a `LabResult` model, see P0-3).
+- Patient **My trajectory** page leads with per-marker charts over time: AMH and AMH-for-age percentile (female), semen concentration / motility / morphology vs WHO lower limits (male), each with the personal baseline, reference band and direction-of-change sentence ("stable since March", "lower than your last test"). BBT/cycle pattern summary links to tracking.
+- The probability card is removed from the individual view; for paired couples it appears as "Joint estimate (clinician-reviewed)" with its interval and limitations.
+
+#### P0-3 Clinician-verified labs and sign-off (R4, Responsible AI)
+- New `LabResult` model: `userId`, `code` (LOINC: AMH 68343-3, AFC, sperm concentration 9780-8, motility, morphology, volume, FSH, etc.), `value`, `unit`, `collectedAt`, `source` (`CLINICIAN_VERIFIED` | `SELF_REPORTED` | `IMPORTED`), `enteredBy`, `createdAt`.
+- Clinician case record: **Enter / verify lab results** form (value, unit, date, source), then **Run assessment**, which creates a `Prediction` with `status: "DRAFT"`. Clinician reviews factors, edits a **clinician note**, and clicks **Approve and release** (`status: "RELEASED"`, `reviewedBy`, `reviewedAt`). Audit every step.
+- Patients see only `RELEASED` assessments. Before release, their page says the result is with their clinician.
+- Replace the patient lab form with a **self-reported intake** (cycle regularity, symptoms, history: PCOS, endometriosis, pelvic surgery/infection, chemotherapy; family history of early menopause; smoking, BMI, sleep; trying to conceive and for how long). Store as `SELF_REPORTED`.
+
+#### P0-4 Rule-based options engine (R3)
+- `src/lib/pathways.ts`: deterministic rules, each with an ID, trigger, recommended option, patient wording (EN/AR), clinician wording and citation. Minimum rule set:
+  - Trying ≥ 12 months, or ≥ 6 months with female age > 35 → specialist referral (WHO 2025; Thiqa guideline).
+  - Female age ≥ 30, not trying, no AMH on record → offer ovarian-reserve testing discussion.
+  - AMH < 1.1 ng/mL or AFC < 5–7 → reduced reserve → specialist review; if not trying, preservation discussion (Thiqa social egg freezing: two cycles lifetime, psychological assessment).
+  - Any semen parameter below WHO 6th-edition lower limit → repeat analysis and andrology/urology referral.
+  - Oligo/amenorrhoea, prior chemo/pelvic surgery/infection, known genetic disorder → earlier referral (red flags).
+  - BMI 35–40 → dietitian and counselling before treatment; BMI outside 19–40 → note Thiqa eligibility.
+  - Monophasic BBT pattern over ≥ 2 cycles → clinician review.
+  - Always: health-optimisation options for modifiable factors.
+- Shown to patients as plain-language "Your options" with the reason and source; to clinicians with rule IDs. Never phrased as a prescription.
+
+#### P0-5 Granular, revocable consent (R5)
+- `Consent` model per user and purpose: `LAB_RESULTS`, `WEARABLES`, `PARTNER_SHARING`, `CLINICIAN_ACCESS`, `POPULATION_ANALYTICS` (de-identified), each with `granted`, `grantedAt`, `revokedAt`.
+- Patient **Privacy & consent** page: toggles, plain explanation of each use, and the purpose-limitation guarantee: *"Your reproductive health data is never used for employment, insurance or any decision unrelated to your care."*
+- Enforce in the API (e.g. no wearable writes without `WEARABLES`; clinicians cannot read a user's data without `CLINICIAN_ACCESS`; population metrics exclude non-consenting users). Revocation takes effect immediately and is audited.
+- Close open `CLINICIAN` self-registration; clinicians see only cases they prescribed or were assigned.
+
+#### P0-6 Evidence dashboard (R6, Responsible AI, Commercial)
+- `/clinician/evidence` (and a judge-visible summary):
+  - **Live pathway metrics from app data:** median time from risk signal (alert or rule trigger) to follow-up opened, to appointment scheduled, to closed; referral completion rate; share of eligible people with a baseline; all with denominators and Wilson 95% CIs; broken down by sex, age band and nationality group.
+  - **Simulated validation cohort (clearly labelled synthetic):** calibration plot (predicted vs observed by decile), false-reassurance rate (reference-positive cases labelled favourable), sensitivity/specificity of the referral rules, with Wilson CIs.
+  - **What a pilot still needs to measure** and a DECIDE-AI reporting note.
+
+#### P0-7 Submission documentation
+- `docs/technical-documentation.md`: architecture, gated pipeline, model and rules with citations, data model, security and consent, **assumptions**, **limitations**, evidence status; mapped to the six criteria and R1–R6.
+
+#### P1 (if time allows)
+- Arabic (RTL) for patient summaries, options and key screens.
+- Guided judge tour ("Play demo"), including a missing-data case and a no-consent case.
+- Clinician AI copilot (`/clinician/assistant`): explains a selected case's tool results with citations; never computes numbers itself.
+- Population insight panel: groups who would benefit from earlier advice.
+- What-if simulator limited to modifiable factors, labelled illustrative.
+
+#### P2 (document only)
+Malaffi/FHIR import of verified labs, TAMM entry point, Health Age linkage, per-clinic tenancy, encryption at rest, DoH Responsible AI Standard conformity checklist.
+
+---
+
 ### 5. STEP-BY-STEP IMPLEMENTATION ROADMAP FOR CLAUDE CODE
 
 ```mermaid
@@ -285,4 +390,10 @@ flowchart TD
 4. **Prescription Gate:** No open self-registration for patients; activation strictly requires invitation tokens.
 5. **Pillar 5 Compliance:** Granular consent with revocable pairing preserving 100% of individual health data.
 6. **Strict Type Safety:** Next.js 14 App Router with `"use client"` where needed and `npx tsc --noEmit` passing cleanly.
+7. **No silent imputation:** a missing required biomarker produces an `insufficient_data` result that names what is missing; no probability is shown for it.
+8. **Clinician sign-off:** patients never see an assessment that a clinician has not approved; every review step is audited.
+9. **Provenance and evidence labels:** every value shows its source; every result shows its evidence status; no unsupported performance claims anywhere in the UI or docs.
+10. **Granular consent enforced in the API**, with the non-discrimination guarantee shown to the user.
+11. **Evidence dashboard** with live pathway metrics and a labelled simulated-cohort calibration and false-reassurance report.
+12. **Submission documents:** technical documentation, assumptions and limitations, mapped to R1–R6 and the six judging criteria.
 

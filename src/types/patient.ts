@@ -18,6 +18,11 @@ export interface PatientProfile {
   antralFollicleCount: number | null;
   cycleRegularity: string | null;
   preservationIntent: boolean | null;
+  tryingToConceive: boolean | null;
+  smoking: string | null;
+  historyFlags: string | null;
+  familyEarlyMenopause: boolean | null;
+  intakeCompletedAt: string | null;
   createdAt: string;
 }
 

@@ -61,15 +61,36 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Compute Real Machine Learning Prediction
+    // Inputs are passed exactly as supplied: nothing is imputed. The ML service
+    // returns insufficient_data when a required input is missing.
+    const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : null);
     const predictionResult = await predict({
       age: body.age,
       bmi: body.bmi,
-      amh: body.amh ?? 1.5,
-      sperm_count: body.sperm_count ?? 20.0,
-      pcos_history: Boolean(body.pcos_history),
-      infertility_duration_months: body.infertility_duration_months ?? 12,
-      prior_cycles: body.prior_cycles ?? 0
+      amh: num(body.amh),
+      sperm_count: num(body.sperm_count),
+      sex: body.sex === "male" ? "male" : "female",
+      scope: body.scope === "INDIVIDUAL" ? "INDIVIDUAL" : body.scope === "COUPLE" ? "COUPLE" : undefined,
+      pcos_history: typeof body.pcos_history === "boolean" ? body.pcos_history : null,
+      infertility_duration_months: num(body.infertility_duration_months),
+      prior_cycles: num(body.prior_cycles),
+      antral_follicle_count: num(body.antral_follicle_count)
     });
+
+    if (predictionResult.status === "insufficient_data" || predictionResult.probability === null) {
+      await audit(partnerId, "b2b_prediction_insufficient", `partner:${authenticatedPartnerName}`);
+      return NextResponse.json(
+        {
+          status: "insufficient_data",
+          missing_required: predictionResult.missing_required,
+          missing_optional: predictionResult.missing_optional,
+          completeness: predictionResult.completeness,
+          message: predictionResult.disclaimer
+        },
+        { status: 422 }
+      );
+    }
+    const probability = predictionResult.probability;
 
     // 4. Clinical Evidence Categorization (Challenge 02)
     const modifiableFactors = [];
@@ -114,7 +135,7 @@ export async function POST(req: NextRequest) {
       prediction: [
         {
           outcome: { text: "Assisted Reproductive Treatment (IVF) Success Probability" },
-          probabilityDecimal: Number((predictionResult.probability / 100).toFixed(4)),
+          probabilityDecimal: Number((probability / 100).toFixed(4)),
           whenRange: {
             low: { value: predictionResult.confidence_low ?? undefined, unit: "%" },
             high: { value: predictionResult.confidence_high ?? undefined, unit: "%" }
@@ -129,7 +150,10 @@ export async function POST(req: NextRequest) {
       status: "success",
       partner: authenticatedPartnerName,
       patient_reference: body.external_patient_id ?? null,
-      probability: predictionResult.probability,
+      probability,
+      completeness: predictionResult.completeness,
+      missing_optional: predictionResult.missing_optional,
+      evidence_status: predictionResult.evidence_status,
       confidence_interval: {
         lower: predictionResult.confidence_low,
         upper: predictionResult.confidence_high

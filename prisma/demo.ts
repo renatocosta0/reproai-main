@@ -36,6 +36,13 @@ const CLINICIAN_EMAIL = process.env.DEMO_CLINICIAN_EMAIL || "clinician@reproai.d
 const DAY = 86_400_000;
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY + 12 * 3_600_000 - (Date.now() % DAY));
 
+interface Intake {
+  tryingToConceive: boolean;
+  smoking: "NEVER" | "FORMER" | "CURRENT";
+  historyFlags: string[];
+  familyEarlyMenopause?: boolean;
+}
+
 interface Profile {
   name: string;
   sex: "female" | "male";
@@ -60,24 +67,45 @@ async function predict(input: Record<string, unknown>) {
   });
   if (!res.ok) throw new Error(`ML service ${res.status}: ${await res.text()}`);
   return (await res.json()) as {
-    probability: number;
-    confidence_low: number;
-    confidence_high: number;
+    status: string;
+    probability: number | null;
+    confidence_low: number | null;
+    confidence_high: number | null;
     factors: unknown[];
     model_version: string;
+    evidence_status: string;
+    completeness: number;
+    missing_optional: string[];
+    missing_required: string[];
     scope: string;
     tier: string | null;
     preservation_guidance: string | null;
+    age_adjusted_percentile: number | null;
   };
 }
 
-async function savePrediction(userId: string, coupleId: string, scope: "INDIVIDUAL" | "COUPLE", input: Record<string, unknown>, at: Date) {
+interface Review {
+  status: "RELEASED" | "DRAFT";
+  clinicianId: string;
+  note?: string;
+}
+
+async function savePrediction(userId: string, coupleId: string, scope: "INDIVIDUAL" | "COUPLE", input: Record<string, unknown>, at: Date, review: Review) {
   const r = await predict({ ...input, scope });
+  if (r.status !== "ok" || r.probability === null) throw new Error(`Demo input incomplete: ${r.missing_required.join(", ")}`);
+  // Provenance of each input, as the clinician assessment route records it.
+  const labKeys = new Set(["amh", "antral_follicle_count", "sperm_count"]);
+  const inputs = Object.fromEntries(
+    Object.entries(input)
+      .filter(([k, v]) => !["sex", "scope", "preservation_intent"].includes(k) && v !== null && v !== undefined)
+      .map(([k, v]) => [k, { value: v, source: labKeys.has(k) ? "CLINICIAN_VERIFIED" : "SELF_REPORTED", ...(labKeys.has(k) ? { date: at.toISOString() } : {}) }])
+  );
   await prisma.prediction.create({
     data: {
       userId,
       coupleId,
       scope,
+      status: review.status,
       probability: r.probability,
       confidenceLow: r.confidence_low,
       confidenceHigh: r.confidence_high,
@@ -85,10 +113,25 @@ async function savePrediction(userId: string, coupleId: string, scope: "INDIVIDU
       preservationGuidance: r.preservation_guidance,
       factors: JSON.stringify(r.factors),
       modelVersion: r.model_version,
+      completeness: r.completeness,
+      percentile: r.age_adjusted_percentile,
+      inputs: JSON.stringify(inputs),
+      missingOptional: JSON.stringify(r.missing_optional),
+      evidenceStatus: r.evidence_status,
+      createdById: review.clinicianId,
+      ...(review.status === "RELEASED"
+        ? { reviewedById: review.clinicianId, reviewedAt: new Date(at.getTime() + 26 * 3_600_000), clinicianNote: review.note ?? null }
+        : {}),
       createdAt: at
     }
   });
   return r;
+}
+
+async function labs(userId: string, clinicianId: string, rows: [string, number, string, number][]) {
+  await prisma.labResult.createMany({
+    data: rows.map(([code, value, unit, ago]) => ({ userId, code, value, unit, collectedAt: daysAgo(ago), source: "CLINICIAN_VERIFIED", enteredById: clinicianId }))
+  });
 }
 
 // ── Readings ─────────────────────────────────────────────────────────────────
@@ -124,7 +167,7 @@ function maxShift(values: number[]): number {
 }
 
 // ── Accounts ─────────────────────────────────────────────────────────────────
-async function upsertPatient(email: string, profile: Profile, coupleId: string) {
+async function upsertPatient(email: string, profile: Profile, coupleId: string, intake: Intake) {
   const password = await bcrypt.hash(randomBytes(24).toString("base64url"), 12);
   const user = await prisma.user.upsert({
     where: { email },
@@ -137,10 +180,16 @@ async function upsertPatient(email: string, profile: Profile, coupleId: string) 
     sex: profile.sex,
     age: profile.age,
     bmi: profile.bmi,
-    amh: profile.amh ?? null,
-    spermCount: profile.spermCount ?? null,
-    antralFollicleCount: profile.antralFollicleCount ?? null,
-    pcosHistory: profile.pcosHistory ?? null,
+    // Lab values live in LabResult (clinician verified), not on the profile.
+    amh: null,
+    spermCount: null,
+    antralFollicleCount: null,
+    pcosHistory: profile.pcosHistory ?? false,
+    tryingToConceive: intake.tryingToConceive,
+    smoking: intake.smoking,
+    historyFlags: JSON.stringify(intake.historyFlags),
+    familyEarlyMenopause: intake.familyEarlyMenopause ?? null,
+    intakeCompletedAt: daysAgo(38),
     infertilityDurationMonths: profile.infertilityDurationMonths ?? null,
     priorCycles: profile.priorCycles ?? null,
     preservationIntent: profile.preservationIntent ?? false,
@@ -150,6 +199,17 @@ async function upsertPatient(email: string, profile: Profile, coupleId: string) 
   // Fresh demo history on every run.
   await prisma.observation.deleteMany({ where: { userId: user.id } });
   await prisma.prediction.deleteMany({ where: { userId: user.id } });
+  await prisma.labResult.deleteMany({ where: { userId: user.id } });
+  await prisma.consent.deleteMany({ where: { userId: user.id } });
+  // Explicit consents: care purposes on, anonymous statistics on for the demo.
+  await prisma.consent.createMany({
+    data: ["CLINICIAN_ACCESS", "LAB_RESULTS", "WEARABLES", "PARTNER_SHARING", "POPULATION_ANALYTICS"].map((purpose) => ({
+      userId: user.id,
+      purpose,
+      granted: true,
+      grantedAt: daysAgo(40)
+    }))
+  });
   return user;
 }
 
@@ -195,27 +255,32 @@ async function main() {
     pcosHistory: false, infertilityDurationMonths: 0, preservationIntent: true, cycleRegularity: "REGULAR"
   };
   const fCouple = await container("demo-female");
-  const female = await upsertPatient("demo.female@reproai.dev", fProfile, fCouple);
+  const female = await upsertPatient("demo.female@reproai.dev", fProfile, fCouple, { tryingToConceive: false, smoking: "NEVER", historyFlags: [], familyEarlyMenopause: false });
+  await labs(female.id, clinician.id, [["AMH", 2.7, "ng/mL", 400], ["AMH", 2.4, "ng/mL", 5], ["AFC", 15, "follicles", 5]]);
   await prescription(fCouple, clinician.id, "INDIVIDUAL", "demo.female@reproai.dev", null, fProfile, "Interested in elective oocyte vitrification. Track BBT for two cycles.");
   await prisma.observation.createMany({
     data: [...bbtSeries(26, 13, 0.36), ...sleepSeries(21, 7.3, 0.5)].map((o) => ({ ...o, userId: female.id, coupleId: fCouple }))
   });
   const fInput = { sex: "female", age: 31, bmi: 22.8, amh: 2.4, antral_follicle_count: 15, pcos_history: false, infertility_duration_months: 0, preservation_intent: true };
-  await savePrediction(female.id, fCouple, "INDIVIDUAL", { ...fInput, amh: 2.7, age: 30 }, daysAgo(120));
-  const fr = await savePrediction(female.id, fCouple, "INDIVIDUAL", fInput, daysAgo(3));
+  await savePrediction(female.id, fCouple, "INDIVIDUAL", { ...fInput, amh: 2.7, age: 30, antral_follicle_count: null }, daysAgo(399), { status: "RELEASED", clinicianId: clinician.id, note: "Your first AMH result is in the expected range for your age. We will repeat it in about a year." });
+  const fr = await savePrediction(female.id, fCouple, "INDIVIDUAL", fInput, daysAgo(4), { status: "RELEASED", clinicianId: clinician.id, note: "Your egg reserve is still in the typical range for your age, and stable since last year. If egg freezing is still on your mind, we can talk through timing at your next visit." });
   console.log(`  ✓ Female   demo.female@reproai.dev   ${fr.probability}% (${fr.tier})`);
 
   // ── 2. Male individual ────────────────────────────────────────────────────
   const mProfile: Profile = { name: "Khalid R.", sex: "male", age: 35, bmi: 28.4, spermCount: 11.5 };
   const mCouple = await container("demo-male");
-  const male = await upsertPatient("demo.male@reproai.dev", mProfile, mCouple);
+  const male = await upsertPatient("demo.male@reproai.dev", mProfile, mCouple, { tryingToConceive: false, smoking: "CURRENT", historyFlags: [] });
+  await labs(male.id, clinician.id, [
+    ["SPERM_CONCENTRATION", 10.2, "million/mL", 95], ["SPERM_PROGRESSIVE_MOTILITY", 28, "%", 95], ["SPERM_MORPHOLOGY", 3, "%", 95],
+    ["SPERM_CONCENTRATION", 11.5, "million/mL", 4], ["SPERM_PROGRESSIVE_MOTILITY", 31, "%", 4], ["SPERM_MORPHOLOGY", 4, "%", 4], ["SEMEN_VOLUME", 2.1, "mL", 4]
+  ]);
   await prescription(mCouple, clinician.id, "INDIVIDUAL", "demo.male@reproai.dev", null, mProfile, "Semen analysis below WHO reference. Lifestyle review; repeat analysis in 3 months.");
   await prisma.observation.createMany({
     data: sleepSeries(21, 6.1, 1.3).map((o) => ({ ...o, userId: male.id, coupleId: mCouple }))
   });
   const mInput = { sex: "male", age: 35, bmi: 28.4, sperm_count: 11.5 };
-  await savePrediction(male.id, mCouple, "INDIVIDUAL", { ...mInput, sperm_count: 10.2, bmi: 29.3 }, daysAgo(90));
-  const mr = await savePrediction(male.id, mCouple, "INDIVIDUAL", mInput, daysAgo(2));
+  await savePrediction(male.id, mCouple, "INDIVIDUAL", { ...mInput, sperm_count: 10.2, bmi: 29.3 }, daysAgo(94), { status: "RELEASED", clinicianId: clinician.id, note: "Your sperm count is a little below the reference range. This is common and often improves. Let's repeat the test in three months." });
+  const mr = await savePrediction(male.id, mCouple, "INDIVIDUAL", mInput, daysAgo(3), { status: "RELEASED", clinicianId: clinician.id, note: "A small improvement since your first test. Stopping smoking and reaching a healthier weight are the two changes most likely to help. I have referred you to the andrology clinic for a review." });
   console.log(`  ✓ Male     demo.male@reproai.dev     ${mr.probability}% (${mr.tier})`);
 
   // ── 3. Paired couple ──────────────────────────────────────────────────────
@@ -225,8 +290,10 @@ async function main() {
   };
   const cmProfile: Profile = { name: "Yousef T.", sex: "male", age: 36, bmi: 26.2, spermCount: 18, infertilityDurationMonths: 18 };
   const cCouple = await container("demo-couple");
-  const cf = await upsertPatient("demo.couple@reproai.dev", cfProfile, cCouple);
-  const cm = await upsertPatient("demo.partner@reproai.dev", cmProfile, cCouple);
+  const cf = await upsertPatient("demo.couple@reproai.dev", cfProfile, cCouple, { tryingToConceive: true, smoking: "NEVER", historyFlags: ["PCOS"], familyEarlyMenopause: false });
+  const cm = await upsertPatient("demo.partner@reproai.dev", cmProfile, cCouple, { tryingToConceive: true, smoking: "FORMER", historyFlags: [] });
+  await labs(cf.id, clinician.id, [["AMH", 1.5, "ng/mL", 200], ["AMH", 1.3, "ng/mL", 35], ["AFC", 9, "follicles", 35]]);
+  await labs(cm.id, clinician.id, [["SPERM_CONCENTRATION", 18, "million/mL", 32], ["SPERM_PROGRESSIVE_MOTILITY", 35, "%", 32], ["SPERM_MORPHOLOGY", 5, "%", 32]]);
   await prescription(cCouple, clinician.id, "COUPLE", "demo.couple@reproai.dev", "demo.partner@reproai.dev", cfProfile, "18 months trying, one prior IUI. PCOS. Monitor ovulation before next cycle.");
   const cfTemps = bbtSeries(28, null, 0);
   await prisma.observation.createMany({
@@ -235,11 +302,12 @@ async function main() {
       ...sleepSeries(21, 6.6, 0.9).map((o) => ({ ...o, userId: cm.id, coupleId: cCouple }))
     ]
   });
-  await savePrediction(cf.id, cCouple, "INDIVIDUAL", { sex: "female", age: 34, bmi: 24.6, amh: 1.3, antral_follicle_count: 9, pcos_history: true, infertility_duration_months: 18 }, daysAgo(30));
-  await savePrediction(cm.id, cCouple, "INDIVIDUAL", { sex: "male", age: 36, bmi: 26.2, sperm_count: 18 }, daysAgo(29));
+  await savePrediction(cf.id, cCouple, "INDIVIDUAL", { sex: "female", age: 34, bmi: 24.6, amh: 1.3, antral_follicle_count: 9, pcos_history: true, infertility_duration_months: 18 }, daysAgo(30), { status: "RELEASED", clinicianId: clinician.id, note: "Your egg reserve is a little lower than last time but still within the range we work with. With PCOS and irregular cycles, confirming ovulation is the next step." });
+  await savePrediction(cm.id, cCouple, "INDIVIDUAL", { sex: "male", age: 36, bmi: 26.2, sperm_count: 18 }, daysAgo(29), { status: "RELEASED", clinicianId: clinician.id, note: "Your semen analysis is within the reference range." });
   const coupleInput = { sex: "female", age: 34, bmi: 24.6, amh: 1.3, sperm_count: 18, pcos_history: true, infertility_duration_months: 18, prior_cycles: 1 };
-  await savePrediction(cf.id, cCouple, "COUPLE", { ...coupleInput, infertility_duration_months: 15, prior_cycles: 0 }, daysAgo(75));
-  const cr = await savePrediction(cf.id, cCouple, "COUPLE", coupleInput, daysAgo(1));
+  await savePrediction(cf.id, cCouple, "COUPLE", { ...coupleInput, infertility_duration_months: 15, prior_cycles: 0 }, daysAgo(75), { status: "RELEASED", clinicianId: clinician.id, note: "This is a starting point for planning together. We will review it after your IUI cycle." });
+  // Latest joint assessment waits for clinician review (shows the sign-off step).
+  const cr = await savePrediction(cf.id, cCouple, "COUPLE", coupleInput, daysAgo(1), { status: "DRAFT", clinicianId: clinician.id });
   const shift = maxShift(cfTemps.map((t) => t.value));
   await prisma.followUp.create({
     data: {
@@ -249,7 +317,7 @@ async function main() {
       createdAt: daysAgo(1)
     }
   });
-  console.log(`  ✓ Couple   demo.couple@reproai.dev + demo.partner@reproai.dev   joint ${cr.probability}%, alert open`);
+  console.log(`  ✓ Couple   demo.couple@reproai.dev + demo.partner@reproai.dev   joint ${cr.probability}% (draft awaiting review), alert open`);
 
   console.log("\nDemo personas ready. Enable the buttons with DEMO_LOGIN_ENABLED=\"true\".");
 }

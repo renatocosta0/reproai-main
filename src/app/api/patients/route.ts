@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { clinicianCaseIds, canAccessCase } from "@/lib/clinician-scope";
 
 // Lists patients. Clinicians may filter by coupleId or userId; patients only
 // ever see their own profile.
@@ -11,13 +12,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const where: { coupleId?: string; userId?: string } = {};
+    const where: { coupleId?: string | { in: string[] }; userId?: string } = {};
     if (session.role === "PATIENT") {
       where.userId = session.userId;
     } else {
       const coupleId = req.nextUrl.searchParams.get("coupleId");
       const userId = req.nextUrl.searchParams.get("userId");
-      if (coupleId) where.coupleId = coupleId;
+      const inScope = [...(await clinicianCaseIds(session.userId))];
+      where.coupleId = coupleId && inScope.includes(coupleId) ? coupleId : { in: coupleId ? [] : inScope };
       if (userId) where.userId = userId;
     }
 
@@ -45,6 +47,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     if (!body || typeof body.coupleId !== "string") {
       return NextResponse.json({ error: "coupleId is required" }, { status: 400 });
+    }
+    if (!(await canAccessCase(session.userId, body.coupleId))) {
+      return NextResponse.json({ error: "Not in your care list" }, { status: 403 });
     }
 
     const data: Record<string, unknown> = { coupleId: body.coupleId };

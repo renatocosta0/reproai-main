@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { calculateImpactMetrics } from "@/lib/impact-metrics";
+import { clinicianCaseIds } from "@/lib/clinician-scope";
 
 // GET /api/clinician/couples
 // Returns clinical directory with strict segregation between:
@@ -20,7 +21,10 @@ export async function GET(req: NextRequest) {
 
     const requestedScope = req.nextUrl.searchParams.get("scope")?.toUpperCase();
 
+    // Only cases this clinician prescribed (or whose members they invited).
+    const inScope = await clinicianCaseIds(session.userId);
     const containers = await prisma.couple.findMany({
+      where: { id: { in: [...inScope] } },
       include: {
         patients: true,
         users: {
@@ -31,6 +35,7 @@ export async function GET(req: NextRequest) {
           }
         },
         predictions: {
+          where: { status: { in: ["DRAFT", "RELEASED"] } },
           orderBy: { createdAt: "desc" },
           take: 1
         },

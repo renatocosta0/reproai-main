@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { FOLLOW_UP_STATUSES } from "@/lib/follow-up";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { clinicianCaseIds, canAccessCase } from "@/lib/clinician-scope";
 
 // Closed-loop follow-up records (clinician only). Operates only on persisted
 // data; no records are fabricated.
@@ -17,7 +18,9 @@ export async function GET() {
     const session = await requireClinician();
     if (!session) return NextResponse.json({ error: "Clinician access required" }, { status: 403 });
 
+    const inScope = await clinicianCaseIds(session.userId);
     const items = await prisma.followUp.findMany({
+      where: { coupleId: { in: [...inScope] } },
       orderBy: { createdAt: "desc" },
       include: {
         couple: {
@@ -54,6 +57,9 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body.coupleId !== "string") {
       return NextResponse.json({ error: "coupleId is required" }, { status: 400 });
     }
+    if (!(await canAccessCase(session.userId, body.coupleId))) {
+      return NextResponse.json({ error: "This case is not in your care list" }, { status: 403 });
+    }
     const item = await prisma.followUp.create({
       data: { coupleId: body.coupleId, note: typeof body.note === "string" ? body.note.trim() || null : null }
     });
@@ -73,6 +79,10 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json().catch(() => null);
     if (!body || !body.id || !FOLLOW_UP_STATUSES.includes(body.status)) {
       return NextResponse.json({ error: "id and a valid status are required" }, { status: 400 });
+    }
+    const existing = await prisma.followUp.findUnique({ where: { id: body.id } });
+    if (!existing || !(await canAccessCase(session.userId, existing.coupleId))) {
+      return NextResponse.json({ error: "Follow-up not found" }, { status: 404 });
     }
     const item = await prisma.followUp.update({
       where: { id: body.id },

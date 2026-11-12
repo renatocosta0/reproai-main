@@ -10,6 +10,14 @@ import { api, userMessage } from "@/lib/api-client";
 type Sex = "female" | "male";
 type Goal = "understand" | "preserve" | "conceive";
 
+const CONSENT_CHOICES = [
+  { purpose: "CLINICIAN_ACCESS", label: "Share my record with my care team", defaultGranted: true },
+  { purpose: "LAB_RESULTS", label: "Use my laboratory and ultrasound results", defaultGranted: true },
+  { purpose: "WEARABLES", label: "Store my temperature and sleep readings", defaultGranted: true },
+  { purpose: "PARTNER_SHARING", label: "Share my name and joint results with a linked partner", defaultGranted: true },
+  { purpose: "POPULATION_ANALYTICS", label: "Include me in anonymous service statistics (optional)", defaultGranted: false }
+];
+
 const GOALS: { value: Goal; label: string }[] = [
   { value: "understand", label: "Understand my reproductive potential over time" },
   { value: "preserve", label: "Explore fertility preservation (egg or sperm freezing)" },
@@ -35,6 +43,9 @@ export function RegisterForm({ token, kind, email: invitedEmail, name: invitedNa
   const [sex, setSex] = useState<Sex | null>(invitedSex === "female" || invitedSex === "male" ? invitedSex : null);
   const [age, setAge] = useState("");
   const [goal, setGoal] = useState<Goal>("understand");
+  const [consents, setConsents] = useState<Record<string, boolean>>(
+    Object.fromEntries(CONSENT_CHOICES.map((c) => [c.purpose, c.defaultGranted]))
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -61,7 +72,8 @@ export function RegisterForm({ token, kind, email: invitedEmail, name: invitedNa
           name: name.trim() || undefined,
           sex,
           age: ageNum,
-          preservation_intent: goal === "preserve"
+          preservation_intent: goal === "preserve",
+          consents
         })
       });
       router.replace("/patient/overview");
@@ -174,6 +186,24 @@ export function RegisterForm({ token, kind, email: invitedEmail, name: invitedNa
       <button className="primary wide" disabled={loading}>
         {loading ? "Activating…" : "Activate account"} <ArrowRight size={17} aria-hidden />
       </button>
+
+      <fieldset className="consent-choices">
+        <legend>Your privacy choices</legend>
+        {CONSENT_CHOICES.map((c) => (
+          <label key={c.purpose} className="check-field">
+            <input
+              type="checkbox"
+              checked={consents[c.purpose]}
+              onChange={(e) => setConsents((x) => ({ ...x, [c.purpose]: e.target.checked }))}
+            />
+            <span>{c.label}</span>
+          </label>
+        ))}
+        <small>
+          You can change these at any time in Privacy &amp; consent. Your reproductive health information is never used for
+          employment, insurance or any decision unrelated to your care.
+        </small>
+      </fieldset>
 
       <ClinicalNotice icon={ShieldCheck}>
         ReproAI gives evidence-informed estimates, not a diagnosis. Your clinician reviews your

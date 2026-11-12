@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { firstName, usePatient } from "@/components/patient/PatientContext";
 import { useObservations } from "@/components/patient/useObservations";
+import { percentileWords, useRecord } from "@/components/patient/useRecord";
 import { ConfidenceBar, PotentialGauge } from "@/components/patient/PotentialGauge";
 import { TemperatureChart } from "@/components/charts/TemperatureChart";
 import { SleepChart } from "@/components/charts/SleepChart";
@@ -52,6 +53,7 @@ interface Step {
 export default function OverviewPage() {
   const { data, loading, error } = usePatient();
   const { observations, loading: obsLoading } = useObservations(data?.profile.userId);
+  const { record } = useRecord();
 
   if (loading) {
     return (
@@ -84,12 +86,22 @@ export default function OverviewPage() {
 
   // ── Next best steps, derived only from what is (or isn't) recorded ─────────
   const steps: Step[] = [];
-  if (!latestPrediction) {
+  if (!profile.intakeCompletedAt) {
     steps.push({
-      href: "/patient/assessment",
+      href: "/patient/about",
       icon: <span className="step-icon calendar"><ClipboardCheck size={16} /></span>,
-      title: "Complete your first assessment",
-      detail: "Takes about two minutes with your latest lab values"
+      title: "Tell us a little about you",
+      detail: "About three minutes; no lab results needed"
+    });
+  }
+  // The most urgent pathway option from the rules engine leads the list.
+  const topOption = record?.options.find((o) => o.priority === 1);
+  if (topOption) {
+    steps.unshift({
+      href: "/patient/assessment",
+      icon: <span className="step-icon calendar"><Sparkles size={16} /></span>,
+      title: topOption.title,
+      detail: topOption.reason
     });
   }
   if (sex === "female") {
@@ -234,11 +246,19 @@ export default function OverviewPage() {
         <article className="panel potential-card">
           <div className="panel-head">
             <div>
-              <h2>{latestPrediction?.scope === "COUPLE" ? "Your joint estimate" : "Your reproductive potential"}</h2>
-              <p>{latestPrediction ? `Last assessed ${shortDate(latestPrediction.createdAt)}` : "Not assessed yet"}</p>
+              <h2>{latestPrediction?.scope === "COUPLE" ? "Your joint estimate" : "Your reproductive picture"}</h2>
+              <p>{latestPrediction ? `Reviewed by your clinician · ${shortDate(latestPrediction.createdAt)}` : "Not assessed yet"}</p>
             </div>
           </div>
-          {latestPrediction ? (
+          {latestPrediction && latestPrediction.scope !== "COUPLE" ? (
+            <div className="empty-state">
+              <span className="soft-pill"><Sparkles size={14} /> {tierCopy(latestPrediction.tier).label}</span>
+              <strong>{tierCopy(latestPrediction.tier).summary || "Your clinician has reviewed your latest results."}</strong>
+              {record?.assessments[0]?.percentile != null && sex === "female" && (
+                <span>Your AMH is {percentileWords(record.assessments[0].percentile!)}.</span>
+              )}
+            </div>
+          ) : latestPrediction ? (
             <div className="potential-body">
               <PotentialGauge probability={latestPrediction.probability} tier={latestPrediction.tier} />
               <div className="potential-copy">
@@ -251,13 +271,14 @@ export default function OverviewPage() {
             </div>
           ) : (
             <div className="empty-state">
-              <strong>No assessment yet</strong>
-              Enter your latest clinical values to get an evidence-based estimate with a confidence range and
-              the factors behind it.
+              <strong>{record?.pendingReview ? "A result is with your clinician" : "Your baseline comes from your clinician"}</strong>
+              {record?.pendingReview
+                ? "You will see it here once they have reviewed it and added a note for you."
+                : "When your clinician records results such as an AMH test or a semen analysis and reviews them, your picture appears here."}
             </div>
           )}
           <Link className="full-link" href="/patient/assessment">
-            {latestPrediction ? "View full assessment" : "Start assessment"} <ArrowRight size={15} />
+            View my trajectory <ArrowRight size={15} />
           </Link>
         </article>
 

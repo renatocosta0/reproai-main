@@ -1,14 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Bell, LayoutDashboard, UserPlus } from "lucide-react";
+import { Bell, FlaskConical, LayoutDashboard, UserPlus } from "lucide-react";
 import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { PrescribeModal } from "@/components/clinician/PrescribeModal";
 
 const NAV: NavItem[] = [
   { href: "/clinician/dashboard", label: "Overview", icon: LayoutDashboard, match: ["/clinician/patient"] },
-  { href: "/clinician/follow-up", label: "Follow-up board", icon: Bell }
+  { href: "/clinician/follow-up", label: "Follow-up board", icon: Bell },
+  { href: "/clinician/evidence", label: "Evidence & safety", icon: FlaskConical }
 ];
 
 export function ClinicianShell({ children }: { children: ReactNode }) {
@@ -29,9 +30,9 @@ export function ClinicianShell({ children }: { children: ReactNode }) {
         sidebarFooter={
           <div className="systems-card">
             <div>
-              <span className="status-dot" /> Clinician access
+              <span className="status-dot" /> Your care panel only
             </div>
-            <small>Every case view is audit-logged</small>
+            <small>Every view and decision is audit-logged</small>
           </div>
         }
         topActions={

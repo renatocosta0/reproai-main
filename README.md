@@ -70,7 +70,10 @@ The model is **B2B2C and physician-led**: a clinician prescribes access, the pat
 
 - **Individual-first, couple-ready.** Each person owns a private record. Two people can pair to unlock a joint estimate, and either can remove the link at any time without losing their own data.
 - **Prescription-gated access.** There is no open patient sign-up. Patients register only with a clinic invitation or a partner pairing link, tied to the invited email.
-- **Explainable estimates, not verdicts.** Each assessment returns a probability with a 95% confidence range, a plain-language tier, exact per-factor Shapley contributions, modifiable versus fixed factors, preservation guidance and stated limitations.
+- **A trajectory, not a score.** Patients see each marker over time against its reference limit and their own first result, a plain-language tier and percentile, and the clinician's note. A probability (with its 95% interval) appears only for couples who are trying, after clinician review.
+- **Gated, clinician-reviewed assessments.** Missing required inputs stop the assessment and name what is missing; nothing is imputed. Results are drafts until a clinician approves and releases them with a note. Every value shows its source (clinician verified, self-reported, imported).
+- **Cited options, not prescriptions.** A deterministic rules engine turns the record into options (testing, referral, preservation discussion, counselling, health optimisation), each with its reason and source, using WHO 2025, ESHRE and the Daman Thiqa ART guideline.
+- **Evidence of earlier action.** An evidence dashboard reports live panel measures with Wilson intervals and a clearly labelled simulated check of false reassurance and calibration.
 - **Longitudinal wearable tracking.** Basal body temperature (LOINC 8310-5) with Roetzer coverline detection of a biphasic shift (≥ 0.30 °C), and sleep duration (LOINC 93832-4) with variability analysis.
 - **Closed-loop follow-up.** Wearable anomalies and low estimates raise clinician alerts, which move through *alert raised → appointment scheduled → in follow-up → closed* on a board.
 - **Sex-adaptive interface.** Female views focus on ovarian reserve, AFC and temperature; male views on semen parameters against WHO 6th-edition reference values; paired views on the joint estimate.
@@ -81,7 +84,7 @@ The model is **B2B2C and physician-led**: a clinician prescribes access, the pat
 <summary>About the model</summary>
 <br>
 
-The live ML service (`ml-service/`) is a **calibrated clinical scoring model**: smooth spline scores for age, AMH, sperm concentration, BMI, PCOS history, time trying and prior cycles, combined on the log-odds scale, with exact additive Shapley attributions and delta-method confidence intervals. Its coefficients and the reported calibration figures (ROC-AUC 0.792, Brier 0.174) are derived from published sources (HFEA 2022, CDC ART 2022, WHO 2021, ESHRE 2020–2023, Bhattacharya et al. 2021), not from a dataset trained in this repository. See [`docs/EVIDENCE_REGISTER.md`](docs/EVIDENCE_REGISTER.md) for every threshold and its citation.
+The ML service (`ml-service/`) is a **literature-derived scoring model**: smooth curves for age, AMH, sperm concentration, BMI, PCOS history, time trying and prior cycles, combined on the log-odds scale, with exact additive Shapley attributions and delta-method intervals. The curves come from published sources (HFEA 2022, CDC ART 2022, WHO 2021, ESHRE 2020–2023, Bhattacharya et al. 2021). **It is not fitted to or validated on patient data and no performance statistic is claimed.** Required inputs are enforced: a missing AMH or semen analysis returns `insufficient_data` instead of a guess. Full details, assumptions and limitations: [`docs/technical-documentation.md`](docs/technical-documentation.md); every threshold and citation: [`docs/EVIDENCE_REGISTER.md`](docs/EVIDENCE_REGISTER.md).
 
 Estimates are decision support for a licensed clinician. They do not diagnose infertility and do not assess tubal patency, uterine anatomy or endometriosis.
 
@@ -189,6 +192,7 @@ Check everything is up with `curl http://localhost:8000/health` and `curl http:/
 | `AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_API_KEY`, `AZURE_SEARCH_INDEX` | No | Guideline retrieval. Without it the built-in WHO guideline library is used |
 | `MCP_SERVER_URL`, `MCP_SERVER_TOKEN` | No | External MCP server exposing extra agent tools |
 | `REPROAI_PARTNER_API_KEY` | No | Key for the B2B partner prediction API (`/api/v1/external/predict`) |
+| `ALLOW_CLINICIAN_SIGNUP` | No | `true` allows creating a clinician through `/api/auth/register`; for bootstrapping only |
 | `DEMO_LOGIN_ENABLED` | No | `true` shows one-click demo sign-in on the login page (see [Demo access](#demo-access)) |
 | `DEMO_CLINICIAN_EMAIL`, `DEMO_FEMALE_EMAIL`, `DEMO_MALE_EMAIL`, `DEMO_COUPLE_EMAIL` | No | Accounts used by demo sign-in (defaults match `npm run demo:setup`) |
 
@@ -200,7 +204,7 @@ Check everything is up with `curl http://localhost:8000/health` and `curl http:/
 
 ReproAI has two roles, and patients can't sign themselves up.
 
-1. **Clinician.** Create the first clinician account through the API (there is no clinician sign-up page):
+1. **Clinician.** Clinician accounts are provisioned, not self-registered. On a fresh deployment, `npm run prisma:seed` creates `clinician@reproai.dev`; or start the app once with `ALLOW_CLINICIAN_SIGNUP="true"` and create the first account through the API, then remove the flag:
 
    ```sh
    curl -X POST http://localhost:3000/api/auth/register \
@@ -272,13 +276,19 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 | `/api/auth/register` | POST | Invitee | Prescription- or pairing-gated registration |
 | `/api/auth/invite` | GET | Anyone | Read-only invitation check |
 | `/api/auth/demo` | GET / POST | Anyone, when enabled | Demo sign-in status and one-click demo sign-in |
-| `/api/patient/profile` | GET / PATCH | Patient | Own profile, pairing state, latest estimate |
-| `/api/predict` | POST | Patient | Run an individual or joint assessment |
+| `/api/patient/profile` | GET / PATCH | Patient | Own profile and self-reported intake (lab values are clinician-only) |
+| `/api/patient/record` | GET | Patient | Labs with provenance, released assessments, pathway options, consents |
+| `/api/patient/consent` | GET / PUT | Patient | Per-purpose, revocable consent |
+| `/api/predict` | POST | Clinician | Stateless what-if simulation; nothing is saved |
+| `/api/clinician/cases/:id/labs` | POST | Clinician | Record a verified lab or ultrasound result |
+| `/api/clinician/cases/:id/assess` | POST | Clinician | Gated assessment from the record → draft, or `insufficient_data` |
+| `/api/clinician/assessments/:id` | PATCH | Clinician | Release (with a note) or discard a draft |
+| `/api/clinician/evidence` | GET | Clinician | Live panel measures and the simulated evidence report |
 | `/api/observations`, `/api/observations/bulk` | GET / POST | Patient | Own readings; bulk ingest with pattern analysis |
 | `/api/pairing/invite`, `accept`, `revoke`, `status` | POST / GET | Patient | Partner pairing with revocable consent |
 | `/api/agent` | POST | Signed in | Tool-calling assistant |
 | `/api/clinician/invite` | POST / GET | Clinician | Prescribe access; list issued prescriptions |
-| `/api/clinician/couples` | GET | Clinician | Cohort directory with impact metrics |
+| `/api/clinician/couples` | GET | Clinician | Cohort directory (own panel only) with impact metrics |
 | `/api/clinician/cases/:id` | GET | Clinician | Full longitudinal record for one case |
 | `/api/follow-up` | GET / POST / PATCH | Clinician | Closed-loop follow-up queue |
 | `/api/fhir/export` | GET | Clinician or own record | FHIR R4 bundle |
@@ -295,10 +305,10 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 
 See the [open issues](https://github.com/renatocosta0/reproai-main/issues) for the full list. Known next steps:
 
-- Restrict each clinician to their own clinic's patients (the directory currently shows every case)
-- Close open clinician registration on `/api/auth/register` before production
 - Send invitation and pairing emails instead of copy-and-share links
-- Apply `src/lib/encryption.ts` to sensitive fields at rest, and enforce recorded consent before data entry
+- Apply `src/lib/encryption.ts` to sensitive fields at rest
+- Malaffi import of verified results; screening-programme invitations (premarital, IFHAS) and a TAMM entry point
+- Real-world calibration and external validation before any probability is shown outside clinician review
 - Replace the SQLite-era migration history with a PostgreSQL baseline migration
 - Automated tests (Vitest is installed) and CI for the new UI
 - Arabic localisation for the Abu Dhabi pilot

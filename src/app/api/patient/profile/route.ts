@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { hasConsent } from "@/lib/consent";
 
 // Individual Profile Management API
 // Supports viewing and updating the individual patient's own biological and lifestyle data
@@ -60,12 +61,14 @@ export async function GET(req: NextRequest) {
         }
       });
       if (partnerUser) {
+        // Partner details are shown only if the partner consents to partner sharing.
+        const shares = await hasConsent(partnerUser.id, "PARTNER_SHARING");
         partner = {
           id: partnerUser.id,
           email: partnerUser.email,
-          name: partnerUser.patientProfile?.name ?? null,
-          sex: partnerUser.patientProfile?.sex ?? null,
-          age: partnerUser.patientProfile?.age ?? null
+          name: shares ? partnerUser.patientProfile?.name ?? null : null,
+          sex: shares ? partnerUser.patientProfile?.sex ?? null : null,
+          age: shares ? partnerUser.patientProfile?.age ?? null : null
         };
       }
     }
@@ -75,8 +78,8 @@ export async function GET(req: NextRequest) {
     const latestPrediction = await prisma.prediction.findFirst({
       where: {
         OR: [
-          { userId: session.userId, scope: "INDIVIDUAL" },
-          ...(session.coupleId ? [{ coupleId: session.coupleId, scope: "COUPLE" }] : [])
+          { userId: session.userId, scope: "INDIVIDUAL", status: "RELEASED" },
+          ...(session.coupleId ? [{ coupleId: session.coupleId, scope: "COUPLE", status: "RELEASED" }] : [])
         ]
       },
       orderBy: { createdAt: "desc" }
@@ -122,21 +125,35 @@ export async function PATCH(req: NextRequest) {
       where: { userId: session.userId }
     });
 
-    const updateData: any = {};
-    if (body.name !== undefined) updateData.name = body.name ? String(body.name).trim() : null;
-    if (body.sex !== undefined) updateData.sex = body.sex ? String(body.sex).toLowerCase() : null;
-    if (body.age !== undefined) updateData.age = body.age !== null ? Number(body.age) : null;
-    if (body.bmi !== undefined) updateData.bmi = body.bmi !== null ? Number(body.bmi) : null;
-    if (body.amh !== undefined) updateData.amh = body.amh !== null ? Number(body.amh) : null;
-    if (body.sperm_count !== undefined) updateData.spermCount = body.sperm_count !== null ? Number(body.sperm_count) : null;
-    if (body.spermCount !== undefined) updateData.spermCount = body.spermCount !== null ? Number(body.spermCount) : null;
-    if (body.pcos_history !== undefined) updateData.pcosHistory = Boolean(body.pcos_history);
-    if (body.pcosHistory !== undefined) updateData.pcosHistory = Boolean(body.pcosHistory);
-    if (body.antral_follicle_count !== undefined) updateData.antralFollicleCount = body.antral_follicle_count !== null ? Number(body.antral_follicle_count) : null;
-    if (body.cycle_regularity !== undefined) updateData.cycleRegularity = body.cycle_regularity ? String(body.cycle_regularity) : null;
-    if (body.preservation_intent !== undefined) updateData.preservationIntent = Boolean(body.preservation_intent);
-    if (body.infertility_duration_months !== undefined) updateData.infertilityDurationMonths = body.infertility_duration_months !== null ? Number(body.infertility_duration_months) : null;
-    if (body.prior_cycles !== undefined) updateData.priorCycles = body.prior_cycles !== null ? Number(body.prior_cycles) : null;
+    // Self-reported intake only. Laboratory values (AMH, AFC, semen analysis)
+    // and sex are recorded by clinicians with provenance and are not editable here.
+    const updateData: Record<string, unknown> = {};
+    const n = (x: unknown, min: number, max: number) => {
+      const v = Number(x);
+      return Number.isFinite(v) && v >= min && v <= max ? v : undefined;
+    };
+    if (body.name !== undefined) updateData.name = body.name ? String(body.name).trim().slice(0, 80) : null;
+    if (body.age !== undefined) updateData.age = n(body.age, 18, 55) ?? null;
+    if (body.heightCm !== undefined && body.weightKg !== undefined) {
+      const h = n(body.heightCm, 120, 230);
+      const w = n(body.weightKg, 30, 250);
+      if (h && w) updateData.bmi = Math.round((w / (h / 100) ** 2) * 10) / 10;
+    }
+    if (body.tryingToConceive !== undefined) updateData.tryingToConceive = body.tryingToConceive === null ? null : Boolean(body.tryingToConceive);
+    if (body.monthsTrying !== undefined) updateData.infertilityDurationMonths = body.monthsTrying === null ? null : n(body.monthsTrying, 0, 240) ?? null;
+    if (body.cycleRegularity !== undefined) {
+      updateData.cycleRegularity = ["REGULAR", "IRREGULAR", "AMENORRHEA"].includes(body.cycleRegularity) ? body.cycleRegularity : null;
+    }
+    if (body.historyFlags !== undefined && Array.isArray(body.historyFlags)) {
+      const flags = body.historyFlags.filter((f: unknown) => typeof f === "string").slice(0, 20);
+      updateData.historyFlags = JSON.stringify(flags);
+      updateData.pcosHistory = flags.includes("PCOS");
+    }
+    if (body.familyEarlyMenopause !== undefined) updateData.familyEarlyMenopause = body.familyEarlyMenopause === null ? null : Boolean(body.familyEarlyMenopause);
+    if (body.smoking !== undefined) updateData.smoking = ["NEVER", "FORMER", "CURRENT"].includes(body.smoking) ? body.smoking : null;
+    if (body.preservationIntent !== undefined) updateData.preservationIntent = Boolean(body.preservationIntent);
+    if (body.priorCycles !== undefined) updateData.priorCycles = body.priorCycles === null ? null : n(body.priorCycles, 0, 30) ?? null;
+    if (body.completeIntake === true) updateData.intakeCompletedAt = new Date();
 
     let profile;
     if (existing) {
