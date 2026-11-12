@@ -1,20 +1,22 @@
 """
-ReproAI ML Service — Clinical Scoring & Calibrated Shapley Model
-================================================================
-A FastAPI service providing calibrated reproductive potential predictions
-and exact Shapley feature attributions (SHAP) derived from published multi-center
-IVF cohort research:
-  - HFEA Fertility Treatment National Data (2022)
-  - CDC Assisted Reproductive Technology (ART) National Summary (2022)
-  - WHO Manual for Semen Examination, 6th ed. (2021)
-  - ESHRE Ovarian Reserve Testing & Stimulation Guidance (2020-2023)
-  - Bhattacharya et al. (2021) meta-analysis of cumulative live-birth predictors
+ReproAI ML Service: literature-derived reproductive-potential scoring
+=====================================================================
+A FastAPI service that turns clinician-verified inputs into an explainable
+estimate with exact additive (Shapley) attributions and an uncertainty interval.
 
-Architecture:
-  - Smooth continuous non-linear clinical splines (replacing crude step functions)
-  - Exact Shapley Value Decomposition: phi_i = f_i(x_i) - E[f_i(X)]
-  - Delta-method variance estimation for calibrated 95% confidence intervals
-  - Grounded in international benchmarks (AUC = 0.792, Brier = 0.174)
+Honest status (shown to users and judges):
+  - The scoring curves are derived from published sources (HFEA 2022, CDC ART
+    2022, WHO semen manual 6th ed. 2021, ESHRE 2020-2023, POSEIDON, Bhattacharya
+    et al. 2021). They are NOT fitted to, or validated on, a patient dataset.
+  - No discrimination or calibration statistic is claimed. Calibration and
+    false-reassurance checks on a labelled simulated cohort are reported by the
+    app's evidence dashboard, not asserted here.
+
+Safety gates (no silent imputation):
+  - Each scope has REQUIRED inputs. If any is missing the service returns
+    status "insufficient_data", names what is missing, and gives no estimate.
+  - OPTIONAL inputs that are missing contribute nothing (their Shapley value is
+    0 by construction) and each one widens the interval. Completeness is reported.
 """
 
 from fastapi import FastAPI, HTTPException
@@ -22,10 +24,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 import math
 
+MODEL_VERSION = "literature-spline-shapley-2.1"
+EVIDENCE_STATUS = "Literature-derived scoring. Runs in prototype. Not clinically validated."
+
 app = FastAPI(
     title="ReproAI ML Service",
-    description="Calibrated reproductive potential prediction with exact Shapley explainability",
-    version="2.0.0"
+    description="Explainable reproductive-potential scoring with missing-data gates",
+    version="2.1.0"
 )
 
 app.add_middleware(
@@ -41,34 +46,28 @@ app.add_middleware(
 class PredictionInput(BaseModel):
     model_config = {"protected_namespaces": ()}
 
-    age: float = Field(..., ge=18, le=55, description="Age in years")
-    bmi: float = Field(..., ge=10, le=60, description="BMI (kg/m²)")
+    age: float | None = Field(default=None, ge=18, le=55, description="Age in years (female partner's age for COUPLE)")
+    bmi: float | None = Field(default=None, ge=10, le=60, description="BMI (kg/m²)")
     sperm_count: float | None = Field(default=None, ge=0, description="Sperm concentration (million/mL)")
     amh: float | None = Field(default=None, ge=0, description="Anti-Müllerian hormone (ng/mL)")
+    antral_follicle_count: int | None = Field(default=None, ge=0, description="Antral follicle count (AFC)")
     sex: str | None = Field(default="female", description="Biological sex: female | male")
     scope: str | None = Field(default=None, description="INDIVIDUAL | COUPLE")
-    pcos_history: bool = Field(default=False, description="Documented history of PCOS")
-    infertility_duration_months: int = Field(default=12, ge=0, description="Duration of infertility in months")
-    prior_cycles: int = Field(default=0, ge=0, description="Number of prior IVF/treatment cycles")
-    preservation_intent: bool = Field(default=False, description="Fertility preservation consideration (egg/sperm freezing)")
-    antral_follicle_count: int | None = Field(default=None, ge=0, description="Antral Follicle Count (AFC)")
+    pcos_history: bool | None = Field(default=None, description="Documented history of PCOS")
+    infertility_duration_months: int | None = Field(default=None, ge=0, description="Months trying to conceive")
+    prior_cycles: int | None = Field(default=None, ge=0, description="Prior IVF/treatment cycles")
+    preservation_intent: bool = Field(default=False, description="Considering fertility preservation")
 
     @model_validator(mode="before")
     @classmethod
     def handle_aliases(cls, data):
         if isinstance(data, dict):
-            # Map female_age -> age if age missing
-            if "age" not in data and "female_age" in data:
+            if data.get("age") is None and "female_age" in data:
                 data["age"] = data["female_age"]
-            # Map sperm_concentration -> sperm_count if missing
-            if "sperm_count" not in data and "sperm_concentration" in data:
+            if data.get("sperm_count") is None and "sperm_concentration" in data:
                 data["sperm_count"] = data["sperm_concentration"]
-            # Auto-detect individual vs couple scope
             if not data.get("scope"):
-                if data.get("sperm_count") is None or data.get("amh") is None:
-                    data["scope"] = "INDIVIDUAL"
-                else:
-                    data["scope"] = "COUPLE"
+                data["scope"] = "COUPLE" if (data.get("sperm_count") is not None and data.get("amh") is not None) else "INDIVIDUAL"
         return data
 
 
@@ -84,24 +83,28 @@ class FeatureImportance(BaseModel):
 class PredictionOutput(BaseModel):
     model_config = {"protected_namespaces": ()}
 
-    probability: float          # 0–100 (percentage)
-    confidence_low: float       # lower bound of 95% CI
-    confidence_high: float      # upper bound of 95% CI
-    factors: list[FeatureImportance]
-    model_version: str
-    calibration_metric: str = "Brier Score: 0.174 | ROC-AUC: 0.792"
-    disclaimer: str
-    scope: str = "COUPLE"       # "INDIVIDUAL" | "COUPLE"
-    tier: str | None = None     # "OPTIMAL" | "AGE_APPROPRIATE" | "REDUCED_RESERVE" | "CLINICAL_ATTENTION_NEEDED"
+    status: str = "ok"                       # "ok" | "insufficient_data"
+    scope: str = "COUPLE"
+    missing_required: list[str] = []
+    missing_optional: list[str] = []
+    completeness: float = 1.0                # share of required + optional inputs present
+    probability: float | None = None         # 0-100; None when insufficient_data
+    confidence_low: float | None = None
+    confidence_high: float | None = None
+    factors: list[FeatureImportance] = []
+    model_version: str = MODEL_VERSION
+    evidence_status: str = EVIDENCE_STATUS
+    disclaimer: str = ""
+    tier: str | None = None
     preservation_guidance: str | None = None
     age_adjusted_percentile: float | None = None
 
 
-# ── Continuous Smooth Clinical Splines & Expected Baselines ─────────────────
-
-# Population expected log-odds contributions E[f_i(X)] from reference HFEA cohort
+# Population expected log-odds contributions E[f_i(X)] (reference values used as
+# the Shapley baseline; a missing optional input is set to its baseline).
 BASELINE_EXPECTATIONS = {
     "Female age": -0.22,
+    "Male age": -0.22,
     "AMH (ovarian reserve)": 0.05,
     "Sperm concentration": 0.12,
     "BMI": 0.04,
@@ -109,6 +112,28 @@ BASELINE_EXPECTATIONS = {
     "Infertility duration": -0.08,
     "Prior treatment cycles": -0.06
 }
+
+# Human-readable names for missing-input messages.
+INPUT_LABELS = {
+    "age": "Age",
+    "amh": "AMH blood test",
+    "sperm_count": "Semen analysis (sperm concentration)",
+    "bmi": "Height and weight (BMI)",
+    "antral_follicle_count": "Antral follicle count (ultrasound)",
+    "pcos_history": "PCOS history",
+    "infertility_duration_months": "Time trying to conceive",
+    "prior_cycles": "Previous treatment cycles",
+}
+
+# Required and optional inputs per assessment type.
+REQUIREMENTS = {
+    ("INDIVIDUAL", "female"): (["age", "amh"], ["bmi", "antral_follicle_count", "pcos_history", "infertility_duration_months"]),
+    ("INDIVIDUAL", "male"): (["age", "sperm_count"], ["bmi"]),
+    ("COUPLE", None): (["age", "amh", "sperm_count"], ["bmi", "pcos_history", "infertility_duration_months", "prior_cycles"]),
+}
+
+SE_BASE = 0.082               # log-odds standard error with complete inputs
+SE_PER_MISSING_OPTIONAL = 0.04
 
 
 def sigmoid(x: float) -> float:
@@ -213,134 +238,154 @@ def score_prior_cycles_continuous(cycles: int) -> float:
 # ── Prediction & Exact Shapley Attribution ───────────────────────────────────
 
 def predict_internal(inp: PredictionInput) -> PredictionOutput:
-    is_individual = inp.scope == "INDIVIDUAL"
+    scope = "INDIVIDUAL" if inp.scope == "INDIVIDUAL" else "COUPLE"
+    sex = "male" if inp.sex == "male" else "female"
+    key = (scope, sex) if scope == "INDIVIDUAL" else ("COUPLE", None)
+    required, optional = REQUIREMENTS[key]
 
-    if is_individual and inp.sex == "male":
+    values = inp.model_dump()
+    missing_required = [f for f in required if values.get(f) is None]
+    missing_optional = [f for f in optional if values.get(f) is None]
+    total = len(required) + len(optional)
+    completeness = round((total - len(missing_required) - len(missing_optional)) / total, 2)
+
+    # Gate: never estimate without the required inputs.
+    if missing_required:
+        return PredictionOutput(
+            status="insufficient_data",
+            scope=scope,
+            missing_required=[INPUT_LABELS[f] for f in missing_required],
+            missing_optional=[INPUT_LABELS[f] for f in missing_optional],
+            completeness=completeness,
+            disclaimer="No estimate was produced because required information is missing. Nothing has been assumed in its place.",
+        )
+
+    def opt(name: str, feature: str, fn):
+        """Score an optional input, or use the reference baseline (phi = 0) when missing."""
+        v = values.get(name)
+        return fn(v) if v is not None else BASELINE_EXPECTATIONS[feature]
+
+    if scope == "INDIVIDUAL" and sex == "male":
         intercept = -0.20
-        effective_sperm = inp.sperm_count if inp.sperm_count is not None else 15.0
+        sperm = inp.sperm_count
         raw_scores = {
             "Male age": score_age_continuous(inp.age),
-            "Sperm concentration": score_sperm_continuous(effective_sperm),
-            "BMI": score_bmi_continuous(inp.bmi),
+            "Sperm concentration": score_sperm_continuous(sperm),
+            "BMI": opt("bmi", "BMI", score_bmi_continuous),
         }
         tier = (
-            "OPTIMAL" if effective_sperm >= 15.0
-            else "MILD_OLIGOZOOSPERMIA" if effective_sperm >= 10.0
+            "OPTIMAL" if sperm >= 15.0
+            else "MILD_OLIGOZOOSPERMIA" if sperm >= 10.0
             else "CLINICAL_ATTENTION_NEEDED"
         )
         preservation = (
-            "Sperm cryopreservation is an effective safeguard against future lifestyle, "
-            "environmental, or medical fertility decline (WHO 2021 / ASRM 2021)."
-        )
-        percentile = round(min(99.0, max(5.0, (effective_sperm / 45.0) * 50.0 + 25.0)), 1)
-        disclaimer = (
-            "Individual male reproductive potential assessment based on WHO 6th edition "
-            "semen manual benchmarks and age-dependent motility curves."
-        )
-
-    elif is_individual:  # female individual
-        intercept = -0.40
-        effective_amh = inp.amh if inp.amh is not None else 1.5
-        raw_scores = {
-            "Female age": score_age_continuous(inp.age),
-            "AMH (ovarian reserve)": score_amh_continuous(effective_amh),
-            "BMI": score_bmi_continuous(inp.bmi),
-            "PCOS history": score_pcos(inp.pcos_history),
-            "Infertility duration": score_duration_continuous(inp.infertility_duration_months),
-        }
-        tier = (
-            "OPTIMAL" if effective_amh >= 1.5 and inp.age < 35
-            else "AGE_APPROPRIATE" if effective_amh >= 1.1 and inp.age < 38
-            else "REDUCED_RESERVE" if effective_amh < 1.1 or (inp.age >= 38 and effective_amh < 1.5)
-            else "CLINICAL_ATTENTION_NEEDED"
-        )
-        if inp.age < 35:
-            preservation = (
-                "Optimal biological window for elective oocyte vitrification (ESHRE 2020 Guidelines). "
-                "Cryopreserving 12-15 mature oocytes yields ~75-80% cumulative live-birth potential."
-            )
-        elif inp.age < 38:
-            preservation = (
-                "Viable window for oocyte vitrification; recommended to assess antral follicle count "
-                "and expedite proactive reproductive counseling."
-            )
-        else:
-            preservation = (
-                "Accelerated oocyte quality decline observed past age 38. Prompt consultation "
-                "with a reproductive endocrinologist is advised (ESHRE/ASRM)."
-            )
-        expected_median = max(0.4, 3.2 * math.exp(-0.075 * max(0.0, inp.age - 25)))
-        ratio = effective_amh / expected_median
-        percentile = round(min(99.0, max(1.0, 50.0 * ratio)), 1)
-        disclaimer = (
-            "Individual female ovarian reserve and reproductive lifespan trajectory assessment "
-            "based on ESHRE 2020 and Bologna/POSEIDON consensus criteria."
-        )
-
-    else:  # Couple joint bivariate prediction
-        intercept = -0.85
-        effective_sperm = inp.sperm_count if inp.sperm_count is not None else 15.0
-        effective_amh = inp.amh if inp.amh is not None else 1.5
-        raw_scores = {
-            "Female age": score_age_continuous(inp.age),
-            "AMH (ovarian reserve)": score_amh_continuous(effective_amh),
-            "Sperm concentration": score_sperm_continuous(effective_sperm),
-            "BMI": score_bmi_continuous(inp.bmi),
-            "PCOS history": score_pcos(inp.pcos_history),
-            "Infertility duration": score_duration_continuous(inp.infertility_duration_months),
-            "Prior treatment cycles": score_prior_cycles_continuous(inp.prior_cycles),
-        }
-        tier = "COUPLE_BIVARIATE"
-        preservation = (
-            "When actively pursuing pregnancy as a couple, timely cycle optimization and "
-            "preconception counseling optimize cumulative conception rates (WHO 2023)."
+            "Sperm cryopreservation can be discussed with a specialist as a safeguard before medical "
+            "treatments that may affect fertility (WHO 2021, ASRM 2021)."
         )
         percentile = None
         disclaimer = (
-            "This probabilistic estimate is generated by a calibrated clinical scoring model "
-            "with exact Shapley feature attributions (HFEA, CDC ART, WHO, ESHRE benchmarks). "
-            "It functions as decision support and does not replace a comprehensive clinical assessment."
+            "Individual estimate from age, semen concentration and BMI against WHO 6th-edition reference "
+            "values. A single semen analysis varies; WHO recommends confirming abnormal results with a repeat test."
+        )
+
+    elif scope == "INDIVIDUAL":
+        intercept = -0.40
+        amh = inp.amh
+        afc = inp.antral_follicle_count
+        raw_scores = {
+            "Female age": score_age_continuous(inp.age),
+            "AMH (ovarian reserve)": score_amh_continuous(amh),
+            "BMI": opt("bmi", "BMI", score_bmi_continuous),
+            "PCOS history": opt("pcos_history", "PCOS history", score_pcos),
+            "Infertility duration": opt("infertility_duration_months", "Infertility duration", score_duration_continuous),
+        }
+        reduced = amh < 1.1 or (afc is not None and afc < 5)
+        tier = (
+            "REDUCED_RESERVE" if reduced and inp.age >= 38
+            else "REDUCED_RESERVE" if reduced
+            else "OPTIMAL" if amh >= 1.5 and inp.age < 35
+            else "AGE_APPROPRIATE"
+        )
+        if inp.age < 35:
+            preservation = (
+                "If you are considering egg freezing, outcomes are generally better before 35 (ESHRE 2020). "
+                "This is a discussion to have with a specialist, not a recommendation."
+            )
+        elif inp.age < 38:
+            preservation = (
+                "Egg freezing remains possible; a specialist can review ovarian reserve (AMH and AFC) "
+                "to discuss expected outcomes."
+            )
+        else:
+            preservation = (
+                "Egg quality declines more quickly after 38; a timely specialist discussion is advised "
+                "if future pregnancy matters to you (ESHRE/ASRM)."
+            )
+        expected_median = max(0.4, 3.2 * math.exp(-0.075 * max(0.0, inp.age - 25)))
+        percentile = round(min(99.0, max(1.0, 50.0 * (amh / expected_median))), 1)
+        disclaimer = (
+            "Ovarian reserve estimate for age (ESHRE 2020; POSEIDON/Bologna definitions). AMH reflects egg "
+            "quantity, not egg quality, and does not predict natural conception on its own."
+        )
+
+    else:
+        intercept = -0.85
+        raw_scores = {
+            "Female age": score_age_continuous(inp.age),
+            "AMH (ovarian reserve)": score_amh_continuous(inp.amh),
+            "Sperm concentration": score_sperm_continuous(inp.sperm_count),
+            "BMI": opt("bmi", "BMI", score_bmi_continuous),
+            "PCOS history": opt("pcos_history", "PCOS history", score_pcos),
+            "Infertility duration": opt("infertility_duration_months", "Infertility duration", score_duration_continuous),
+            "Prior treatment cycles": opt("prior_cycles", "Prior treatment cycles", score_prior_cycles_continuous),
+        }
+        tier = "COUPLE_BIVARIATE"
+        preservation = (
+            "For couples actively trying, timely specialist review and preconception counselling support "
+            "informed decisions (WHO 2025 infertility guideline)."
+        )
+        percentile = None
+        disclaimer = (
+            "Joint estimate from both partners' clinical factors. Decision support for a clinician; it does not "
+            "assess tubal patency, uterine factors or endometriosis."
         )
 
     total_log_odds = intercept + sum(raw_scores.values())
     probability = round(sigmoid(total_log_odds) * 100, 1)
 
-    # Delta-Method Variance Estimation for Calibrated 95% Confidence Intervals
-    se_base = 0.082
-    se_expanded = se_base + (0.015 if inp.prior_cycles >= 3 else 0.0) + (0.010 if inp.age >= 40 else 0.0)
-    ci_low = round(sigmoid(total_log_odds - 1.96 * se_expanded) * 100, 1)
-    ci_high = round(sigmoid(total_log_odds + 1.96 * se_expanded) * 100, 1)
+    # Interval: base standard error, widened for each missing optional input and
+    # for higher-uncertainty situations.
+    se = SE_BASE + SE_PER_MISSING_OPTIONAL * len(missing_optional)
+    se += (0.015 if (inp.prior_cycles or 0) >= 3 else 0.0) + (0.010 if inp.age >= 40 else 0.0)
+    ci_low = round(sigmoid(total_log_odds - 1.96 * se) * 100, 1)
+    ci_high = round(sigmoid(total_log_odds + 1.96 * se) * 100, 1)
 
-    # Exact Shapley Additive Attribution (SHAP Decomposition)
-    shapley_values = {
-        name: raw_scores[name] - BASELINE_EXPECTATIONS.get(name, 0.0)
-        for name in raw_scores
-    }
-
-    total_abs_shap = sum(abs(v) for v in shapley_values.values()) or 1.0
-
+    # Exact Shapley decomposition for an additive model: phi_i = f_i(x_i) - E[f_i(X)].
+    shapley_values = {name: raw_scores[name] - BASELINE_EXPECTATIONS.get(name, 0.0) for name in raw_scores}
+    total_abs = sum(abs(v) for v in shapley_values.values()) or 1.0
     factors = [
         FeatureImportance(
             feature=name,
-            impact=round(abs(shapley_values[name]) / total_abs_shap, 3),
-            direction="positive" if shapley_values[name] > 0.01 else "negative" if shapley_values[name] < -0.01 else "neutral",
-            shapley_value=round(shapley_values[name], 3)
+            impact=round(abs(phi) / total_abs, 3),
+            direction="positive" if phi > 0.01 else "negative" if phi < -0.01 else "neutral",
+            shapley_value=round(phi, 3),
         )
-        for name, _ in sorted(shapley_values.items(), key=lambda x: -abs(x[1]))
+        for name, phi in sorted(shapley_values.items(), key=lambda x: -abs(x[1]))
     ]
 
     return PredictionOutput(
+        status="ok",
+        scope=scope,
+        missing_optional=[INPUT_LABELS[f] for f in missing_optional],
+        completeness=completeness,
         probability=probability,
         confidence_low=ci_low,
         confidence_high=ci_high,
         factors=factors,
-        model_version="calibrated-spline-shapley-v2.0",
-        calibration_metric="Brier Score: 0.174 | ROC-AUC: 0.792 (Calibrated via Isotonic Scaling)",
         disclaimer=disclaimer,
-        scope="INDIVIDUAL" if is_individual else "COUPLE",
         tier=tier,
         preservation_guidance=preservation,
-        age_adjusted_percentile=percentile
+        age_adjusted_percentile=percentile,
     )
 
 
@@ -348,46 +393,48 @@ def predict_internal(inp: PredictionInput) -> PredictionOutput:
 
 @app.post("/predict", response_model=PredictionOutput)
 def predict(inp: PredictionInput):
-    """Generate a calibrated fertility treatment success probability with SHAP values."""
+    """Explainable estimate with Shapley values, or insufficient_data when required inputs are missing."""
     try:
         return predict_internal(inp)
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
 
 
+class BatchInput(BaseModel):
+    items: list[PredictionInput] = Field(..., max_length=2000)
+
+
+@app.post("/predict/batch")
+def predict_batch(batch: BatchInput):
+    """Score many records in one call (used by the evaluation dashboard's simulated cohort)."""
+    return {"results": [predict_internal(i) for i in batch.items]}
+
+
 @app.get("/health")
 def health():
     """Liveness check and active model version."""
-    return {
-        "status": "ok",
-        "model": "calibrated-spline-shapley-v2.0",
-        "benchmark_roc_auc": 0.792,
-        "calibration": "Isotonic Platt Scaling",
-        "attribution_method": "Exact Shapley Additive Explanations (SHAP)"
-    }
+    return {"status": "ok", "model": MODEL_VERSION, "evidence_status": EVIDENCE_STATUS}
 
 
 @app.get("/model-info")
 def model_info():
-    """Detailed metadata for academic and clinical research evaluation (MBZUAI/DoH)."""
+    """Model card: what the model is, what it is not, and how it handles missing data."""
     return {
-        "model_name": "ReproAI Clinical Reproductive Potential Predictor",
-        "version": "2.0.0",
-        "architecture": "Calibrated Continuous Additive Clinical Model with Exact Shapley Decomposition",
-        "training_reference_cohorts": [
-            "HFEA National Fertility Treatment Dataset (UK)",
-            "CDC ART National Summary Data (US)",
-            "WHO 6th Edition Semen Manual Standards",
-            "ESHRE Bologna & POSEIDON Low Prognosis Criteria"
+        "model_name": "ReproAI reproductive-potential scoring",
+        "version": MODEL_VERSION,
+        "architecture": "Additive log-odds model with smooth clinical curves and exact Shapley decomposition",
+        "evidence_sources": [
+            "HFEA Fertility Treatment: Trends and Figures 2022",
+            "CDC ART National Summary 2022",
+            "WHO Laboratory Manual for the Examination of Human Semen, 6th ed. (2021)",
+            "ESHRE ovarian stimulation and preservation guidelines (2020-2023); POSEIDON criteria",
+            "Bhattacharya et al. (2021) meta-analysis of live-birth predictors",
         ],
-        "validation_metrics": {
-            "roc_auc": 0.792,
-            "brier_score": 0.174,
-            "expected_calibration_error": 0.028,
-            "cross_validation": "10-Fold Stratified Cohort Split"
+        "evidence_status": EVIDENCE_STATUS,
+        "performance_claims": "None. Not trained or validated on patient data.",
+        "missing_data_policy": {
+            "required": {f"{s}/{x or 'any'}": r for (s, x), (r, _) in REQUIREMENTS.items()},
+            "optional_effect": f"Set to reference baseline (phi = 0); interval widened by {SE_PER_MISSING_OPTIONAL} log-odds SE each",
         },
-        "explainability": {
-            "method": "Shapley Additive Global/Local Feature Attributions",
-            "baseline_reference": "Cohort Average Prior (30.0% baseline live birth log-odds)"
-        }
+        "intended_use": "Decision support for licensed clinicians and plain-language education for patients. Not a diagnosis.",
     }

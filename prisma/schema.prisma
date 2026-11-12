@@ -29,6 +29,8 @@ model User {
   observations        Observation[]
   predictions         Prediction[]
   sentPairingInvites  PairingInvite[] @relation("SentPairingInvites")
+  labResults          LabResult[]
+  consents            Consent[]
 }
 
 model Couple {
@@ -64,6 +66,13 @@ model Patient {
   antralFollicleCount       Int?
   cycleRegularity           String? // "REGULAR" | "IRREGULAR" | "AMENORRHEA"
   preservationIntent        Boolean? @default(false)
+  // Self-reported intake (provenance: SELF_REPORTED)
+  tryingToConceive          Boolean?
+  smoking                   String?  // "NEVER" | "FORMER" | "CURRENT"
+  /// JSON array of history flags, e.g. ["ENDOMETRIOSIS","PELVIC_SURGERY","CHEMOTHERAPY"]
+  historyFlags              String?
+  familyEarlyMenopause      Boolean?
+  intakeCompletedAt         DateTime?
   createdAt       DateTime @default(now())
 }
 
@@ -101,7 +110,54 @@ model Prediction {
   // JSON string of feature importances returned by the ML service
   factors       String?
   modelVersion  String?
+  /// DRAFT (awaiting clinician review) | RELEASED (visible to the patient)
+  status        String   @default("RELEASED")
+  completeness  Float?
+  /// AMH-for-age percentile (female individual assessments)
+  percentile    Float?
+  /// JSON of the inputs used, with provenance
+  inputs        String?
+  /// JSON array of optional inputs that were missing
+  missingOptional String?
+  evidenceStatus String?
+  createdById   String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  clinicianNote String?
   createdAt     DateTime @default(now())
+}
+
+/// Laboratory / ultrasound results with provenance.
+model LabResult {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  /// AMH | AFC | FSH | SPERM_CONCENTRATION | SPERM_TOTAL_MOTILITY | SPERM_PROGRESSIVE_MOTILITY | SPERM_MORPHOLOGY | SEMEN_VOLUME
+  code        String
+  value       Float
+  unit        String
+  collectedAt DateTime
+  /// CLINICIAN_VERIFIED | SELF_REPORTED | IMPORTED
+  source      String
+  enteredById String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, code])
+}
+
+/// Granular, revocable consent per purpose.
+model Consent {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  /// LAB_RESULTS | WEARABLES | PARTNER_SHARING | CLINICIAN_ACCESS | POPULATION_ANALYTICS
+  purpose   String
+  granted   Boolean
+  grantedAt DateTime?
+  revokedAt DateTime?
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, purpose])
 }
 
 model FollowUp {

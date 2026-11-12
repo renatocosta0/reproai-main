@@ -1,3 +1,5 @@
+> **Superseded.** See [`technical-documentation.md`](technical-documentation.md) (section 2) and [`challenge-02-benchmark.md`](challenge-02-benchmark.md) for the current mapping to the brief and the six criteria.
+
 # Mapping to the 6 judging criteria
 
 | Criterion | How ReproAI addresses it |

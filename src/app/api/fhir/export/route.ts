@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { canAccessCase, canAccessUser } from "@/lib/clinician-scope";
 
 // FHIR R4 Observation export endpoint.
 // Returns patient observations in FHIR JSON format for interoperability
@@ -23,6 +24,10 @@ export async function GET(req: NextRequest) {
     const code = searchParams.get("code");
     if (!coupleId && !userId) {
       return NextResponse.json({ error: "coupleId or userId is required" }, { status: 400 });
+    }
+    if (session.role === "CLINICIAN") {
+      const allowed = coupleId ? await canAccessCase(session.userId, coupleId) : await canAccessUser(session.userId, userId!);
+      if (!allowed) return NextResponse.json({ error: "Not in your care list" }, { status: 403 });
     }
 
     // A couple's export also covers records its current members made before

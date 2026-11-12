@@ -55,15 +55,38 @@ export interface FollowUpItem {
   latestProbability: number | null;
 }
 
+export interface CaseMember {
+  userId: string;
+  email: string;
+  joinedAt: string;
+  consentAt: string | null;
+  clinicianAccess: boolean;
+  name: string | null;
+  sex: "female" | "male" | null;
+  profile: import("@/types/record").RecordProfile | null;
+  labs: import("@/types/record").LabPoint[];
+  options: import("@/types/record").PathwayOption[];
+  consents: import("@/types/record").ConsentMap | null;
+  observationsSummary: { temperatureReadings: number; sleepNights: number; meanSleepHours: number | null; bbtStatus: string; bbtShift: number } | null;
+  observations: ObservationRecord[];
+}
+
 export interface CaseDetail {
   id: string;
   createdAt: string;
-  patients: PatientProfile[];
-  users: { id: string; email: string; createdAt: string; consentAt: string | null }[];
-  predictions: (CasePrediction & { userId: string | null; modelVersion: string | null })[];
-  observations: ObservationRecord[];
+  isCouple: boolean;
+  invitation: {
+    scope: string;
+    status: string;
+    notes: string | null;
+    email: string | null;
+    partnerEmail: string | null;
+    createdAt: string;
+    acceptedAt: string | null;
+  } | null;
+  members: CaseMember[];
+  assessments: import("@/types/record").AssessmentView[];
   followUps: { id: string; status: string; note: string | null; createdAt: string; updatedAt: string }[];
-  invitation: { scope: string; status: string; notes: string | null; createdAt: string; acceptedAt: string | null } | null;
 }
 
 export interface InviteResponse {

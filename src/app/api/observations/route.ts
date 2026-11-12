@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { hasConsent } from "@/lib/consent";
+import { canAccessCase, canAccessUser } from "@/lib/clinician-scope";
 
 // FHIR-aligned observations (wearables or manually entered vitals).
 // Patients only ever see their own records (individual-first privacy, even when
@@ -21,6 +23,8 @@ export async function GET(req: NextRequest) {
       if (!queryCoupleId && !queryUserId) {
         return NextResponse.json({ error: "coupleId or userId is required" }, { status: 400 });
       }
+      const allowed = queryUserId ? await canAccessUser(session.userId, queryUserId) : await canAccessCase(session.userId, queryCoupleId!);
+      if (!allowed) return NextResponse.json({ error: "Not in your care list" }, { status: 403 });
       where = queryUserId ? { userId: queryUserId } : { coupleId: queryCoupleId! };
     }
 
@@ -41,6 +45,9 @@ export async function POST(req: NextRequest) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+    if (session.role === "PATIENT" && !(await hasConsent(session.userId, "WEARABLES"))) {
+      return NextResponse.json({ error: "Turn on 'Store my temperature and sleep readings' in Privacy & consent to log readings." }, { status: 403 });
     }
     const body = await req.json().catch(() => null);
     if (!body) {

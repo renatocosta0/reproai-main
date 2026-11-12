@@ -5,8 +5,11 @@ It acts as the backend for `POST /api/predict` in the Next.js app.
 
 ## Model
 
-A clinically-grounded logistic regression with coefficients derived from
-published IVF outcome research:
+A literature-derived additive log-odds model with exact Shapley attributions.
+It is not trained or validated on patient data and claims no performance
+statistic. Required inputs are enforced per assessment type: if one is missing
+the service returns `status: "insufficient_data"` and no estimate. Curves are
+derived from:
 
 - **HFEA** Fertility Treatment Trends 2022
 - **CDC ART** National Summary Report 2022
@@ -30,12 +33,12 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-The service starts at **http://localhost:3000** (matches `ML_API_URL` in `.env`).
+The service starts at **http://localhost:8000** (matches `ML_API_URL` in `.env`).
 
 Verify it is running:
 ```bash
 curl http://localhost:8000/health
-# {"status":"ok","model":"clinical-scoring-v1.0"}
+# {"status":"ok","model":"literature-spline-shapley-2.1", ...}
 ```
 
 ## Switching to Azure ML

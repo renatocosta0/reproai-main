@@ -112,5 +112,7 @@ export function isToday(d: Date): boolean {
 }
 
 export function shortDate(d: Date | string): string {
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const date = new Date(d);
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
 }

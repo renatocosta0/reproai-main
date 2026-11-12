@@ -2,15 +2,15 @@
 // never returns mocked values.
 
 export interface PredictionInput {
-  age: number;
-  bmi: number;
+  age: number | null;
+  bmi?: number | null;
   sperm_count?: number | null;
   amh?: number | null;
   sex?: "female" | "male";
   scope?: "INDIVIDUAL" | "COUPLE";
-  pcos_history?: boolean;
-  infertility_duration_months?: number;
-  prior_cycles?: number;
+  pcos_history?: boolean | null;
+  infertility_duration_months?: number | null;
+  prior_cycles?: number | null;
   preservation_intent?: boolean;
   antral_follicle_count?: number | null;
 }
@@ -23,13 +23,20 @@ export interface FeatureImportance {
 }
 
 export interface PredictionOutput {
-  probability: number;
-  confidence_low?: number;
-  confidence_high?: number;
+  /** "insufficient_data" means a required input is missing: no estimate is given. */
+  status: "ok" | "insufficient_data";
+  scope: "INDIVIDUAL" | "COUPLE";
+  missing_required: string[];
+  missing_optional: string[];
+  /** Share of required + optional inputs that were provided (0-1). */
+  completeness: number;
+  probability: number | null;
+  confidence_low: number | null;
+  confidence_high: number | null;
   factors: FeatureImportance[];
   model_version: string;
+  evidence_status: string;
   disclaimer: string;
-  scope?: "INDIVIDUAL" | "COUPLE";
   tier?: string | null;
   preservation_guidance?: string | null;
   age_adjusted_percentile?: number | null;
@@ -49,4 +56,15 @@ export async function predict(input: PredictionInput): Promise<PredictionOutput>
     throw new Error(`ML service error (${res.status}): ${detail}`);
   }
   return res.json();
+}
+
+export async function predictBatch(items: PredictionInput[]): Promise<PredictionOutput[]> {
+  const res = await fetch(`${ML_API_URL}/predict/batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error(`ML service error (${res.status}): ${await res.text()}`);
+  return ((await res.json()) as { results: PredictionOutput[] }).results;
 }

@@ -4,8 +4,9 @@ Fertility / reproductive-potential platform for the Abu Dhabi Future Health Digi
 Innovation Challenge (DoH / ADPHC / Inception / MBZUAI), Fertility track, Challenge 02.
 Individual-first, couple-ready, physician-prescribed (B2B2C).
 
-**Full frontend spec: [MasterPrompt.md](MasterPrompt.md).** Read it before UI work; it
-lists every page, the API contract table, and copy that must appear verbatim.
+**Spec: [NewPrompt.md](NewPrompt.md)** (section 0 and the 5A roadmap first), backed by
+[docs/challenge-02-benchmark.md](docs/challenge-02-benchmark.md): the official Challenge 02
+brief, the reference-demo patterns and the gap analysis. Prototype deadline: 20 Nov 2026.
 
 ## Stack (main app)
 - Next.js 14 App Router, React 18, TypeScript strict, Tailwind CSS **v3**
@@ -52,10 +53,14 @@ cd ml-service && pip install -r requirements.txt && uvicorn main:app --reload --
 ```
 
 ## Known issues (don't be surprised)
-- DB config is mid-migration: schema says `postgresql` + `DIRECT_URL`, but
-  `.env.example` and `prisma/migrations/migration_lock.toml` are still SQLite.
+- `prisma/migrations/` predates the move to PostgreSQL; use `npx prisma db push` (additive changes only on the shared DB, and ask first).
 - `src/lib/encryption.ts` exists but nothing calls it; data is not encrypted at rest.
-- `/api/consent` records `consentAt` but nothing enforces it.
-- `prisma/seed.ts` creates demo accounts (`clinician@reproai.dev` / `Demo1234!`),
-  despite docs saying the DB starts empty.
-- No tests yet (`vitest` is installed).
+- `prisma/seed.ts` creates `clinician@reproai.dev`; `npm run demo:setup` creates the demo personas (needs the ML service).
+- No automated tests yet (`vitest` is installed); end-to-end checks have been run as scripts.
+
+## P0 safety rules (keep them true)
+- The ML service never imputes a missing required input; it returns `insufficient_data`.
+- Assessments are created only by clinicians from the record (`/api/clinician/cases/:id/assess`) as DRAFTs; patients see only RELEASED ones.
+- Every value carries provenance (`LabResult.source`, `Prediction.inputs`); patients cannot write lab values.
+- Consent (`src/lib/consent.ts`) is enforced in the API; clinicians are scoped by `src/lib/clinician-scope.ts`.
+- No performance claims anywhere; label evidence status.
