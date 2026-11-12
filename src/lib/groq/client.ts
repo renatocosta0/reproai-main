@@ -144,11 +144,20 @@ export async function groqChatRaw(
   };
 }
 
+/** Wait suggested by a 429 response ("try again in 705ms" / "in 2.5s"), capped. */
+function retryDelayMs(detail: string): number | null {
+  const m = detail.match(/try again in ([\d.]+)(ms|s)/i);
+  if (!m) return null;
+  const ms = Number(m[1]) * (m[2].toLowerCase() === "s" ? 1000 : 1);
+  return ms <= 8000 ? Math.ceil(ms) + 150 : null;
+}
+
 async function callGroq(
   apiKey: string,
   model: string,
   messages: ChatMessage[],
-  options: { temperature?: number; maxTokens?: number }
+  options: { temperature?: number; maxTokens?: number },
+  attempt = 0
 ): Promise<string> {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -160,13 +169,21 @@ async function callGroq(
       model,
       messages,
       temperature: options.temperature ?? 0.3,
-      max_tokens: options.maxTokens ?? 600
+      max_tokens: options.maxTokens ?? 600,
+      // Reasoning models otherwise spend the token budget thinking and return nothing.
+      ...(model.startsWith("openai/gpt-oss") ? { reasoning_effort: "low" } : {})
     }),
     cache: "no-store"
   });
 
   if (!res.ok) {
     const detail = await res.text();
+    // Free-tier rate limits are short; wait as told and retry up to twice.
+    const wait = res.status === 429 && attempt < 2 ? retryDelayMs(detail) : null;
+    if (wait !== null) {
+      await new Promise((r) => setTimeout(r, wait));
+      return callGroq(apiKey, model, messages, options, attempt + 1);
+    }
     throw new Error(`Groq error (${res.status}): ${detail}`);
   }
 

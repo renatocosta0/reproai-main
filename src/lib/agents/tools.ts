@@ -5,7 +5,8 @@
 
 import { Tool } from "@/lib/agents/types";
 import { predict } from "@/lib/ml-client";
-import { retrieveGrounding } from "@/lib/azure/search";
+import { retrieve } from "@/lib/rag/retrieve";
+import { citationLabel } from "@/lib/rag/corpus";
 
 const predictFertility: Tool = {
   name: "predict_fertility_success",
@@ -48,7 +49,7 @@ const predictFertility: Tool = {
 const searchGuidelines: Tool = {
   name: "search_guidelines",
   description:
-    "Retrieve WHO/clinical guideline snippets relevant to a query from the Azure AI Search index.",
+    "Search ReproAI's cited guidance library (Thiqa ART guideline v3.6, WHO 2025 infertility guideline, ReproAI rules). Returns passages with IDs and citations, or abstained=true when nothing relevant exists.",
   parameters: {
     type: "object",
     properties: {
@@ -57,8 +58,12 @@ const searchGuidelines: Tool = {
     required: ["query"]
   },
   handler: async (args) => {
-    const snippets = await retrieveGrounding(String(args.query));
-    return { snippets };
+    const r = await retrieve(String(args.query), { audience: "clinician" });
+    return {
+      abstained: r.abstain,
+      reason: r.reason,
+      passages: r.hits.map((h) => ({ id: h.passage.id, title: h.passage.title, citation: citationLabel(h.passage), status: h.passage.status, text: h.passage.text }))
+    };
   }
 };
 

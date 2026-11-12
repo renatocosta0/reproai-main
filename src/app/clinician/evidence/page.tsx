@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FlaskConical, Info, ListChecks } from "lucide-react";
+import { BookOpen, FlaskConical, Info, ListChecks } from "lucide-react";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import type { LiveMetrics, Proportion, SimulationReport } from "@/lib/evaluation";
@@ -9,7 +9,25 @@ import type { LiveMetrics, Proportion, SimulationReport } from "@/lib/evaluation
 interface EvidenceResponse {
   live: LiveMetrics;
   simulation: SimulationReport | { error: string };
+  rag: RagEval;
   generatedAt: string;
+}
+
+interface RagEval {
+  generatedAt: string;
+  corpus: { passages: number; byStatus: Record<string, number> };
+  questions: { total: number; answerable: number; unanswerable: number };
+  retrieval: { hitAt4: Proportion; falseAbstention: Proportion; correctAbstention: Proportion };
+  endToEnd: null | {
+    provider: string | null;
+    answered: Proportion;
+    correctAbstention: Proportion;
+    expectedSourceCited: Proportion;
+    citationValidity: Proportion;
+    supportedSentences: Proportion;
+  };
+  caveats: string[];
+  misses: { q: string; kind: string; answerable: boolean; retrieved: string[]; status: string | null }[];
 }
 
 const pc = (x: number | null, d = 0) => (x === null ? "–" : `${(x * 100).toFixed(d)}%`);
@@ -32,7 +50,7 @@ export default function EvidencePage() {
         <div>
           <p className="date-label">EVIDENCE &amp; SAFETY</p>
           <h1>Is it leading to earlier action?</h1>
-          <span>Live measures from your panel, and a simulated check of calibration and false reassurance.</span>
+          <span>Live measures from your panel, a simulated check of calibration and false reassurance, and a test of the assistant&apos;s grounding.</span>
         </div>
       </div>
 
@@ -102,6 +120,11 @@ export default function EvidencePage() {
             <Simulation s={data.simulation} />
           )}
 
+          <h2 className="section-title" style={{ marginTop: 24 }}>
+            3 · Assistant grounding <span className="chip evidence"><BookOpen size={12} /> Offline test set</span>
+          </h2>
+          <RagSection r={data.rag} />
+
           <section className="panel" style={{ marginTop: 16 }}>
             <div className="panel-head">
               <div>
@@ -121,6 +144,64 @@ export default function EvidencePage() {
         </>
       )}
     </div>
+  );
+}
+
+function RagSection({ r }: { r: RagEval }) {
+  const e = r.endToEnd;
+  const status = Object.entries(r.corpus.byStatus).map(([k, v]) => `${v} ${k}`).join(", ");
+  return (
+    <>
+      <p className="muted-note" style={{ margin: "0 0 12px" }}>
+        {r.questions.total} questions ({r.questions.answerable} answerable, {r.questions.unanswerable} that must be refused) against a corpus of{" "}
+        {r.corpus.passages} cited passages ({status}). Run on {new Date(r.generatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+        {e?.provider ? ` with ${e.provider}` : ""}.
+      </p>
+      <section className="metrics-grid">
+        <Metric label="Right passage retrieved" value={pc(r.retrieval.hitAt4.rate)} detail={`In the top 4, answerable questions · ${ci(r.retrieval.hitAt4)}`} />
+        <Metric label="Refused when it should" value={pc((e?.correctAbstention ?? r.retrieval.correctAbstention).rate)} detail={`${e ? "End to end" : "Retrieval only"}, unanswerable questions · ${ci(e?.correctAbstention ?? r.retrieval.correctAbstention)}`} />
+        <Metric label="Citations valid" value={e ? pc(e.citationValidity.rate) : "–"} detail={e ? `Sentences citing only retrieved passages · ${ci(e.citationValidity)}` : "Run npm run rag:eval with an LLM key"} />
+        <Metric label="Sentences supported" value={e ? pc(e.supportedSentences.rate) : "–"} detail={e ? `Passed number, wording and judge checks before display · ${ci(e.supportedSentences)}` : "Needs an end-to-end run"} />
+      </section>
+      {e && (
+        <section className="metrics-grid">
+          <Metric label="Answered when it could" value={pc(e.answered.rate)} detail={`Answerable questions with a verified answer · ${ci(e.answered)}`} />
+          <Metric label="Cited the expected source" value={pc(e.expectedSourceCited.rate)} detail={`Of answered questions · ${ci(e.expectedSourceCited)}`} />
+          <Metric label="Wrongly refused (retrieval)" value={pc(r.retrieval.falseAbstention.rate)} detail={`Answerable questions with no passage found · ${ci(r.retrieval.falseAbstention)}`} />
+          <Metric label="Unsupported shown to patients" value="0" detail="By design: sentences that fail a check are removed before display" />
+        </section>
+      )}
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Where it went wrong</h2>
+            <p>Every question the test set scored as a miss. Shown so the gaps are visible, not hidden.</p>
+          </div>
+        </div>
+        {r.misses.length === 0 ? (
+          <p className="muted-note" style={{ padding: "0 20px 16px" }}>No misses on this run.</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Question</th><th>Type</th><th>Should</th><th>What happened</th></tr></thead>
+              <tbody>
+                {r.misses.map((m) => (
+                  <tr key={m.q}>
+                    <td>{m.q}</td>
+                    <td>{m.kind}</td>
+                    <td>{m.answerable ? "Answer" : "Refuse"}</td>
+                    <td>{m.status ? (m.status === "answered" ? "Answered" : "Refused") : m.retrieved.length ? `Retrieved ${m.retrieved.join(", ")}` : "Nothing retrieved"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <ul className="plain-list" style={{ paddingTop: 0 }}>
+          {r.caveats.map((c) => <li key={c}>{c}</li>)}
+        </ul>
+      </section>
+    </>
   );
 }
 

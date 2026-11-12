@@ -1,23 +1,19 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { BookOpen, Cpu, Send, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { Cpu, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { firstName, usePatient } from "@/components/patient/PatientContext";
 import { api, ApiError } from "@/lib/api-client";
-import type { AgentResponse } from "@/types/patient";
+import { useLocale } from "@/components/i18n/LocaleContext";
+import { GroundedReply } from "@/components/assistant/GroundedReply";
+import type { GroundedAnswer } from "@/lib/rag/answer";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-  toolsUsed?: string[];
-  provider?: AgentResponse["provider"];
+  answer?: GroundedAnswer;
   error?: boolean;
 }
-
-const TOOL_LABELS: Record<string, { label: string; icon: "zap" | "book" }> = {
-  predict_fertility_success: { label: "Ran the assessment model", icon: "zap" },
-  search_guidelines: { label: "Checked WHO / ESHRE guidance", icon: "book" }
-};
 
 const PROVIDER_LABELS: Record<string, string> = {
   azure: "Azure OpenAI",
@@ -25,13 +21,14 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 const SUGGESTIONS: Record<string, string[]> = {
-  female: ["What does a temperature rise after ovulation mean?", "How does AMH relate to egg freezing?", "Can PCOS affect my chances?"],
-  male: ["What is a normal sperm concentration?", "How can lifestyle improve sperm quality?", "When should I consider sperm banking?"],
-  default: ["How does sleep affect fertility?", "What is fertility preservation?"]
+  female: ["What does my AMH result mean?", "Who can have social egg freezing under Thiqa?", "When should I see a specialist?"],
+  male: ["Is my sperm concentration in the normal range?", "What lifestyle changes does WHO recommend?", "Why do both partners get tested?"],
+  default: ["When should we see a specialist?", "Who can see my information?"]
 };
 
 export default function AssistantPage() {
   const { data } = usePatient();
+  const { locale } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -47,16 +44,16 @@ export default function AssistantPage() {
   async function ask(question: string) {
     const q = question.trim();
     if (!q || sending) return;
-    const history: ChatMessage[] = [...messages.filter((m) => !m.error), { role: "user", content: q }];
+    const previousQuestion = [...messages].reverse().find((m) => m.role === "user")?.content;
     setMessages((m) => [...m, { role: "user", content: q }]);
     setText("");
     setSending(true);
     try {
-      const res = await api<AgentResponse>("/api/agent", {
+      const res = await api<{ answer: GroundedAnswer; reply: string }>("/api/patient/ask", {
         method: "POST",
-        body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })) })
+        body: JSON.stringify({ question: q, previousQuestion, locale })
       });
-      setMessages((m) => [...m, { role: "assistant", content: res.reply, toolsUsed: res.toolsUsed, provider: res.provider }]);
+      setMessages((m) => [...m, { role: "assistant", content: res.reply, answer: res.answer }]);
     } catch (err) {
       console.error("[Ask ReproAI error]:", err);
       if (err instanceof ApiError && err.status === 503) {
@@ -86,7 +83,7 @@ export default function AssistantPage() {
     <div className="content patient-content assistant-page">
       <div className="page-heading">
         <div>
-          <p className="date-label">WHO-GROUNDED GUIDANCE</p>
+          <p className="date-label">CITED GUIDANCE</p>
           <h1>Ask ReproAI</h1>
           <span>Clear explanations for everyday questions, with your clinician always in the loop.</span>
         </div>
@@ -99,7 +96,7 @@ export default function AssistantPage() {
           <span>
             <strong>ReproAI care assistant</strong>
             <small>
-              <i /> Grounded in WHO and ESHRE guidance
+              <i /> Answers only from cited guidance and your released record
             </small>
           </span>
         </div>
@@ -107,9 +104,9 @@ export default function AssistantPage() {
           <div className="message ai">
             <div className="mini-orb"><Sparkles size={13} /></div>
             <div>
-              Hello{name ? ` ${name}` : ""}. I can explain your results, your health signals and the guidance behind
-              them in plain language. I don&apos;t diagnose, and I&apos;ll point you to your care team when something
-              needs their judgement. What would you like to know?
+              Hello{name ? ` ${name}` : ""}. I can explain your released results and the guidance behind them in plain
+              language. I only answer from the Thiqa and WHO guidance in my library and from your record, and I show the
+              source for every sentence. If something isn&apos;t covered, I&apos;ll say so rather than guess. I don&apos;t diagnose.
             </div>
           </div>
           {messages.map((m, i) =>
@@ -121,23 +118,10 @@ export default function AssistantPage() {
               <div className="message ai" key={i}>
                 <div className="mini-orb"><Sparkles size={13} /></div>
                 <div>
-                  {m.toolsUsed && m.toolsUsed.length > 0 && (
-                    <div className="tool-badges">
-                      {m.toolsUsed.map((t) => {
-                        const meta = TOOL_LABELS[t];
-                        return (
-                          <span className="tool-badge" key={t}>
-                            {meta?.icon === "book" ? <BookOpen size={12} /> : <Zap size={12} />}
-                            {meta?.label ?? `Used tool: ${t}`}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <div className="reply-text">{m.content}</div>
-                  {m.provider && (
+                  {m.answer ? <GroundedReply answer={m.answer} audience="patient" locale={locale} /> : <div className="reply-text">{m.content}</div>}
+                  {m.answer?.provider && (
                     <span className="provider-tag">
-                      <Cpu size={12} /> {PROVIDER_LABELS[m.provider] ?? m.provider}
+                      <Cpu size={12} /> {PROVIDER_LABELS[m.answer.provider] ?? m.answer.provider}
                     </span>
                   )}
                 </div>

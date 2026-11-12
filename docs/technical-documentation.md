@@ -44,6 +44,20 @@ ReproAI gives individuals and couples an evidence-led, understandable view of ho
 | **What-if simulator** | Re-scores the patient's latest released assessment with only BMI changed (the only modifiable model input) and reports whether BMI's contribution improves, not a new probability. Sleep and smoking are explained from evidence, not simulated. Nothing is saved. | Runs in prototype; illustrative |
 | **Guided demo** (`/tour`) | Twelve scripted steps across clinician and patient personas, each naming the brief requirement it answers, including a missing-data case and a no-consent case. A floating bar moves between steps and switches persona. Requires `DEMO_LOGIN_ENABLED`. | Runs in prototype |
 
+### Grounded assistants (RAG)
+
+Both assistants, the patient's **Ask ReproAI** and the clinician copilot, use one pipeline in `src/lib/rag/`. The aim is that every sentence a person reads can be traced to a source, and that the assistant says "not in the guidance" instead of guessing.
+
+1. **A cited corpus** (`corpus.ts`): short paraphrased passages, each with document, section, page and URL, and a status that says how strongly it is backed. *Primary* passages come from the Daman Thiqa ART guideline v3.6 (page numbers from the PDF); *summary* passages from WHO's announcement of its 2025 infertility guideline (not the full text); *scope* passages only say a document exists (ESHRE 2020 preservation, WHO 2021 semen manual), with no clinical figures taken from them; *internal* passages describe how ReproAI works. Facts not verified against a source were left out. The earlier hand-written snippets in `src/lib/guidelines-local/` were never verified and are no longer retrieved.
+2. **Retrieval always runs first** (`retrieve.ts`): BM25 with light stemming and a lay-to-clinical synonym map. Azure AI Search is used instead when `AZURE_SEARCH_*` is set. The LLM never decides whether to look something up.
+3. **Abstention**: if the best passage scores below a fixed threshold, or covers too few of the question's terms, no answer is generated and the person sees "Not in ReproAI's guidance".
+4. **The record is a source too** (`record-passages.ts`): the patient's released record (latest labs with dates and provenance, released assessment tier and percentile, clinician note, triggered options) or the clinician's case facts become citable passages. Patients never get a probability or a draft.
+5. **Constrained generation** (`answer.ts`): the LLM sees only the retrieved passages and must reply in JSON, one entry per sentence, each with the passage IDs it relies on, or declare the question unanswerable.
+6. **Verification after generation**: each sentence must cite passages that were actually retrieved; every number must appear in a cited passage; most of its content words must appear there; quotations must match; and an optional second LLM pass (`RAG_JUDGE=on`, always on in the evaluation) checks support. Patients see only sentences that pass. Clinicians see failing sentences highlighted with the reason.
+7. **Fallbacks and safety**: if the LLM is unavailable, the most relevant passages are shown as written (or, for a case, the labelled scripted summary). Questions describing urgent symptoms (heavy bleeding, severe pain, self-harm) get a fixed message to call 998 or go to an emergency department, without generation.
+8. **Tools**: the patient assistant has no tools. `/api/agent` is now clinician-only and no longer offers the scoring tool; `search_guidelines` returns corpus passages with IDs and an `abstained` flag.
+9. **Measurement**: `npm run rag:eval` runs the questions in `eval-set.ts` (answerable, out-of-domain, in-domain but not covered, and rule-breaking) and writes `eval-results.json`, which the Evidence page shows with Wilson intervals and a list of every miss.
+
 ## 3. Architecture
 
 ```mermaid
@@ -68,7 +82,7 @@ flowchart LR
 - **Web app:** Next.js 14 App Router, TypeScript (strict), Tailwind 3; API routes in `src/app/api`.
 - **Data:** PostgreSQL (Neon) through Prisma. Models: `User`, `Couple` (care case), `Patient` (profile and self-reported intake), `LabResult` (value, unit, date, **source**, entered by), `Prediction` (result, **status** DRAFT/RELEASED/DISCARDED, completeness, inputs with provenance, reviewer and note), `Observation` (wearables), `Consent` (per purpose), `FollowUp`, `Invitation`, `PairingInvite`, `AuditLog`.
 - **ML service:** `ml-service/main.py`, FastAPI; deterministic scoring, no LLM.
-- **Assistant:** tool-calling agent (`/api/agent`) that can call the scoring tool and a guideline search; it explains, it does not compute numbers.
+- **Assistants:** grounded retrieval-and-verification pipeline in `src/lib/rag/` behind `/api/patient/ask` and `/api/clinician/copilot`; see "Grounded assistants (RAG)". `/api/agent` is a clinician-only tool-calling agent limited to guideline search.
 
 ## 4. The gated assessment pipeline
 
@@ -147,7 +161,7 @@ Assessments are only created by a clinician from the record, never typed in by t
 - **Equity:** nationality and language are not yet recorded, so equitable reach cannot be reported by those groups.
 - **Arabic:** a prototype translation covering navigation, trajectory, options and consent; it needs review by a native-speaking clinician, and the intake, Today and tracking pages are still English-only.
 - **Wearables:** readings are logged or pasted; there is no certified device integration. Basal temperature is a weak, retrospective ovulation signal.
-- **Assistants:** depend on an external LLM provider and may be unavailable. The clinical copilot's number check catches unsupported numbers but not every wording error (for example, implying an outcome definition); its output is decision support for a clinician, not patient-facing text.
+- **Assistants:** depend on an external LLM provider and may be unavailable (they then show source passages as written). The corpus is small (about 40 passages) and English-only, so Arabic questions are usually refused; the WHO 2025 passages come from WHO's announcement rather than the full guideline. Verification is automatic: the number, wording and quotation checks catch fabricated figures and off-source wording, but a sentence can reuse the source's words and still mislead, and the LLM judge can be wrong. The evaluation questions were written by the team and the thresholds were tuned on them, so its figures are optimistic.
 - **Data protection:** encryption at rest for sensitive fields is not yet applied (the helper exists); production would also need ADHICS-aligned hosting in the UAE.
 - **Notifications:** invitation and pairing links are shown to copy; no email or SMS is sent.
 

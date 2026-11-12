@@ -53,8 +53,8 @@ export const TOUR: TourStep[] = [
     title: "A copilot that explains, never invents",
     persona: "CLINICIAN",
     href: "/clinician/assistant?case=demo-couple",
-    look: "Ask for a consultation summary. Numbers come only from the record; each reply is checked and flagged if a number is not found. If the AI is down, a labelled scripted summary appears.",
-    serves: "Technical depth · Responsible AI (tool-grounded LLM)"
+    look: "Ask for a consultation summary, then ask something the guidance does not cover. Each sentence carries numbered sources from the record or the Thiqa and WHO guidance; unsupported sentences are flagged, and uncovered questions get 'Not in ReproAI's guidance'.",
+    serves: "Technical depth · Responsible AI (retrieval-grounded, verified LLM)"
   },
   {
     title: "Evidence of earlier action",
