@@ -60,15 +60,15 @@ export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${label}: ${pts.map((p) => p.value).join(", ")}`}>
         {lim !== undefined && (
           <>
-            <rect x="0" y={y(lim)} width={width} height={Math.max(0, height - pad - y(lim))} fill="#de7467" opacity="0.07" />
-            <line x1="0" x2={width} y1={y(lim)} y2={y(lim)} stroke="#de7467" strokeDasharray="4 4" strokeWidth="1" />
+            <rect x="0" y={y(lim)} width={width} height={Math.max(0, height - pad - y(lim))} style={{ fill: "var(--chart-risk)" }} opacity="0.07" />
+            <line x1="0" x2={width} y1={y(lim)} y2={y(lim)} style={{ stroke: "var(--chart-risk)" }} strokeDasharray="4 4" strokeWidth="1" />
           </>
         )}
         {pts.length > 1 && (
-          <polyline points={pts.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" stroke="#176e65" strokeWidth="2" />
+          <polyline points={pts.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" style={{ stroke: "var(--chart-line)" }} strokeWidth="2" />
         )}
         {pts.map((p, i) => (
-          <circle key={p.id} cx={x(i)} cy={y(p.value)} r="4" fill="#fff" stroke={isBelowLimit(code, p.value) ? "#de7467" : "#176e65"} strokeWidth="2" />
+          <circle key={p.id} cx={x(i)} cy={y(p.value)} r="4" style={{ fill: "var(--chart-dot-fill)", stroke: isBelowLimit(code, p.value) ? "var(--chart-risk)" : "var(--chart-line)" }} strokeWidth="2" />
         ))}
       </svg>
       <p className="marker-trend">

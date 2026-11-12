@@ -108,7 +108,7 @@ export default function ClinicianDashboard() {
             <div className="cohort-body">
               <div
                 className="donut"
-                style={{ background: `conic-gradient(#6eb7a4 0 ${hiPct}%, #e5b167 ${hiPct}% ${hiPct + modPct}%, #db776a ${hiPct + modPct}% 100%)` }}
+                style={{ background: `conic-gradient(var(--chart-protective) 0 ${hiPct}%, var(--chart-moderate) ${hiPct}% ${hiPct + modPct}%, var(--chart-high) ${hiPct + modPct}% 100%)` }}
                 role="img"
                 aria-label={`${assessed.length} assessed cases: ${bands.high} high, ${bands.moderate} moderate, ${bands.low} low`}
               >
@@ -254,7 +254,7 @@ function CaseTable({ rows, tab }: { rows: CaseItem[]; tab: Tab }) {
                       <div><i style={{ width: `${p.probability}%` }} /></div>
                     </div>
                   ) : (
-                    <span style={{ color: "#9aa5a1" }}>Not assessed</span>
+                    <span style={{ color: "var(--text-faint)" }}>Not assessed</span>
                   )}
                 </td>
                 <td>{c.recentObservationsCount ? `${c.recentObservationsCount}${c.recentObservationsCount >= 10 ? "+" : ""} recent` : "None"}</td>
