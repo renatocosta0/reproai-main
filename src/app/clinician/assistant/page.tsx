@@ -4,6 +4,8 @@ import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Cpu, FileText, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { GroundedReply } from "@/components/assistant/GroundedReply";
+import { ChatHistory, ChatHistoryActions, historyText, useConversations, useHistoryPanel, type ConversationDetail } from "@/components/assistant/ChatHistory";
+import { useLocale } from "@/components/i18n/LocaleContext";
 import type { GroundedAnswer } from "@/lib/rag/answer";
 import { api, userMessage } from "@/lib/api-client";
 import type { DirectoryResponse } from "@/types/clinician";
@@ -44,6 +46,12 @@ function Copilot() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState(false);
+  const { locale } = useLocale();
+  const history = useConversations("/api/clinician/conversations");
+  const panel = useHistoryPanel();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,21 +67,64 @@ function Copilot() {
   async function ask(q: string) {
     const question = q.trim();
     if (!question || sending) return;
-    const history = [...messages.filter((m) => !m.error), { role: "user" as const, content: question }];
+    const turns = [...messages.filter((m) => !m.error), { role: "user" as const, content: question }];
     setMessages((m) => [...m, { role: "user", content: question }]);
     setText("");
     setSending(true);
     try {
-      const res = await api<{ reply: string; provider: string; answer: GroundedAnswer }>("/api/clinician/copilot", {
+      const res = await api<{ reply: string; provider: string; answer: GroundedAnswer; conversationId: string | null }>("/api/clinician/copilot", {
         method: "POST",
-        body: JSON.stringify({ caseId: caseId || undefined, messages: history.map(({ role, content }) => ({ role, content })) })
+        body: JSON.stringify({ caseId: caseId || undefined, conversationId, messages: turns.map(({ role, content }) => ({ role, content })) })
       });
       setMessages((m) => [...m, { role: "assistant", content: res.reply, provider: res.provider, answer: res.provider === "scripted" ? undefined : res.answer }]);
+      if (res.conversationId) setConversationId(res.conversationId);
+      void history.refresh();
     } catch (err) {
       setMessages((m) => [...m, { role: "assistant", content: userMessage(err, "The copilot could not answer."), error: true }]);
     } finally {
       setSending(false);
     }
+  }
+
+  function newChat() {
+    setMessages([]);
+    setConversationId(null);
+    setOpenError(false);
+    setText("");
+    panel.afterPick();
+  }
+
+  async function openChat(id: string) {
+    if (sending || opening) return;
+    panel.afterPick();
+    setOpening(true);
+    setOpenError(false);
+    try {
+      const conv: ConversationDetail = await history.open(id);
+      setCaseId(conv.caseId ?? "");
+      setMessages(
+        conv.messages.flatMap<Msg>((t) => [
+          { role: "user", content: t.question },
+          {
+            role: "assistant",
+            content: t.reply,
+            provider: t.provider ?? undefined,
+            answer: t.provider === "scripted" ? undefined : t.answer ?? undefined
+          }
+        ])
+      );
+      setConversationId(conv.id);
+    } catch {
+      setOpenError(true);
+      void history.refresh();
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  async function deleteChat(id: string) {
+    await history.remove(id);
+    if (id === conversationId) newChat();
   }
 
   function submit(e: FormEvent) {
@@ -84,7 +135,7 @@ function Copilot() {
   const caseName = cases.find((c) => c.id === caseId)?.name;
 
   return (
-    <div className="content assistant-page">
+    <div className="content assistant-page has-history">
       <div className="page-heading">
         <div>
           <p className="date-label">CLINICAL COPILOT</p>
@@ -94,7 +145,7 @@ function Copilot() {
         <label className="field copilot-case">
           <span>Case</span>
           <div className="input-wrap">
-            <select value={caseId} onChange={(e) => { setCaseId(e.target.value); setMessages([]); }}>
+            <select value={caseId} onChange={(e) => { setCaseId(e.target.value); newChat(); }}>
               <option value="">No case (general questions)</option>
               {cases.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -104,6 +155,21 @@ function Copilot() {
         </label>
       </div>
 
+      <div className={`assistant-layout${panel.open ? " history-open" : ""}`}>
+      <ChatHistory
+        locale={locale}
+        open={panel.open}
+        onClose={() => panel.setOpen(false)}
+        items={history.items}
+        error={history.error}
+        onRetry={() => void history.refresh()}
+        activeId={conversationId}
+        onSelect={(id) => void openChat(id)}
+        onNew={newChat}
+        onDelete={deleteChat}
+        metaFor={(c) => (c.caseId ? cases.find((x) => x.id === c.caseId)?.name : undefined)}
+        disabled={sending || opening}
+      />
       <section className="assistant-shell panel">
         <div className="assistant-head">
           <div className="assistant-orb"><Sparkles size={21} /></div>
@@ -111,9 +177,16 @@ function Copilot() {
             <strong>ReproAI clinical copilot</strong>
             <small><i /> {caseName ? `Using the record of ${caseName}` : "No case selected"} · cited guidance library</small>
           </span>
+          <ChatHistoryActions
+            locale={locale}
+            open={panel.open}
+            onToggle={() => panel.setOpen(!panel.open)}
+            onNew={newChat}
+            disabled={sending || opening}
+          />
         </div>
         <div className="messages" aria-live="polite">
-          {messages.length === 0 && (
+          {messages.length === 0 && !opening && (
             <div className="message ai">
               <div className="mini-orb"><Sparkles size={13} /></div>
               <div>
@@ -137,6 +210,8 @@ function Copilot() {
               </div>
             )
           )}
+          {opening && <p className="chat-loading" role="status">{historyText(locale, "opening")}</p>}
+          {openError && <div className="assistant-unavailable" role="alert">{historyText(locale, "openError")}</div>}
           {sending && (
             <div className="message ai">
               <div className="mini-orb"><Sparkles size={13} /></div>
@@ -145,7 +220,7 @@ function Copilot() {
           )}
           <div ref={endRef} />
         </div>
-        {messages.length === 0 && (
+        {messages.length === 0 && !opening && (
           <div className="suggestions">
             {(caseName ? PROMPTS_CASE : PROMPTS_GENERAL).map((p) => (
               <button key={p} type="button" onClick={() => void ask(p)} disabled={sending}>{p}</button>
@@ -160,6 +235,7 @@ function Copilot() {
           <ShieldCheck size={13} /> Decision support for licensed clinicians. Prototype; not clinically validated. Every query is audit-logged.
         </div>
       </section>
+      </div>
     </div>
   );
 }

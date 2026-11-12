@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Manrope, Noto_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import "./reproai.css";
+import "./chat-history.css";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],

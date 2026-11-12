@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { recordTurn } from "@/lib/chat-history";
 import { prisma } from "@/lib/db";
 import { loadPersonRecord } from "@/lib/person-record";
 import { groundedAnswer, answerText } from "@/lib/rag/answer";
@@ -9,7 +10,7 @@ import { patientRecordPassages } from "@/lib/rag/record-passages";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-// POST /api/patient/ask { question, previousQuestion?, locale? }
+// POST /api/patient/ask { question, previousQuestion?, locale?, conversationId? }
 // The patient assistant. It has no tools: it cannot run the model or compute
 // anything. It answers only from the cited guidance library and the patient's
 // own released record, and every sentence is checked against the passage it
@@ -37,7 +38,17 @@ export async function POST(req: NextRequest) {
 
     const answer = await groundedAnswer(question, { audience: "patient", record: passages, previousQuestion, locale });
     await audit(session.userId, "patient_ask", `status:${answer.status};mode:${answer.mode};removed:${answer.removed}`);
-    return NextResponse.json({ answer, reply: answerText(answer) });
+    const reply = answerText(answer);
+    const conversationId = await recordTurn({
+      userId: session.userId,
+      assistant: "PATIENT_ASSISTANT",
+      conversationId: typeof body?.conversationId === "string" ? body.conversationId : null,
+      question,
+      reply,
+      provider: answer.provider ?? null,
+      answer
+    });
+    return NextResponse.json({ answer, reply, conversationId });
   } catch (error: any) {
     console.error("[POST /api/patient/ask] error:", error);
     return NextResponse.json({ error: "The assistant could not answer just now." }, { status: 500 });

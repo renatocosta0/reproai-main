@@ -31,6 +31,7 @@ model User {
   sentPairingInvites  PairingInvite[] @relation("SentPairingInvites")
   labResults          LabResult[]
   consents            Consent[]
+  conversations       ChatConversation[]
 }
 
 model Couple {
@@ -217,4 +218,39 @@ model PairingInvite {
   expiresAt       DateTime
   createdAt       DateTime  @default(now())
   acceptedAt      DateTime?
+}
+
+// Assistant chat history ("recent conversations"). Private to the user who
+// asked: every read and delete is scoped by userId from the session. Each turn
+// stores the full GroundedAnswer JSON so a reopened chat re-renders its
+// citations without calling the LLM again.
+model ChatConversation {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// One of: PATIENT_ASSISTANT | CLINICIAN_COPILOT
+  assistant String
+  /// Clinician copilot only: the care case (Couple.id) the chat was about.
+  caseId    String?
+  title     String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  turns     ChatTurn[]
+
+  @@index([userId, assistant, updatedAt])
+}
+
+model ChatTurn {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  question       String
+  /// Plain-text reply as shown (answerText or the scripted summary).
+  reply          String
+  provider       String?
+  /// The GroundedAnswer returned by src/lib/rag/answer.ts, stored verbatim.
+  answer         Json?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
 }
