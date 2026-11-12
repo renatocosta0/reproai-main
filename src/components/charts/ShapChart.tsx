@@ -46,7 +46,7 @@ export function ShapChart({ factors }: { factors: ShapFactor[] }) {
                 style={positive ? { left: "50%", width: `${w}%` } : { right: "50%", width: `${w}%` }}
               />
             </div>
-            <span className={`shap-value ${positive ? "pos" : r.phi < 0 ? "neg" : ""}`} role="cell">
+            <span className={`shap-value ${positive ? "pos" : r.phi < 0 ? "neg" : ""}`} role="cell" dir="ltr">
               {positive ? "+" : ""}
               {r.phi.toFixed(2)}
             </span>

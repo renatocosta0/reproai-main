@@ -7,6 +7,8 @@ import { LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { TourBar } from "@/components/tour/TourBar";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useLocale } from "@/components/i18n/LocaleContext";
+import { CLINICIAN_STRINGS } from "@/lib/i18n-clinician";
 
 export interface NavItem {
   href: string;
@@ -35,6 +37,7 @@ export function PortalShell({ theme, navLabel, nav, user, sidebarFooter, topActi
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const L = CLINICIAN_STRINGS[useLocale().locale];
   const current = nav.find(
     (n) =>
       pathname === n.href ||
@@ -51,15 +54,15 @@ export function PortalShell({ theme, navLabel, nav, user, sidebarFooter, topActi
 
   return (
     <div className={`app-shell ${theme}-theme`}>
-      {mobileOpen && <button className="sidebar-scrim" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
+      {mobileOpen && <button className="sidebar-scrim" onClick={() => setMobileOpen(false)} aria-label={L.closeMenu} />}
       <aside className={`sidebar ${theme === "patient" ? "patient-side" : ""} ${mobileOpen ? "open" : ""}`}>
         <div className="sidebar-top">
           <Logo />
-          <button className="mobile-close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+          <button className="mobile-close" onClick={() => setMobileOpen(false)} aria-label={L.closeMenu}>
             <X size={20} />
           </button>
         </div>
-        <nav aria-label="Main">
+        <nav aria-label={L.mainNav}>
           <small className="nav-label">{navLabel}</small>
           {nav.map((item) => {
             const Icon = item.icon;
@@ -90,7 +93,7 @@ export function PortalShell({ theme, navLabel, nav, user, sidebarFooter, topActi
               <strong>{user.name}</strong>
               <small>{user.subtitle}</small>
             </span>
-            <button className="logout-button" onClick={logout} disabled={signingOut} title="Sign out" aria-label="Sign out">
+            <button className="logout-button" onClick={logout} disabled={signingOut} title={L.signOut} aria-label={L.signOut}>
               <LogOut size={16} />
             </button>
           </div>
@@ -99,7 +102,7 @@ export function PortalShell({ theme, navLabel, nav, user, sidebarFooter, topActi
 
       <div className="main-shell">
         <header className="topbar">
-          <button className="menu-button" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+          <button className="menu-button" onClick={() => setMobileOpen(true)} aria-label={L.openMenu}>
             <Menu size={21} />
           </button>
           <span className="topbar-title">{current?.label ?? ""}</span>

@@ -1,9 +1,10 @@
-import { formatHours, shortDate, type Point, type SleepStats } from "@/lib/observation-analysis";
+import { formatHours, shortDate as defaultDate, type Point, type SleepStats } from "@/lib/observation-analysis";
 
 const TARGET_HOURS = 7;
 
 /** Nightly sleep bars with a 7-night moving average and a 7-hour reference line. */
-export function SleepChart({ points, stats }: { points: Point[]; stats: SleepStats }) {
+/** `formatDate` lets a localised page label the axis; defaults to the English short date. */
+export function SleepChart({ points, stats, formatDate: shortDate = defaultDate }: { points: Point[]; stats: SleepStats; formatDate?: (d: Date) => string }) {
   const width = 760;
   const height = 200;
   const pad = 10;

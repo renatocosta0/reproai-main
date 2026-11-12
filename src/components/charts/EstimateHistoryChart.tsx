@@ -1,4 +1,4 @@
-import { shortDate } from "@/lib/observation-analysis";
+import { shortDate as defaultDate } from "@/lib/observation-analysis";
 
 interface Point {
   date: Date;
@@ -8,7 +8,8 @@ interface Point {
 }
 
 /** Estimate over time with its 95% confidence band (0–100% scale). */
-export function EstimateHistoryChart({ points }: { points: Point[] }) {
+/** `formatDate` lets a localised page label the axis; defaults to the English short date. */
+export function EstimateHistoryChart({ points, formatDate: shortDate = defaultDate }: { points: Point[]; formatDate?: (d: Date) => string }) {
   const width = 760;
   const height = 180;
   const pad = 12;

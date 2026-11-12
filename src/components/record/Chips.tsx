@@ -11,23 +11,29 @@ const SOURCE_AR: Record<string, string> = {
   SELF_REPORTED: "أدخلته بنفسك",
   PROFILE: "مسجّل سابقًا (المصدر غير موثّق)"
 };
+// Clinician wording where the patient wording addresses the patient ("you entered it").
+const SOURCE_AR_CLINICIAN: Record<string, string> = { ...SOURCE_AR, SELF_REPORTED: "أدخله المريض" };
 
-export function SourceChip({ source }: { source: string }) {
+export function SourceChip({ source, audience = "patient" }: { source: string; audience?: "patient" | "clinician" }) {
   const { locale } = useLocale();
+  const arLabels = audience === "clinician" ? SOURCE_AR_CLINICIAN : SOURCE_AR;
   const s = source as LabSource;
   const Icon = s === "CLINICIAN_VERIFIED" ? BadgeCheck : s === "SELF_REPORTED" ? PenLine : s === "IMPORTED" ? Smartphone : Info;
   return (
     <span className={`chip src-${s.toLowerCase()}`}>
-      <Icon size={12} aria-hidden /> {locale === "ar" ? SOURCE_AR[s] ?? source : SOURCE_LABELS[s] ?? source}
+      <Icon size={12} aria-hidden /> {locale === "ar" ? arLabels[s] ?? source : SOURCE_LABELS[s] ?? source}
     </span>
   );
 }
 
 /** Evidence status of the model output, always shown with a result. */
 export function EvidenceChip({ text }: { text?: string | null }) {
+  const { locale } = useLocale();
+  const ar = locale === "ar";
   return (
     <span className="chip evidence" title={text ?? undefined}>
-      <FlaskConical size={12} aria-hidden /> {text ? "Prototype · not clinically validated" : "Prototype"}
+      <FlaskConical size={12} aria-hidden />{" "}
+      {text ? (ar ? "نموذج أولي · غير مُتحقَّق منه سريريًا" : "Prototype · not clinically validated") : ar ? "نموذج أولي" : "Prototype"}
     </span>
   );
 }

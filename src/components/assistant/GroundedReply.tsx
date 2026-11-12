@@ -15,19 +15,25 @@ const T = {
     flagged: (n: number) => `${n} sentence${n === 1 ? "" : "s"} flagged: check against the source`,
     extractive: "Shown as written in the source",
     record: "Your record",
-    urgent: "Urgent"
+    urgent: "Urgent",
+    closest: "Closest passages (not used)",
+    sourceN: (n: number) => `Source ${n}`,
+    open: "Open"
   },
   ar: {
     notFound: "غير موجود في إرشادات ReproAI",
     notFoundBody: "لم أجد هذا في مكتبة الإرشادات أو في سجلك، لذلك لن أخمّن. طبيبك هو أفضل من تسأله.",
-    notFoundClin: "No passage in the guidance library or the case record supports an answer. Nothing was generated.",
-    sources: (n: number) => `${n} مصدر`,
+    notFoundClin: "لا يوجد مقطع في مكتبة الإرشادات أو في سجل الحالة يدعم إجابة، ولم يُولَّد أي نص.",
+    sources: (n: number) => (n === 1 ? "مصدر واحد" : n === 2 ? "مصدران" : n % 100 >= 3 && n % 100 <= 10 ? `${n} مصادر` : `${n} مصدرًا`),
     checked: "تم التحقق من كل جملة مقابل مصدرها",
     removed: (n: number) => `حُذفت ${n} جملة لأنها غير مدعومة بالمصادر`,
-    flagged: (n: number) => `${n} flagged`,
+    flagged: (n: number) => `جمل مُعلَّمة: ${n} — تحقّق منها مقابل المصدر`,
     extractive: "معروض كما ورد في المصدر",
     record: "سجلك",
-    urgent: "عاجل"
+    urgent: "عاجل",
+    closest: "أقرب المقاطع (لم تُستخدم)",
+    sourceN: (n: number) => `المصدر ${n}`,
+    open: "فتح"
   }
 };
 
@@ -52,7 +58,7 @@ export function GroundedReply({ answer, audience, locale = "en" }: { answer: Gro
         <span className="abstain-title"><SearchX size={15} /> {t.notFound}</span>
         <p>{audience === "patient" ? t.notFoundBody : t.notFoundClin}</p>
         {answer.note && audience === "clinician" && <small className="muted-note">{answer.note}{answer.retrieval.reason ? ` ${answer.retrieval.reason}` : ""}</small>}
-        {answer.sources.length > 0 && audience === "clinician" && <SourceList answer={answer} num={num} title="Closest passages (not used)" />}
+        {answer.sources.length > 0 && audience === "clinician" && <SourceList answer={answer} num={num} title={t.closest} t={t} />}
       </div>
     );
   }
@@ -69,12 +75,12 @@ export function GroundedReply({ answer, audience, locale = "en" }: { answer: Gro
         )}
         {answer.removed > 0 && <span className="tool-badge muted">{t.removed(answer.removed)}</span>}
       </div>
-      <p className="reply-text grounded-text">
+      <p className="reply-text grounded-text" dir="auto">
         {answer.sentences.map((s, i) => (
           <span key={i} className={s.supported ? undefined : "unsupported"} title={s.supported ? undefined : s.issues.join("; ")}>
             {s.text}
             {s.cites.map((c) => (
-              <sup key={c} className="cite-chip" aria-label={`Source ${num(c)}`}>{num(c)}</sup>
+              <sup key={c} className="cite-chip" aria-label={t.sourceN(num(c))}>{num(c)}</sup>
             ))}
             {!s.supported && <AlertTriangle size={12} className="unsupported-icon" aria-label={s.issues.join("; ")} />}{" "}
           </span>
@@ -86,14 +92,14 @@ export function GroundedReply({ answer, audience, locale = "en" }: { answer: Gro
           <button type="button" className="sources-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
             <BookOpen size={13} /> {t.sources(answer.sources.length)} <ChevronDown size={13} className={open ? "rot" : undefined} />
           </button>
-          {open && <SourceList answer={answer} num={num} />}
+          {open && <SourceList answer={answer} num={num} t={t} />}
         </div>
       )}
     </div>
   );
 }
 
-function SourceList({ answer, num, title }: { answer: GroundedAnswer; num: (id: string) => number; title?: string }) {
+function SourceList({ answer, num, title, t }: { answer: GroundedAnswer; num: (id: string) => number; title?: string; t: (typeof T)["en"] }) {
   return (
     <ol className="source-list">
       {title && <li className="source-list-title">{title}</li>}
@@ -106,10 +112,10 @@ function SourceList({ answer, num, title }: { answer: GroundedAnswer; num: (id: 
               {s.label} · <code>{s.id}</code>
               {s.statusLabel && <> · <em>{s.statusLabel}</em></>}
               {s.url && s.url.startsWith("http") && (
-                <> · <a href={s.url} target="_blank" rel="noopener noreferrer">Open <ExternalLink size={10} /></a></>
+                <> · <a href={s.url} target="_blank" rel="noopener noreferrer">{t.open} <ExternalLink size={10} /></a></>
               )}
             </small>
-            <p>{s.text}</p>
+            <p dir="auto">{s.text}</p>
           </div>
         </li>
       ))}

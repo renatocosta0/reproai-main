@@ -1,14 +1,17 @@
 import type { BbtAnalysis, Point } from "@/lib/observation-analysis";
-import { shortDate } from "@/lib/observation-analysis";
+import { shortDate as defaultDate } from "@/lib/observation-analysis";
 
 interface Props {
   points: Point[]; // oldest first
   analysis?: BbtAnalysis;
   large?: boolean;
+  /** Localised axis dates and marker label; default to English. */
+  formatDate?: (d: Date) => string;
+  riseLabel?: string;
 }
 
 /** Basal body temperature line with the Roetzer coverline and the detected rise. */
-export function TemperatureChart({ points, analysis, large = false }: Props) {
+export function TemperatureChart({ points, analysis, large = false, formatDate: shortDate = defaultDate, riseLabel = "Temperature rise" }: Props) {
   const width = 760;
   const height = large ? 230 : 155;
   const pad = 14;
@@ -77,7 +80,7 @@ export function TemperatureChart({ points, analysis, large = false }: Props) {
         </svg>
         {shiftLeft !== null && (
           <div className="ovulation-marker" style={{ left: `${shiftLeft}%` }}>
-            <span>Temperature rise</span>
+            <span>{riseLabel}</span>
           </div>
         )}
       </div>

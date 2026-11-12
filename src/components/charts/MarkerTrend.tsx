@@ -6,14 +6,18 @@ import { LAB_AR } from "@/lib/i18n";
 import { LABS, isBelowLimit, type LabCode, type LabPoint } from "@/lib/labs";
 import { shortDate } from "@/lib/observation-analysis";
 import { SourceChip } from "@/components/record/Chips";
+import { CLINICIAN_STRINGS, shortDateL } from "@/lib/i18n-clinician";
 
 /**
  * One marker over time against its reference limit, with the person's first
  * value as their baseline and a plain-language direction-of-change sentence.
  */
-export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[] }) {
+export function MarkerTrend({ code, points, audience = "patient" }: { code: LabCode; points: LabPoint[]; audience?: "patient" | "clinician" }) {
   const { locale } = useLocale();
   const ar = locale === "ar";
+  // Clinician Arabic: neutral wording (not "your result") and Arabic dates.
+  const clinAr = audience === "clinician" && ar ? CLINICIAN_STRINGS.ar : null;
+  const date = (d: string) => (clinAr ? shortDateL("ar", d) : shortDate(d));
   const def = LABS[code];
   const label = ar ? LAB_AR[code] ?? def.label : def.label;
   const pts = [...points].sort((a, b) => +new Date(a.collectedAt) - +new Date(b.collectedAt));
@@ -33,16 +37,16 @@ export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[
 
   let trend: { text: string; Icon: typeof ArrowRight };
   if (pts.length < 2) {
-    trend = { text: ar ? "نتيجة واحدة حتى الآن. ستُظهر النتيجة التالية اتجاه التغيّر." : "One result so far. A later result will show the direction of change.", Icon: ArrowRight };
+    trend = { text: clinAr ? clinAr.trendOne : ar ? "نتيجة واحدة حتى الآن. ستُظهر النتيجة التالية اتجاه التغيّر." : "One result so far. A later result will show the direction of change.", Icon: ArrowRight };
   } else {
     const change = (last.value - first.value) / (Math.abs(first.value) || 1);
-    const since = shortDate(first.collectedAt);
+    const since = date(first.collectedAt);
     trend =
       Math.abs(change) < 0.1
-        ? { text: ar ? `مستقرة منذ ${since}.` : `Stable since ${since}.`, Icon: ArrowRight }
+        ? { text: clinAr ? clinAr.trendStable(since) : ar ? `مستقرة منذ ${since}.` : `Stable since ${since}.`, Icon: ArrowRight }
         : change > 0
-          ? { text: ar ? `أعلى من نتيجتك الأولى (${since}).` : `Higher than your first result (${since}).`, Icon: ArrowUpRight }
-          : { text: ar ? `أقل من نتيجتك الأولى (${since}).` : `Lower than your first result (${since}).`, Icon: ArrowDownRight };
+          ? { text: clinAr ? clinAr.trendHigher(since) : ar ? `أعلى من نتيجتك الأولى (${since}).` : `Higher than your first result (${since}).`, Icon: ArrowUpRight }
+          : { text: clinAr ? clinAr.trendLower(since) : ar ? `أقل من نتيجتك الأولى (${since}).` : `Lower than your first result (${since}).`, Icon: ArrowDownRight };
   }
 
   return (
@@ -55,7 +59,7 @@ export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[
             <small> {def.unit}</small>
           </strong>
         </div>
-        <SourceChip source={last.source} />
+        <SourceChip source={last.source} audience={audience} />
       </header>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${label}: ${pts.map((p) => p.value).join(", ")}`}>
         {lim !== undefined && (
@@ -75,7 +79,7 @@ export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[
         <trend.Icon size={14} aria-hidden /> {trend.text}
       </p>
       <small className="marker-meta">
-        {ar ? "آخر نتيجة" : "Latest"} {shortDate(last.collectedAt)}
+        {ar ? "آخر نتيجة" : "Latest"} {date(last.collectedAt)}
         {lim !== undefined && (
           <>
             {" "}· {ar ? "الحد المرجعي" : "reference limit"} <span dir="ltr">{lim} {def.unit}</span>
