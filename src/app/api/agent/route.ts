@@ -5,8 +5,11 @@ import { AzureNotConfigured } from "@/lib/azure/openai";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 
+export const maxDuration = 60; // Allow up to 60s for multi-turn LLM tool execution on Vercel
+export const dynamic = "force-dynamic";
+
 // Agentic assistant endpoint. Runs the Azure-backed agent with built-in and MCP
-// tools. Never fabricates answers: returns 503 when Azure is not configured.
+// tools. Never fabricates answers: returns 503 when neither Azure nor Groq is configured.
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
@@ -40,4 +43,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }
-

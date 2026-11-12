@@ -20,8 +20,17 @@ async function executeChatTurn(
   options: ChatOptions
 ): Promise<{ result: ChatResult; provider: "azure" | "groq" }> {
   if (getAzureOpenAIConfig()) {
-    const result = await chatRaw(convo, options);
-    return { result, provider: "azure" };
+    try {
+      const result = await chatRaw(convo, options);
+      return { result, provider: "azure" };
+    } catch (azureErr) {
+      console.warn("[Agent orchestrator] Azure OpenAI failed, trying Groq fallback:", azureErr);
+      if (getGroqConfig()) {
+        const result = await groqChatRaw(convo, options);
+        return { result, provider: "groq" };
+      }
+      throw azureErr;
+    }
   }
 
   if (getGroqConfig()) {
@@ -87,4 +96,3 @@ export async function runAgent(messages: AgentMessage[]): Promise<AgentResult> {
   const { result: final, provider } = await executeChatTurn(convo, {});
   return { reply: final.content ?? "", toolsUsed, provider };
 }
-

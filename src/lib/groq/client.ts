@@ -21,20 +21,48 @@ export interface GroqConfig {
 }
 
 // Models tried in order if the configured model returns 404/model_not_found.
-// llama-3.1-8b-instant and llama-3.3-70b-versatile support OpenAI tool-calling.
+// Prioritizes high-reasoning, active tool-calling models on Groq.
 const FALLBACK_MODELS = [
-  "llama-3.1-8b-instant",    // free tier — always available, fast tool-calling
-  "llama-3.3-70b-versatile"  // high reasoning & tool use
+  "openai/gpt-oss-120b",     // 120B reasoning + tool-calling (fast, active on Groq)
+  "qwen/qwen3.8-27b",        // 27B high-quality conversational + tool use
+  "openai/gpt-oss-20b",      // 20B fast reasoning model
+  "llama-3.3-70b-versatile", // Llama 3.3 70B (if enabled for the account)
+  "llama-3.1-8b-instant"     // Llama 3.1 8B (if enabled for the account)
 ];
 
+function sanitizeEnvVal(val: string | undefined): string | null {
+  if (!val) return null;
+  const trimmed = val.trim().replace(/^["']|["']$/g, "").trim();
+  return trimmed || null;
+}
+
 export function getGroqConfig(): GroqConfig | null {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = sanitizeEnvVal(process.env.GROQ_API_KEY) || sanitizeEnvVal(process.env.GROK_API_KEY);
   if (!apiKey) return null;
+  const configuredModel = sanitizeEnvVal(process.env.GROQ_MODEL) || sanitizeEnvVal(process.env.GROK_MODEL);
   return {
     apiKey,
-    model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
+    model: configuredModel || "openai/gpt-oss-120b",
     baseUrl: "https://api.groq.com/openai/v1"
   };
+}
+
+// Dynamically retrieves active chat models from Groq if hardcoded fallbacks fail
+async function fetchAvailableChatModels(apiKey: string): Promise<string[]> {
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      cache: "no-store"
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { data?: Array<{ id: string; active?: boolean }> };
+    const nonChatRegex = /whisper|guard|tts|embed|rerank/i;
+    return (data.data ?? [])
+      .filter((m) => m.active !== false && !nonChatRegex.test(m.id))
+      .map((m) => m.id);
+  } catch {
+    return [];
+  }
 }
 
 // Low-level Groq chat call that supports function/tool calling in OpenAI format
@@ -57,11 +85,11 @@ export async function groqChatRaw(
     body.tool_choice = "auto";
   }
 
-  // Same fallback as groqChatCompletion: if the configured model is retired or
-  // unavailable to this key, try the next tool-calling model.
-  const modelsToTry = [cfg.model, ...FALLBACK_MODELS.filter((m) => m !== cfg.model)];
+  // Build candidate model list starting with configured model, then hardcoded fallbacks
+  let modelsToTry = [cfg.model, ...FALLBACK_MODELS.filter((m) => m !== cfg.model)];
   let res: Response | null = null;
   let lastDetail = "";
+
   for (const model of modelsToTry) {
     res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -76,6 +104,28 @@ export async function groqChatRaw(
     lastDetail = await res.text();
     const unavailable = res.status === 404 || /model_not_found|model_decommissioned/.test(lastDetail);
     if (!unavailable) break;
+  }
+
+  // If all known models failed with 404, query the Groq models endpoint dynamically
+  if (!res || !res.ok) {
+    const isModelNotFound = res?.status === 404 || /model_not_found|model_decommissioned/.test(lastDetail);
+    if (isModelNotFound) {
+      const liveModels = await fetchAvailableChatModels(cfg.apiKey);
+      const remainingModels = liveModels.filter((m) => !modelsToTry.includes(m));
+      for (const model of remainingModels) {
+        res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cfg.apiKey}`
+          },
+          body: JSON.stringify({ ...body, model }),
+          cache: "no-store"
+        });
+        if (res.ok) break;
+        lastDetail = await res.text();
+      }
+    }
   }
 
   if (!res || !res.ok) {
@@ -154,6 +204,15 @@ export async function groqChatCompletion(
     }
   }
 
+  // Dynamic discovery if hardcoded list fails
+  const liveModels = await fetchAvailableChatModels(cfg.apiKey);
+  for (const model of liveModels.filter((m) => !modelsToTry.includes(m))) {
+    try {
+      return await callGroq(cfg.apiKey, model, messages, options);
+    } catch {
+      continue;
+    }
+  }
+
   throw lastError ?? new Error("All Groq models unavailable");
 }
-

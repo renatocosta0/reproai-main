@@ -21,7 +21,7 @@ const TOOL_LABELS: Record<string, { label: string; icon: "zap" | "book" }> = {
 
 const PROVIDER_LABELS: Record<string, string> = {
   azure: "Azure OpenAI",
-  groq: "Groq · Llama 3.3 70B"
+  groq: "Groq · High Performance"
 };
 
 const SUGGESTIONS: Record<string, string[]> = {
@@ -58,14 +58,18 @@ export default function AssistantPage() {
       });
       setMessages((m) => [...m, { role: "assistant", content: res.reply, toolsUsed: res.toolsUsed, provider: res.provider }]);
     } catch (err) {
+      console.error("[Ask ReproAI error]:", err);
       if (err instanceof ApiError && err.status === 503) {
         setUnavailable(err.message);
         setMessages((m) => m.slice(0, -1));
         setText(q);
       } else {
+        const errorDetail = err instanceof ApiError && err.message
+          ? err.message
+          : (err instanceof Error ? err.message : "I couldn't answer that just now. Please try again in a moment.");
         setMessages((m) => [
           ...m,
-          { role: "assistant", content: "I couldn't answer that just now. Please try again in a moment.", error: true }
+          { role: "assistant", content: errorDetail, error: true }
         ]);
       }
     } finally {
