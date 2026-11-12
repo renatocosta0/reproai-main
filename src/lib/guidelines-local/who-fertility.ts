@@ -1,3 +1,7 @@
+// LEGACY, NOT RETRIEVED. These hand-written snippets were never verified against
+// their cited sources and are kept only for history. Grounding now uses the
+// cited corpus in src/lib/rag/corpus.ts.
+
 // Local WHO/clinical guideline snippets used as RAG grounding when Azure AI
 // Search is not configured. Content is derived from WHO publications on
 // reproductive health and infertility (2023 edition) and published IVF outcome

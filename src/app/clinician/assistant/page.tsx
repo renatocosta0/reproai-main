@@ -2,20 +2,21 @@
 
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, BookOpen, Cpu, FileText, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Cpu, FileText, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { GroundedReply } from "@/components/assistant/GroundedReply";
+import type { GroundedAnswer } from "@/lib/rag/answer";
 import { api, userMessage } from "@/lib/api-client";
 import type { DirectoryResponse } from "@/types/clinician";
 
 interface Msg {
   role: "user" | "assistant";
   content: string;
-  toolsUsed?: string[];
   provider?: string;
-  unverified?: string[];
+  answer?: GroundedAnswer;
   error?: boolean;
 }
 
-const PROVIDER: Record<string, string> = { azure: "Azure OpenAI", groq: "Groq", scripted: "Scripted summary · AI unavailable" };
+const PROVIDER: Record<string, string> = { azure: "Azure OpenAI", groq: "Groq", scripted: "Scripted summary · AI unavailable", extractive: "Extractive · AI unavailable", none: "No generation" };
 
 const PROMPTS_CASE = [
   "Summarise this case for a 10-minute consultation.",
@@ -63,11 +64,11 @@ function Copilot() {
     setText("");
     setSending(true);
     try {
-      const res = await api<{ reply: string; toolsUsed: string[]; provider: string; unverifiedNumbers: string[] }>("/api/clinician/copilot", {
+      const res = await api<{ reply: string; provider: string; answer: GroundedAnswer }>("/api/clinician/copilot", {
         method: "POST",
         body: JSON.stringify({ caseId: caseId || undefined, messages: history.map(({ role, content }) => ({ role, content })) })
       });
-      setMessages((m) => [...m, { role: "assistant", content: res.reply, toolsUsed: res.toolsUsed, provider: res.provider, unverified: res.unverifiedNumbers }]);
+      setMessages((m) => [...m, { role: "assistant", content: res.reply, provider: res.provider, answer: res.provider === "scripted" ? undefined : res.answer }]);
     } catch (err) {
       setMessages((m) => [...m, { role: "assistant", content: userMessage(err, "The copilot could not answer."), error: true }]);
     } finally {
@@ -88,7 +89,7 @@ function Copilot() {
         <div>
           <p className="date-label">CLINICAL COPILOT</p>
           <h1>Explain a case, grounded in its record</h1>
-          <span>Numbers come only from the record and tools; the copilot explains and cites. Decisions stay with you.</span>
+          <span>Answers come only from the case record and the cited guidance library. Each sentence is checked against its source and flagged if it is not supported. Decisions stay with you.</span>
         </div>
         <label className="field copilot-case">
           <span>Case</span>
@@ -108,7 +109,7 @@ function Copilot() {
           <div className="assistant-orb"><Sparkles size={21} /></div>
           <span>
             <strong>ReproAI clinical copilot</strong>
-            <small><i /> {caseName ? `Using the record of ${caseName}` : "No case selected"} · guideline search only</small>
+            <small><i /> {caseName ? `Using the record of ${caseName}` : "No case selected"} · cited guidance library</small>
           </span>
         </div>
         <div className="messages" aria-live="polite">
@@ -129,17 +130,8 @@ function Copilot() {
               <div className="message ai" key={i}>
                 <div className="mini-orb"><Sparkles size={13} /></div>
                 <div>
-                  <div className="tool-badges">
-                    {caseName && !m.error && <span className="tool-badge"><FileText size={12} /> Case record</span>}
-                    {m.toolsUsed?.includes("search_guidelines") && <span className="tool-badge"><BookOpen size={12} /> Guideline search</span>}
-                    {m.unverified && m.unverified.length > 0 && (
-                      <span className="tool-badge warn"><AlertTriangle size={12} /> Check: {m.unverified.join(", ")} not found in the record</span>
-                    )}
-                    {m.unverified && m.unverified.length === 0 && caseName && m.provider !== "scripted" && (
-                      <span className="tool-badge"><ShieldCheck size={12} /> All numbers found in the record</span>
-                    )}
-                  </div>
-                  <div className="reply-text">{m.content}</div>
+                  {caseName && !m.error && <div className="tool-badges"><span className="tool-badge"><FileText size={12} /> Case record</span></div>}
+                  {m.answer ? <GroundedReply answer={m.answer} audience="clinician" /> : <div className="reply-text">{m.content}</div>}
                   {m.provider && <span className="provider-tag"><Cpu size={12} /> {PROVIDER[m.provider] ?? m.provider}</span>}
                 </div>
               </div>

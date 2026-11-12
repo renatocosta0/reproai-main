@@ -75,13 +75,13 @@ The model is **B2B2C and physician-led**: a clinician prescribes access, the pat
 - **Cited options, not prescriptions.** A deterministic rules engine turns the record into options (testing, referral, preservation discussion, counselling, health optimisation), each with its reason and source, using WHO 2025, ESHRE and the Daman Thiqa ART guideline.
 - **Evidence of earlier action.** An evidence dashboard reports live panel measures with Wilson intervals and a clearly labelled simulated check of false reassurance and calibration.
 - **Population insight.** Groups who would benefit from earlier advice, from the same cited rules: named for the clinician's own panel, anonymous and opt-in (small groups suppressed) across the service.
-- **Clinical copilot that explains, never invents.** Grounded in one case's record; numbers are checked against it, and a labelled scripted summary appears if the AI is unavailable.
+- **Clinical copilot that explains, never invents.** Answers only from one case's record and the cited guidance library; each sentence is checked against what it cites and flagged if unsupported. A labelled scripted summary appears if the AI is unavailable.
 - **Arabic.** Right-to-left patient experience for the trajectory, options and consent screens (prototype translation, pending clinical review).
 - **Guided demo.** A twelve-step tour at `/tour`, including a missing-data case and a no-consent case.
 - **Longitudinal wearable tracking.** Basal body temperature (LOINC 8310-5) with Roetzer coverline detection of a biphasic shift (≥ 0.30 °C), and sleep duration (LOINC 93832-4) with variability analysis.
 - **Closed-loop follow-up.** Wearable anomalies and low estimates raise clinician alerts, which move through *alert raised → appointment scheduled → in follow-up → closed* on a board.
 - **Sex-adaptive interface.** Female views focus on ovarian reserve, AFC and temperature; male views on semen parameters against WHO 6th-edition reference values; paired views on the joint estimate.
-- **Grounded assistant.** A tool-calling agent that can run the assessment model and search WHO / ESHRE guidance, with Azure OpenAI as the preferred provider and Groq as the fallback.
+- **Grounded assistant with citations.** Ask ReproAI retrieves from a cited library (Thiqa ART guideline v3.6 with page numbers, WHO 2025 infertility guideline, ReproAI's own rules) and the patient's released record before answering, cites a source for every sentence, removes any sentence it cannot verify, and says "not in the guidance" rather than guess. It has no tools and cannot compute a score. Azure OpenAI is preferred, Groq is the fallback. Measured with `npm run rag:eval`; results are on the Evidence page.
 - **Interoperability.** One-click FHIR R4 export (`Patient`, `Observation`, `RiskAssessment`) designed for Abu Dhabi's Malafi and Sahhatna exchanges.
 
 <details open>
@@ -289,11 +289,12 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 | `/api/clinician/assessments/:id` | PATCH | Clinician | Release (with a note) or discard a draft |
 | `/api/clinician/evidence` | GET | Clinician | Live panel measures and the simulated evidence report |
 | `/api/clinician/insights` | GET | Clinician | Population insight: panel groups and anonymous service-wide counts |
-| `/api/clinician/copilot` | POST | Clinician | Case-grounded copilot with number checking and scripted fallback |
+| `/api/clinician/copilot` | POST | Clinician | Case copilot on the grounded pipeline: cited sentences, unsupported ones flagged, scripted fallback |
+| `/api/patient/ask` | POST | Patient | Grounded assistant: corpus + released record, per-sentence verification, abstention |
 | `/api/patient/what-if` | POST | Patient | Illustrative BMI what-if; nothing is saved |
 | `/api/observations`, `/api/observations/bulk` | GET / POST | Patient | Own readings; bulk ingest with pattern analysis |
 | `/api/pairing/invite`, `accept`, `revoke`, `status` | POST / GET | Patient | Partner pairing with revocable consent |
-| `/api/agent` | POST | Signed in | Tool-calling assistant |
+| `/api/agent` | POST | Clinician | Tool-calling agent, guideline search only |
 | `/api/clinician/invite` | POST / GET | Clinician | Prescribe access; list issued prescriptions |
 | `/api/clinician/couples` | GET | Clinician | Cohort directory (own panel only) with impact metrics |
 | `/api/clinician/cases/:id` | GET | Clinician | Full longitudinal record for one case |

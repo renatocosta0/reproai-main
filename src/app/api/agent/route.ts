@@ -13,8 +13,10 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    // Clinicians only. Patients use /api/patient/ask, which has no tools and
+    // answers only from cited guidance and their released record.
+    if (!session || session.role !== "CLINICIAN") {
+      return NextResponse.json({ error: "Clinician access required" }, { status: 403 });
     }
 
     const body = await req.json().catch(() => null);
@@ -25,7 +27,9 @@ export async function POST(req: NextRequest) {
     const messages = body.messages as AgentMessage[];
     const system: AgentMessage = { role: "system", content: buildGroundedSystemPrompt([]) };
 
-    const { reply, toolsUsed, provider } = await runAgent([system, ...messages]);
+    // The scoring tool is not offered: estimates are made only through the
+    // gated assessment workflow, never by the LLM.
+    const { reply, toolsUsed, provider } = await runAgent([system, ...messages], { allowTools: ["search_guidelines"] });
     await audit(session.userId, "agent_message", `user:${session.userId}`);
     return NextResponse.json({ reply, toolsUsed, provider });
   } catch (e: any) {

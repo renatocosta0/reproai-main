@@ -64,3 +64,4 @@ cd ml-service && pip install -r requirements.txt && uvicorn main:app --reload --
 - Every value carries provenance (`LabResult.source`, `Prediction.inputs`); patients cannot write lab values.
 - Consent (`src/lib/consent.ts`) is enforced in the API; clinicians are scoped by `src/lib/clinician-scope.ts`.
 - No performance claims anywhere; label evidence status.
+- Assistants answer only through `src/lib/rag/answer.ts`: retrieve first, abstain when nothing relevant is found, cite a passage for every sentence, and show patients only verified sentences. Add guidance to `src/lib/rag/corpus.ts` only with a real source (document, section, page); never add unverified facts. Re-run `npm run rag:eval` after changing the corpus or thresholds.
