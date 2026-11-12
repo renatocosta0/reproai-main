@@ -3,6 +3,7 @@ import { DM_Sans, Manrope, Noto_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import "./reproai.css";
 import "./chat-history.css";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -33,7 +34,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${manrope.variable} ${notoArabic.variable}`}>
+    // suppressHydrationWarning: data-theme is set by the inline script before React hydrates.
+    <html lang="en" className={`${dmSans.variable} ${manrope.variable} ${notoArabic.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -257,17 +257,17 @@ function Simulation({ s }: { s: SimulationReport }) {
         </div>
         <div style={{ padding: "0 20px" }}>
           <svg viewBox={`0 0 ${w} ${h}`} className="calib-svg" role="img" aria-label="Calibration plot">
-            <line x1={X(0)} y1={Y(0)} x2={X(max)} y2={Y(max)} stroke="#c9d6d1" strokeDasharray="4 4" />
-            <line x1={X(0)} y1={Y(0)} x2={X(max)} y2={Y(0)} stroke="#dfe7e3" />
-            <line x1={X(0)} y1={Y(0)} x2={X(0)} y2={Y(max)} stroke="#dfe7e3" />
+            <line x1={X(0)} y1={Y(0)} x2={X(max)} y2={Y(max)} style={{ stroke: "var(--chart-guide)" }} strokeDasharray="4 4" />
+            <line x1={X(0)} y1={Y(0)} x2={X(max)} y2={Y(0)} style={{ stroke: "var(--chart-axis)" }} />
+            <line x1={X(0)} y1={Y(0)} x2={X(0)} y2={Y(max)} style={{ stroke: "var(--chart-axis)" }} />
             {s.calibration.bins.map((b, i) => (
               <g key={i}>
-                {b.observed.low !== null && <line x1={X(b.predictedMean)} x2={X(b.predictedMean)} y1={Y(b.observed.low)} y2={Y(b.observed.high!)} stroke="#7cc3ad" strokeWidth="2" />}
-                <circle cx={X(b.predictedMean)} cy={Y(b.observed.rate ?? 0)} r="4" fill="#176e65" />
+                {b.observed.low !== null && <line x1={X(b.predictedMean)} x2={X(b.predictedMean)} y1={Y(b.observed.low)} y2={Y(b.observed.high!)} style={{ stroke: "var(--chart-band)" }} strokeWidth="2" />}
+                <circle cx={X(b.predictedMean)} cy={Y(b.observed.rate ?? 0)} r="4" style={{ fill: "var(--chart-line)" }} />
               </g>
             ))}
-            <text x={w / 2} y={h - 4} textAnchor="middle" fontSize="10" fill="#7d8b87">Predicted</text>
-            <text x={10} y={h / 2} textAnchor="middle" fontSize="10" fill="#7d8b87" transform={`rotate(-90 10 ${h / 2})`}>Observed</text>
+            <text x={w / 2} y={h - 4} textAnchor="middle" fontSize="10" style={{ fill: "var(--chart-label)" }}>Predicted</text>
+            <text x={10} y={h / 2} textAnchor="middle" fontSize="10" style={{ fill: "var(--chart-label)" }} transform={`rotate(-90 10 ${h / 2})`}>Observed</text>
           </svg>
         </div>
         <div className="sim-grid">

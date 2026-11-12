@@ -6,7 +6,7 @@ export function PotentialGauge({ probability, tier }: { probability: number; tie
   return (
     <div
       className="gauge"
-      style={{ background: `conic-gradient(#d7796e 0 ${p}%, #f2e9e4 ${p}% 100%)` }}
+      style={{ background: `conic-gradient(var(--gauge-fill) 0 ${p}%, var(--gauge-track) ${p}% 100%)` }}
       role="img"
       aria-label={`Estimated probability ${pct(p, 1)}, ${tierCopy(tier).label}`}
     >

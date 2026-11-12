@@ -30,14 +30,14 @@ export function EstimateHistoryChart({ points }: { points: Point[] }) {
       <div className="temp-chart" style={{ height }}>
         <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={`Estimate history, ${points.length} assessments`}>
           {[0.25, 0.5, 0.75].map((f) => (
-            <line key={f} x1="0" x2={width} y1={height * f} y2={height * f} stroke="#e9eeeb" strokeDasharray="4 5" />
+            <line key={f} x1="0" x2={width} y1={height * f} y2={height * f} style={{ stroke: "var(--chart-grid)" }} strokeDasharray="4 5" />
           ))}
-          {band && <polygon points={band} fill="#7cc3ad" opacity="0.22" />}
+          {band && <polygon points={band} style={{ fill: "var(--chart-band)" }} opacity="0.22" />}
           {points.length > 1 && (
-            <polyline points={line} fill="none" stroke="#176e65" strokeWidth="2.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            <polyline points={line} fill="none" style={{ stroke: "var(--chart-line)" }} strokeWidth="2.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
           )}
           {points.map((p, i) => (
-            <circle key={i} cx={x(i)} cy={y(p.probability)} r="4" fill="#fff" stroke="#176e65" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            <circle key={i} cx={x(i)} cy={y(p.probability)} r="4" style={{ fill: "var(--chart-dot-fill)", stroke: "var(--chart-line)" }} strokeWidth="2" vectorEffect="non-scaling-stroke" />
           ))}
         </svg>
       </div>

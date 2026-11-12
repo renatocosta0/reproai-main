@@ -31,7 +31,7 @@ export function SleepChart({ points, stats }: { points: Point[]; stats: SleepSta
           role="img"
           aria-label={`Sleep duration over ${points.length} nights, average ${formatHours(stats.mean)}`}
         >
-          <line x1="0" x2={width} y1={y(TARGET_HOURS)} y2={y(TARGET_HOURS)} stroke="#9cc9bd" strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />
+          <line x1="0" x2={width} y1={y(TARGET_HOURS)} y2={y(TARGET_HOURS)} style={{ stroke: "var(--chart-target)" }} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />
           {points.map((p, i) => (
             <rect
               key={i}
@@ -40,10 +40,10 @@ export function SleepChart({ points, stats }: { points: Point[]; stats: SleepSta
               width={barW}
               height={height - pad - y(p.value)}
               rx="3"
-              fill={p.value < 5 ? "#e9a99f" : "#b9d8cf"}
+              style={{ fill: p.value < 5 ? "var(--chart-bar-low)" : "var(--chart-bar)" }}
             />
           ))}
-          {ma && <polyline points={ma} fill="none" stroke="#176e65" strokeWidth="2.4" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
+          {ma && <polyline points={ma} fill="none" style={{ stroke: "var(--chart-line)" }} strokeWidth="2.4" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
         </svg>
       </div>
       <div className="chart-days" aria-hidden>

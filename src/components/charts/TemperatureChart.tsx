@@ -40,12 +40,12 @@ export function TemperatureChart({ points, analysis, large = false }: Props) {
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#e88b7d" stopOpacity=".22" />
-              <stop offset="1" stopColor="#e88b7d" stopOpacity="0" />
+              <stop offset="0" style={{ stopColor: "var(--chart-temp-area)" }} stopOpacity=".22" />
+              <stop offset="1" style={{ stopColor: "var(--chart-temp-area)" }} stopOpacity="0" />
             </linearGradient>
           </defs>
           {[0.2, 0.5, 0.8].map((f) => (
-            <line key={f} x1="0" y1={height * f} x2={width} y2={height * f} stroke="#e9eeeb" strokeDasharray="4 5" />
+            <line key={f} x1="0" y1={height * f} x2={width} y2={height * f} style={{ stroke: "var(--chart-grid)" }} strokeDasharray="4 5" />
           ))}
           {analysis?.coverline != null && (
             <line
@@ -53,14 +53,14 @@ export function TemperatureChart({ points, analysis, large = false }: Props) {
               x2={width}
               y1={y(analysis.coverline)}
               y2={y(analysis.coverline)}
-              stroke="#2e8c7e"
+              style={{ stroke: "var(--chart-temp-ma)" }}
               strokeWidth="1.2"
               strokeDasharray="6 4"
               vectorEffect="non-scaling-stroke"
             />
           )}
           {shiftIdx !== null && (
-            <line x1={x(shiftIdx)} x2={x(shiftIdx)} y1="6" y2={height - 6} stroke="#dba56c" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+            <line x1={x(shiftIdx)} x2={x(shiftIdx)} y1="6" y2={height - 6} style={{ stroke: "var(--chart-shift)" }} strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
           )}
           {points.length > 1 && (
             <polygon points={`${x(0)},${height - pad} ${pts} ${x(points.length - 1)},${height - pad}`} fill={`url(#${gradientId})`} />
@@ -68,7 +68,7 @@ export function TemperatureChart({ points, analysis, large = false }: Props) {
           <polyline
             points={pts}
             fill="none"
-            stroke="#d96f63"
+            style={{ stroke: "var(--chart-temp)" }}
             strokeWidth={large ? 3 : 2.6}
             strokeLinecap="round"
             strokeLinejoin="round"

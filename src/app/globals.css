@@ -32,3 +32,93 @@
     letter-spacing: -0.035em;
   }
 }
+
+/* Theme. `data-theme` on <html> is set before paint by the script in layout.tsx
+   (stored choice, else prefers-color-scheme). Most dark colours are derived from the
+   light stylesheet by postcss/dark-theme.js; the tokens below cover what CSS rules
+   cannot reach: inline SVG charts and inline gradients. */
+:root {
+  color-scheme: light;
+  --chart-grid: #e9eeeb;
+  --chart-axis: #dfe7e3;
+  --chart-guide: #c9d6d1;
+  --chart-label: #7d8b87;
+  --chart-line: #176e65;
+  --chart-band: #7cc3ad;
+  --chart-dot-fill: #fff;
+  --chart-risk: #de7467;
+  --chart-protective: #6eb7a4;
+  --chart-moderate: #e5b167;
+  --chart-high: #db776a;
+  --chart-temp: #d96f63;
+  --chart-temp-area: #e88b7d;
+  --chart-temp-ma: #2e8c7e;
+  --chart-shift: #dba56c;
+  --chart-target: #9cc9bd;
+  --chart-bar: #b9d8cf;
+  --chart-bar-low: #e9a99f;
+  --gauge-fill: #d7796e;
+  --gauge-track: #f2e9e4;
+  --text-faint: #9aa5a1;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --chart-grid: #2b3633;
+  --chart-axis: #34413d;
+  --chart-guide: #4a5a55;
+  --chart-label: #a1aeab;
+  --chart-line: #5fc2b2;
+  --chart-band: #4f9c88;
+  --chart-dot-fill: #1f2927;
+  --chart-risk: #ef877a;
+  --chart-protective: #6eb7a4;
+  --chart-moderate: #d9a95e;
+  --chart-high: #e0796c;
+  --chart-temp: #ef877a;
+  --chart-temp-area: #e88b7d;
+  --chart-temp-ma: #5fc2b2;
+  --chart-shift: #dba56c;
+  --chart-target: #5c9a8b;
+  --chart-bar: #3f7466;
+  --chart-bar-low: #b9655a;
+  --gauge-fill: #e08074;
+  --gauge-track: #33403c;
+  --text-faint: #8c9b97;
+}
+
+/* Theme toggle (portal sidebars). Dark colours come from postcss/dark-theme.js. */
+.theme-toggle {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 4px;
+  border: 1px solid #e2e9e5;
+  border-radius: 9px;
+  background: #f4f7f5;
+}
+.theme-toggle button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #5f716d;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.theme-toggle button:hover {
+  color: #173330;
+}
+.theme-toggle button.active {
+  background: #fff;
+  color: #0c655e;
+  box-shadow: 0 1px 3px #1733301a;
+}
+.theme-toggle button:focus-visible {
+  outline: 2px solid #0c655e;
+  outline-offset: 1px;
+}
