@@ -12,9 +12,13 @@ import { shortDate } from "@/lib/observation-analysis";
 import { pct, tierCopy } from "@/lib/tiers";
 import type { LabCode } from "@/lib/labs";
 import type { AssessmentView } from "@/types/record";
+import { useLocale } from "@/components/i18n/LocaleContext";
+import { WhatIf } from "@/components/patient/WhatIf";
+import { percentileWordsAr, TIER_AR } from "@/lib/i18n";
 
 export default function TrajectoryPage() {
   const { record, loading, error } = useRecord();
+  const { t } = useLocale();
 
   if (loading) {
     return <div className="content patient-content"><div className="loading-block" style={{ height: 260, margin: 0 }} /></div>;
@@ -34,16 +38,16 @@ export default function TrajectoryPage() {
     <div className="content patient-content">
       <div className="page-heading">
         <div>
-          <p className="date-label">MY TRAJECTORY</p>
-          <h1>How your picture is changing</h1>
-          <span>Your results over time, explained, and the options worth discussing. Not a score, and not a diagnosis.</span>
+          <p className="date-label">{t("trajEyebrow")}</p>
+          <h1>{t("trajTitle")}</h1>
+          <span>{t("trajSubtitle")}</span>
         </div>
       </div>
 
       {record.pendingReview && (
         <div style={{ marginBottom: 16 }}>
           <ClinicalNotice icon={Clock}>
-            A new assessment is with your clinician for review. You will see it here once they have released it with their note.
+            {t("pendingReview")}
           </ClinicalNotice>
         </div>
       )}
@@ -52,10 +56,10 @@ export default function TrajectoryPage() {
         <section className="support-strip" style={{ marginBottom: 16 }}>
           <div className="support-icon"><Info size={21} /></div>
           <span>
-            <strong>Tell us a little about you</strong>
-            <small>A 3-minute check on your history and lifestyle helps us suggest the right next steps.</small>
+            <strong>{t("intakePromptTitle")}</strong>
+            <small>{t("intakePromptText")}</small>
           </span>
-          <Link href="/patient/about">Start <ArrowRight size={15} /></Link>
+          <Link href="/patient/about">{t("start")} <ArrowRight size={15} className="flip-rtl" /></Link>
         </section>
       )}
 
@@ -64,9 +68,8 @@ export default function TrajectoryPage() {
         <Headline a={latest} sex={sex} />
       ) : (
         <section className="panel empty-state" style={{ marginBottom: 16 }}>
-          <strong>Your clinical baseline is set by your clinician</strong>
-          Once your clinician records your laboratory results (such as an AMH blood test or a semen analysis) and reviews them with you,
-          your trajectory will appear here.
+          <strong>{t("baselineTitle")}</strong>
+          {t("baselineText")}
         </section>
       )}
 
@@ -74,12 +77,12 @@ export default function TrajectoryPage() {
       <section className="panel" style={{ marginBottom: 16 }}>
         <div className="panel-head">
           <div>
-            <h2>Your results over time</h2>
-            <p>Each result shows where it came from. The dashed line is the reference limit used by clinicians.</p>
+            <h2>{t("resultsTitle")}</h2>
+            <p>{t("resultsSubtitle")}</p>
           </div>
         </div>
         {ordered.length === 0 ? (
-          <div className="empty-state">No results recorded yet.</div>
+          <div className="empty-state">{t("noResults")}</div>
         ) : (
           <div className="marker-grid" style={{ padding: "0 20px 20px" }}>
             {ordered.map((c) => (
@@ -89,12 +92,14 @@ export default function TrajectoryPage() {
         )}
       </section>
 
+      {latest && <WhatIf currentBmi={record.profile?.bmi ?? null} />}
+
       {/* Options */}
       <section className="panel" style={{ marginBottom: 16 }}>
         <div className="panel-head">
           <div>
-            <h2>Your options</h2>
-            <p>Suggestions to discuss, based on what is recorded. Each one says why.</p>
+            <h2>{t("optionsTitle")}</h2>
+            <p>{t("optionsSubtitle")}</p>
           </div>
         </div>
         <div style={{ padding: "0 20px 20px" }}>
@@ -107,16 +112,16 @@ export default function TrajectoryPage() {
         <section className="panel" style={{ marginBottom: 16 }}>
           <div className="panel-head">
             <div>
-              <h2><HeartHandshake size={17} style={{ display: "inline", verticalAlign: "-3px" }} /> Your joint estimate</h2>
-              <p>Reviewed by your clinician {joint[0].reviewedAt ? `on ${shortDate(joint[0].reviewedAt)}` : ""}</p>
+              <h2><HeartHandshake size={17} style={{ display: "inline", verticalAlign: "-3px" }} /> {t("jointTitle")}</h2>
+              <p>{t("reviewedOn")} {joint[0].reviewedAt ? `· ${shortDate(joint[0].reviewedAt)}` : ""}</p>
             </div>
             <EvidenceChip text={joint[0].evidenceStatus} />
           </div>
           <div className="joint-body">
             <div className="result-box">
               <strong>{pct(joint[0].probability)}</strong>
-              <span>95% range {pct(joint[0].confidenceLow)}–{pct(joint[0].confidenceHigh)}</span>
-              <small>An estimate for planning with your clinician, combining both partners&apos; results. It can change as more information is added.</small>
+              <span>{t("range95")} <span dir="ltr">{pct(joint[0].confidenceLow)}–{pct(joint[0].confidenceHigh)}</span></span>
+              <small>{t("jointExplain")}</small>
             </div>
             {joint[0].clinicianNote && <Note text={joint[0].clinicianNote} />}
           </div>
@@ -127,8 +132,8 @@ export default function TrajectoryPage() {
         <section className="panel" style={{ marginBottom: 16 }}>
           <div className="panel-head">
             <div>
-              <h2>What shaped your latest assessment</h2>
-              <p>Each factor compared with a reference population. Mint helped, coral weighed against.</p>
+              <h2>{t("shapedTitle")}</h2>
+              <p>{t("shapedSubtitle")}</p>
             </div>
           </div>
           <ShapChart factors={latest.factors} />
@@ -138,9 +143,8 @@ export default function TrajectoryPage() {
       <div className="clinical-note">
         <ShieldCheck size={20} />
         <span>
-          <strong>Important context</strong>
-          AMH reflects egg quantity, not egg quality, and does not predict whether you can conceive naturally. These results do not
-          assess tubal, uterine or other factors. Your clinician makes clinical decisions with you.
+          <strong>{t("importantContext")}</strong>
+          {t("importantContextText")}
         </span>
       </div>
     </div>
@@ -148,21 +152,25 @@ export default function TrajectoryPage() {
 }
 
 function Headline({ a, sex }: { a: AssessmentView; sex: string | null }) {
-  const tier = tierCopy(a.tier);
+  const { locale, t } = useLocale();
+  const ar = locale === "ar";
+  const tier = ar && a.tier && TIER_AR[a.tier] ? TIER_AR[a.tier] : tierCopy(a.tier);
   return (
     <section className="assessment-hero trajectory-hero">
       <div className="assessment-score">
-        <span>{sex === "female" ? "Egg reserve for your age" : "Semen health"}</span>
+        <span>{sex === "female" ? t("eggReserve") : t("semenHealth")}</span>
         <strong style={{ fontSize: 30 }}>{tier.label}</strong>
-        <em>Released {a.reviewedAt ? shortDate(a.reviewedAt) : shortDate(a.createdAt)}</em>
+        <em>{t("released")} {a.reviewedAt ? shortDate(a.reviewedAt) : shortDate(a.createdAt)}</em>
       </div>
       <div className="assessment-summary">
         <span className="soft-pill light-pill">
-          <BadgeCheck size={14} /> Reviewed by your clinician
+          <BadgeCheck size={14} /> {t("reviewedBadge")}
         </span>
         <h2>{tier.summary || "Your clinician has reviewed your latest results."}</h2>
         {a.percentile !== null && sex === "female" && (
-          <p>Your AMH is {percentileWords(a.percentile)} (around the {Math.round(a.percentile)}th percentile).</p>
+          <p>
+            {t("amhIs")} {ar ? percentileWordsAr(a.percentile) : percentileWords(a.percentile)} ({t("aroundPercentile", { n: Math.round(a.percentile) })}).
+          </p>
         )}
         {a.clinicianNote && <Note text={a.clinicianNote} light />}
         <div style={{ maxWidth: 420, marginTop: 14 }}>
@@ -174,9 +182,10 @@ function Headline({ a, sex }: { a: AssessmentView; sex: string | null }) {
 }
 
 function Note({ text, light = false }: { text: string; light?: boolean }) {
+  const { t } = useLocale();
   return (
     <p className={`clinician-note ${light ? "light" : ""}`}>
-      <BadgeCheck size={15} aria-hidden /> <span><strong>From your clinician:</strong> {text}</span>
+      <BadgeCheck size={15} aria-hidden /> <span><strong>{t("fromClinician")}</strong> <span dir="auto">{text}</span></span>
     </p>
   );
 }

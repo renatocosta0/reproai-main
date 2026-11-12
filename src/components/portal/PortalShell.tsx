@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { TourBar } from "@/components/tour/TourBar";
 
 export interface NavItem {
   href: string;
@@ -104,6 +105,7 @@ export function PortalShell({ theme, navLabel, nav, user, sidebarFooter, topActi
         </header>
         <main>{children}</main>
       </div>
+      <TourBar />
     </div>
   );
 }

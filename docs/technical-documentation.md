@@ -34,6 +34,16 @@ ReproAI gives individuals and couples an evidence-led, understandable view of ho
 | **R5 Privacy, non-discrimination, control** | Per-purpose consent (care-team access, lab results, wearables, partner sharing, anonymous statistics) chosen at activation, changeable at any time, enforced in the API, audited; non-discrimination guarantee shown; clinicians scoped to their own panel; no open patient or clinician sign-up. | Runs in prototype |
 | **R6 Evidence of earlier action** | Live panel measures (time from signal to appointment and closure from audit-logged transitions, signals acted on, referral follow-through, baseline coverage, review turnaround) with Wilson 95% intervals; a simulated cohort reporting false reassurance of the reduced-reserve rule under test variability and calibration against an independent reference curve; a list of what a pilot must still measure. | Runs in prototype (live) · Simulated (cohort) |
 
+### P1 additions
+
+| Addition | What it does | Status |
+| --- | --- | --- |
+| **Population insight** (`/clinician/insights`) | Groups who would benefit from earlier advice, built from the same rule IDs: red flags, due referral, reduced reserve, no reserve baseline, preservation window, male factor, lifestyle. Panel view names people (care-team consent only); service view is anonymous, opt-in only, and suppresses groups under 5. | Runs in prototype |
+| **Clinical copilot** (`/clinician/assistant`) | Explains one case from a fact sheet built from the record (consented members only). The scoring tool is withheld from the LLM; only guideline search is available. Every number in a reply is checked against the record and flagged if not found. A failed LLM call returns a labelled scripted summary. | Runs in prototype |
+| **Arabic (RTL)** | Language switch in the patient portal; right-to-left layout; Arabic navigation, trajectory, tiers, percentile wording, marker names, all pathway options and consent text. Clinician notes keep their original language. A notice states the translation awaits review by a native-speaking clinician. | Runs in prototype |
+| **What-if simulator** | Re-scores the patient's latest released assessment with only BMI changed (the only modifiable model input) and reports whether BMI's contribution improves, not a new probability. Sleep and smoking are explained from evidence, not simulated. Nothing is saved. | Runs in prototype; illustrative |
+| **Guided demo** (`/tour`) | Twelve scripted steps across clinician and patient personas, each naming the brief requirement it answers, including a missing-data case and a no-consent case. A floating bar moves between steps and switches persona. Requires `DEMO_LOGIN_ENABLED`. | Runs in prototype |
+
 ## 3. Architecture
 
 ```mermaid
@@ -134,9 +144,10 @@ Assessments are only created by a clinician from the record, never typed in by t
 - **What the model does not see:** tubal patency, uterine factors, endometriosis severity, oocyte quality, DNA fragmentation, genetics, partner-specific interactions beyond the inputs listed.
 - **Single-measurement inputs:** the model uses the latest result; it does not yet model measurement error or trends directly.
 - **Small live samples:** panel measures in a prototype rest on very few people; intervals are wide and subgroup results are not interpretable.
-- **Equity:** nationality and language are not yet recorded, so equitable reach cannot be reported by those groups. The interface is English-only (Arabic is planned).
+- **Equity:** nationality and language are not yet recorded, so equitable reach cannot be reported by those groups.
+- **Arabic:** a prototype translation covering navigation, trajectory, options and consent; it needs review by a native-speaking clinician, and the intake, Today and tracking pages are still English-only.
 - **Wearables:** readings are logged or pasted; there is no certified device integration. Basal temperature is a weak, retrospective ovulation signal.
-- **Assistant:** depends on an external LLM provider; it may be unavailable, and its explanations are not clinically reviewed in real time.
+- **Assistants:** depend on an external LLM provider and may be unavailable. The clinical copilot's number check catches unsupported numbers but not every wording error (for example, implying an outcome definition); its output is decision support for a clinician, not patient-facing text.
 - **Data protection:** encryption at rest for sensitive fields is not yet applied (the helper exists); production would also need ADHICS-aligned hosting in the UAE.
 - **Notifications:** invitation and pairing links are shown to copy; no email or SMS is sent.
 
@@ -156,4 +167,4 @@ npm run demo:setup            # demo personas: female, male, couple (needs the M
 DEMO_LOGIN_ENABLED=true npm run dev
 ```
 
-Then use the demo buttons on the login page. The clinician demo includes a draft joint assessment awaiting review, an open follow-up alert and the evidence dashboard.
+Then open `/tour` for the twelve-step guided demo, or use the demo buttons on the login page. Personas: a clinician; a female individual; a male individual; a paired couple with a draft joint assessment awaiting review and an open alert; a patient with no lab results (missing-data gate); and a patient who has withdrawn care-team access (consent enforcement).

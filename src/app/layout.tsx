@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Manrope } from "next/font/google";
+import { DM_Sans, Manrope, Noto_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import "./reproai.css";
 
@@ -17,6 +17,13 @@ const manrope = Manrope({
   display: "swap"
 });
 
+const notoArabic = Noto_Sans_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-arabic",
+  display: "swap"
+});
+
 export const metadata: Metadata = {
   title: "ReproAI — Reproductive Potential & Life-Course Healthcare",
   description:
@@ -25,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${manrope.variable}`}>
+    <html lang="en" className={`${dmSans.variable} ${manrope.variable} ${notoArabic.variable}`}>
       <body>{children}</body>
     </html>
   );

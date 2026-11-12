@@ -74,6 +74,10 @@ The model is **B2B2C and physician-led**: a clinician prescribes access, the pat
 - **Gated, clinician-reviewed assessments.** Missing required inputs stop the assessment and name what is missing; nothing is imputed. Results are drafts until a clinician approves and releases them with a note. Every value shows its source (clinician verified, self-reported, imported).
 - **Cited options, not prescriptions.** A deterministic rules engine turns the record into options (testing, referral, preservation discussion, counselling, health optimisation), each with its reason and source, using WHO 2025, ESHRE and the Daman Thiqa ART guideline.
 - **Evidence of earlier action.** An evidence dashboard reports live panel measures with Wilson intervals and a clearly labelled simulated check of false reassurance and calibration.
+- **Population insight.** Groups who would benefit from earlier advice, from the same cited rules: named for the clinician's own panel, anonymous and opt-in (small groups suppressed) across the service.
+- **Clinical copilot that explains, never invents.** Grounded in one case's record; numbers are checked against it, and a labelled scripted summary appears if the AI is unavailable.
+- **Arabic.** Right-to-left patient experience for the trajectory, options and consent screens (prototype translation, pending clinical review).
+- **Guided demo.** A twelve-step tour at `/tour`, including a missing-data case and a no-consent case.
 - **Longitudinal wearable tracking.** Basal body temperature (LOINC 8310-5) with Roetzer coverline detection of a biphasic shift (≥ 0.30 °C), and sleep duration (LOINC 93832-4) with variability analysis.
 - **Closed-loop follow-up.** Wearable anomalies and low estimates raise clinician alerts, which move through *alert raised → appointment scheduled → in follow-up → closed* on a board.
 - **Sex-adaptive interface.** Female views focus on ovarian reserve, AFC and temperature; male views on semen parameters against WHO 6th-edition reference values; paired views on the joint estimate.
@@ -284,6 +288,9 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 | `/api/clinician/cases/:id/assess` | POST | Clinician | Gated assessment from the record → draft, or `insufficient_data` |
 | `/api/clinician/assessments/:id` | PATCH | Clinician | Release (with a note) or discard a draft |
 | `/api/clinician/evidence` | GET | Clinician | Live panel measures and the simulated evidence report |
+| `/api/clinician/insights` | GET | Clinician | Population insight: panel groups and anonymous service-wide counts |
+| `/api/clinician/copilot` | POST | Clinician | Case-grounded copilot with number checking and scripted fallback |
+| `/api/patient/what-if` | POST | Patient | Illustrative BMI what-if; nothing is saved |
 | `/api/observations`, `/api/observations/bulk` | GET / POST | Patient | Own readings; bulk ingest with pattern analysis |
 | `/api/pairing/invite`, `accept`, `revoke`, `status` | POST / GET | Patient | Partner pairing with revocable consent |
 | `/api/agent` | POST | Signed in | Tool-calling assistant |
@@ -311,7 +318,7 @@ See the [open issues](https://github.com/renatocosta0/reproai-main/issues) for t
 - Real-world calibration and external validation before any probability is shown outside clinician review
 - Replace the SQLite-era migration history with a PostgreSQL baseline migration
 - Automated tests (Vitest is installed) and CI for the new UI
-- Arabic localisation for the Abu Dhabi pilot
+- Clinical review of the Arabic translation, and Arabic for the remaining patient pages
 
 ## Contributing
 

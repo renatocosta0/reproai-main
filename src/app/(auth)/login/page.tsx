@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, HeartHandshake, Leaf, LockKeyhole, Mail, PlayCircle, ShieldCheck, Stethoscope, UserRound, type LucideIcon } from "lucide-react";
 import { AuthShell } from "@/components/auth/AuthShell";
@@ -160,6 +161,9 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
+            <Link href="/tour" className="demo-tour-link">
+              <PlayCircle size={15} aria-hidden /> Take the guided demo (12 steps)
+            </Link>
             <p className="demo-note">
               <PlayCircle size={13} aria-hidden /> Demo accounts use sample data. No password needed.
             </p>
