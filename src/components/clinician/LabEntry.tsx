@@ -5,6 +5,8 @@ import { FlaskConical } from "lucide-react";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import { labsForSex, LABS, type LabCode } from "@/lib/labs";
+import { LAB_AR } from "@/lib/i18n";
+import { useClinicianText } from "@/components/clinician/useClinicianText";
 
 function todayISO(): string {
   const d = new Date();
@@ -20,6 +22,7 @@ export function LabEntry({ caseId, userId, sex, onSaved }: { caseId: string; use
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const def = LABS[code];
+  const { L, ar } = useClinicianText();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -33,7 +36,7 @@ export function LabEntry({ caseId, userId, sex, onSaved }: { caseId: string; use
       setValue("");
       onSaved();
     } catch (err) {
-      setError(userMessage(err, "Could not save the result."));
+      setError(userMessage(err, L.saveResultError));
     } finally {
       setBusy(false);
     }
@@ -42,12 +45,12 @@ export function LabEntry({ caseId, userId, sex, onSaved }: { caseId: string; use
   return (
     <form className="lab-entry" onSubmit={submit}>
       <label className="field">
-        <span>Result</span>
+        <span>{L.result}</span>
         <div className="input-wrap">
           <select value={code} onChange={(e) => setCode(e.target.value as LabCode)}>
             {options.map((o) => (
               <option key={o.code} value={o.code}>
-                {o.label}
+                {ar ? LAB_AR[o.code] ?? o.label : o.label}
               </option>
             ))}
           </select>
@@ -55,16 +58,16 @@ export function LabEntry({ caseId, userId, sex, onSaved }: { caseId: string; use
       </label>
       <label className="field">
         <span>
-          Value <em>{def.unit}</em>
+          {L.value} <em dir="ltr">{def.unit}</em>
         </span>
         <input type="number" inputMode="decimal" step={def.step} min={def.min} max={def.max} value={value} onChange={(e) => setValue(e.target.value)} required />
       </label>
       <label className="field">
-        <span>Date collected</span>
+        <span>{L.dateCollected}</span>
         <input type="date" max={todayISO()} value={date} onChange={(e) => setDate(e.target.value)} required />
       </label>
       <button className="primary compact" disabled={busy || !value}>
-        <FlaskConical size={15} /> {busy ? "Saving…" : "Save verified result"}
+        <FlaskConical size={15} /> {busy ? L.saving : L.saveVerified}
       </button>
       {error && <div className="lab-entry-error"><FormError>{error}</FormError></div>}
     </form>
