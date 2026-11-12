@@ -2,44 +2,63 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Activity, HeartHandshake, Home, LineChart, Lock, MessageCircle, PenLine, UserRound } from "lucide-react";
+import { Activity, HeartHandshake, Home, Languages, LineChart, Lock, MessageCircle, PenLine, UserRound } from "lucide-react";
 import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
+import { useLocale } from "@/components/i18n/LocaleContext";
+import type { StringKey } from "@/lib/i18n";
 import { firstName, initials, usePatient } from "@/components/patient/PatientContext";
 
-const NAV: NavItem[] = [
-  { href: "/patient/overview", label: "Today", icon: Home },
-  { href: "/patient/assessment", label: "My trajectory", icon: LineChart },
-  { href: "/patient/about", label: "About me", icon: PenLine },
-  { href: "/patient/wearables", label: "Health tracking", icon: Activity },
-  { href: "/patient/assistant", label: "Ask ReproAI", icon: MessageCircle },
-  { href: "/patient/pairing", label: "Couple link", icon: HeartHandshake },
-  { href: "/patient/privacy", label: "Privacy & consent", icon: Lock }
+const NAV: { href: string; key: StringKey; icon: NavItem["icon"] }[] = [
+  { href: "/patient/overview", key: "navToday", icon: Home },
+  { href: "/patient/assessment", key: "navTrajectory", icon: LineChart },
+  { href: "/patient/about", key: "navAbout", icon: PenLine },
+  { href: "/patient/wearables", key: "navTracking", icon: Activity },
+  { href: "/patient/assistant", key: "navAssistant", icon: MessageCircle },
+  { href: "/patient/pairing", key: "navCouple", icon: HeartHandshake },
+  { href: "/patient/privacy", key: "navPrivacy", icon: Lock }
 ];
 
 export function PatientShell({ children }: { children: ReactNode }) {
   const { data } = usePatient();
+  const { locale, setLocale, t } = useLocale();
   const name = data?.profile.name ?? null;
   const partnerName = firstName(data?.partner?.name) ?? data?.partner?.email ?? "your partner";
 
   const modeBadge = data ? (
     <Link href="/patient/pairing" className={`mode-badge ${data.isPaired ? "paired" : ""}`}>
       {data.isPaired ? <HeartHandshake size={15} aria-hidden /> : <UserRound size={15} aria-hidden />}
-      {data.isPaired ? `Paired with ${partnerName}` : "Individual mode"}
+      {data.isPaired ? `${t("pairedWith")} ${partnerName}` : t("individualMode")}
     </Link>
   ) : null;
+
+  const topActions = (
+    <>
+      <button
+        type="button"
+        className="lang-toggle"
+        onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
+        lang={locale === "ar" ? "en" : "ar"}
+        aria-label={locale === "ar" ? "Switch to English" : "التبديل إلى العربية"}
+      >
+        <Languages size={15} aria-hidden /> {t("switchLanguage")}
+      </button>
+      {modeBadge}
+    </>
+  );
 
   return (
     <PortalShell
       theme="patient"
-      navLabel="YOUR JOURNEY"
-      nav={NAV}
+      navLabel={t("navLabel")}
+      nav={NAV.map((n) => ({ href: n.href, label: t(n.key), icon: n.icon }))}
       user={{
         name: name ?? "Your account",
         subtitle: data?.isPaired ? "Couple workspace" : "Individual workspace",
         initials: initials(name, "Me")
       }}
-      topActions={modeBadge}
+      topActions={topActions}
     >
+      {locale === "ar" && <div className="translation-notice" role="note">{t("translationNotice")}</div>}
       {children}
     </PortalShell>
   );

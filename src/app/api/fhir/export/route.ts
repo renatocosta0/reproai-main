@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { canAccessCase, canAccessUser } from "@/lib/clinician-scope";
+import { consentingUserIds } from "@/lib/consent";
 
 // FHIR R4 Observation export endpoint.
 // Returns patient observations in FHIR JSON format for interoperability
@@ -30,16 +31,23 @@ export async function GET(req: NextRequest) {
       if (!allowed) return NextResponse.json({ error: "Not in your care list" }, { status: 403 });
     }
 
-    // A couple's export also covers records its current members made before
-    // pairing (stored under their earlier container).
-    let scope: Record<string, unknown>;
+    // Only people who share their record with the care team are exported to a
+    // clinician (CLINICIAN_ACCESS consent). A couple's export also covers records
+    // its current members made before pairing (stored under an earlier container).
+    let ids: string[];
     if (userId) {
-      scope = { userId };
+      ids = [userId];
     } else {
-      const members = await prisma.user.findMany({ where: { coupleId: coupleId! }, select: { id: true } });
-      const ids = members.map((m) => m.id);
-      scope = { OR: [{ coupleId }, ...(ids.length ? [{ userId: { in: ids } }] : [])] };
+      const members = await prisma.user.findMany({ where: { coupleId: coupleId!, role: "PATIENT" }, select: { id: true } });
+      ids = members.map((m) => m.id);
     }
+    if (session.role === "CLINICIAN") {
+      ids = [...(await consentingUserIds(ids, "CLINICIAN_ACCESS"))];
+      if (ids.length === 0) {
+        return NextResponse.json({ error: "The patient has not shared their record with the care team." }, { status: 403 });
+      }
+    }
+    const scope: Record<string, unknown> = { userId: { in: ids } };
 
     const observations = await prisma.observation.findMany({
       where: code ? { AND: [scope, { code }] } : scope,
@@ -149,9 +157,7 @@ export async function GET(req: NextRequest) {
     }));
 
     // FHIR Patient resources for the people in scope (minimal: id, name, gender).
-    const patients = await prisma.patient.findMany({
-      where: userId ? { userId } : { coupleId: coupleId! }
-    });
+    const patients = await prisma.patient.findMany({ where: { userId: { in: ids } } });
     const patientEntries = patients.map((p) => ({
       resource: {
         resourceType: "Patient",

@@ -6,6 +6,8 @@ import { ClinicalNotice, FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import { shortDate } from "@/lib/observation-analysis";
 import type { ConsentMap, Purpose, PurposeInfo } from "@/types/record";
+import { useLocale } from "@/components/i18n/LocaleContext";
+import { PURPOSE_AR } from "@/lib/i18n";
 
 const ORDER: Purpose[] = ["CLINICIAN_ACCESS", "LAB_RESULTS", "WEARABLES", "PARTNER_SHARING", "POPULATION_ANALYTICS"];
 
@@ -16,6 +18,8 @@ export default function PrivacyPage() {
   const [busy, setBusy] = useState<Purpose | null>(null);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
+  const { locale, t } = useLocale();
+  const ar = locale === "ar";
 
   const load = useCallback(async () => {
     try {
@@ -36,7 +40,7 @@ export default function PrivacyPage() {
     try {
       const res = await api<{ consents: ConsentMap }>("/api/patient/consent", { method: "PUT", body: JSON.stringify({ purpose, granted }) });
       setState((s) => (s ? { ...s, consents: res.consents } : s));
-      setSaved(granted ? "Permission given. This takes effect immediately." : "Permission withdrawn. This takes effect immediately; nothing you shared before is deleted.");
+      setSaved(granted ? t("granted") : t("revoked"));
     } catch (err) {
       setError(userMessage(err, "Could not update this setting."));
     } finally {
@@ -48,16 +52,16 @@ export default function PrivacyPage() {
     <div className="content patient-content">
       <div className="page-heading">
         <div>
-          <p className="date-label">PRIVACY &amp; CONSENT</p>
-          <h1>You decide who sees what</h1>
-          <span>Change any of these at any time. Every change is recorded.</span>
+          <p className="date-label">{t("privacyEyebrow")}</p>
+          <h1>{t("privacyTitle")}</h1>
+          <span>{t("privacySubtitle")}</span>
         </div>
       </div>
 
       {state && (
         <div style={{ marginBottom: 16 }}>
           <ClinicalNotice icon={ShieldCheck}>
-            <strong>Our promise:</strong> {state.nonDiscrimination}
+            <strong>{t("ourPromise")}</strong> {ar ? t("nonDiscrimination") : state.nonDiscrimination}
           </ClinicalNotice>
         </div>
       )}
@@ -69,7 +73,7 @@ export default function PrivacyPage() {
       ) : (
         <section className="panel consent-list">
           {ORDER.map((p) => {
-            const info = state.purposes[p];
+            const info = ar ? { ...state.purposes[p], ...PURPOSE_AR[p] } : state.purposes[p];
             const c = state.consents[p];
             return (
               <div className="consent-row" key={p}>
@@ -77,7 +81,7 @@ export default function PrivacyPage() {
                 <div>
                   <strong>{info.title}</strong>
                   <p>{info.description}</p>
-                  {c.updatedAt && <small>Last changed {shortDate(c.updatedAt)}</small>}
+                  {c.updatedAt && <small>{t("lastChanged")} {shortDate(c.updatedAt)}</small>}
                 </div>
                 <button
                   type="button"

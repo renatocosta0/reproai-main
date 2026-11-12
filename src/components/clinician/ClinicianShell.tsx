@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Bell, FlaskConical, LayoutDashboard, UserPlus } from "lucide-react";
+import { Bell, FlaskConical, LayoutDashboard, MessageSquareText, UserPlus, UsersRound } from "lucide-react";
 import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { PrescribeModal } from "@/components/clinician/PrescribeModal";
@@ -9,6 +9,8 @@ import { PrescribeModal } from "@/components/clinician/PrescribeModal";
 const NAV: NavItem[] = [
   { href: "/clinician/dashboard", label: "Overview", icon: LayoutDashboard, match: ["/clinician/patient"] },
   { href: "/clinician/follow-up", label: "Follow-up board", icon: Bell },
+  { href: "/clinician/insights", label: "Population insight", icon: UsersRound },
+  { href: "/clinician/assistant", label: "Clinical copilot", icon: MessageSquareText },
   { href: "/clinician/evidence", label: "Evidence & safety", icon: FlaskConical }
 ];
 

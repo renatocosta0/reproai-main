@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, BellPlus, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, BellPlus, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { ReviewCard } from "@/components/clinician/ReviewCard";
 import { LabEntry } from "@/components/clinician/LabEntry";
@@ -115,6 +115,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   const history = released.filter((a) => a.scope === (data.isCouple ? "COUPLE" : "INDIVIDUAL")).reverse();
   const openFollowUps = data.followUps.filter((f) => f.status !== "CLOSED" && f.status !== "LOST");
   const canJoint = data.members.length === 2 && data.members.every((m) => m.clinicianAccess);
+  const anySharing = data.members.some((m) => m.clinicianAccess);
 
   return (
     <div className="content">
@@ -144,9 +145,16 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
               <CloudDownload size={16} /> PDF report
             </a>
           )}
-          <button className="primary compact" onClick={exportFhir} disabled={busy === "fhir"}>
-            <FileJson size={16} /> {busy === "fhir" ? "Exporting…" : "Export FHIR R4"}
-          </button>
+          {anySharing && (
+            <>
+              <Link className="secondary" href={`/clinician/assistant?case=${data.id}`}>
+                <Sparkles size={16} /> Ask the copilot
+              </Link>
+              <button className="primary compact" onClick={exportFhir} disabled={busy === "fhir"}>
+                <FileJson size={16} /> {busy === "fhir" ? "Exporting…" : "Export FHIR R4"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

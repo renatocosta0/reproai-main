@@ -41,10 +41,13 @@ async function executeChatTurn(
   throw new Error("Neither Azure OpenAI nor Groq is configured for agent tool execution.");
 }
 
-export async function runAgent(messages: AgentMessage[]): Promise<AgentResult> {
-  // Combine built-in tools with any configured MCP tools.
+export async function runAgent(messages: AgentMessage[], options: { allowTools?: string[] } = {}): Promise<AgentResult> {
+  // Combine built-in tools with any configured MCP tools; callers may restrict
+  // the set (e.g. the clinical copilot excludes the scoring tool so it can only
+  // explain numbers already in the record).
   const mcpTools = await loadMcpTools();
-  const tools: Tool[] = [...builtinTools, ...mcpTools];
+  const all: Tool[] = [...builtinTools, ...mcpTools];
+  const tools: Tool[] = options.allowTools ? all.filter((t) => options.allowTools!.includes(t.name)) : all;
   const byName = new Map(tools.map((t) => [t.name, t]));
 
   const toolSpecs = tools.map((t) => ({

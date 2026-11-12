@@ -1,4 +1,8 @@
+"use client";
+
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleContext";
+import { LAB_AR } from "@/lib/i18n";
 import { LABS, isBelowLimit, type LabCode, type LabPoint } from "@/lib/labs";
 import { shortDate } from "@/lib/observation-analysis";
 import { SourceChip } from "@/components/record/Chips";
@@ -8,7 +12,10 @@ import { SourceChip } from "@/components/record/Chips";
  * value as their baseline and a plain-language direction-of-change sentence.
  */
 export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[] }) {
+  const { locale } = useLocale();
+  const ar = locale === "ar";
   const def = LABS[code];
+  const label = ar ? LAB_AR[code] ?? def.label : def.label;
   const pts = [...points].sort((a, b) => +new Date(a.collectedAt) - +new Date(b.collectedAt));
   const last = pts[pts.length - 1];
   const first = pts[0];
@@ -26,23 +33,23 @@ export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[
 
   let trend: { text: string; Icon: typeof ArrowRight };
   if (pts.length < 2) {
-    trend = { text: "One result so far. A later result will show the direction of change.", Icon: ArrowRight };
+    trend = { text: ar ? "نتيجة واحدة حتى الآن. ستُظهر النتيجة التالية اتجاه التغيّر." : "One result so far. A later result will show the direction of change.", Icon: ArrowRight };
   } else {
     const change = (last.value - first.value) / (Math.abs(first.value) || 1);
     const since = shortDate(first.collectedAt);
     trend =
       Math.abs(change) < 0.1
-        ? { text: `Stable since ${since}.`, Icon: ArrowRight }
+        ? { text: ar ? `مستقرة منذ ${since}.` : `Stable since ${since}.`, Icon: ArrowRight }
         : change > 0
-          ? { text: `Higher than your first result (${since}).`, Icon: ArrowUpRight }
-          : { text: `Lower than your first result (${since}).`, Icon: ArrowDownRight };
+          ? { text: ar ? `أعلى من نتيجتك الأولى (${since}).` : `Higher than your first result (${since}).`, Icon: ArrowUpRight }
+          : { text: ar ? `أقل من نتيجتك الأولى (${since}).` : `Lower than your first result (${since}).`, Icon: ArrowDownRight };
   }
 
   return (
     <article className={`marker-card ${below ? "below" : ""}`}>
       <header>
         <div>
-          <span>{def.label}</span>
+          <span>{label}</span>
           <strong>
             {last.value}
             <small> {def.unit}</small>
@@ -50,7 +57,7 @@ export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[
         </div>
         <SourceChip source={last.source} />
       </header>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${def.label}: ${pts.map((p) => p.value).join(", ")}`}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${label}: ${pts.map((p) => p.value).join(", ")}`}>
         {lim !== undefined && (
           <>
             <rect x="0" y={y(lim)} width={width} height={Math.max(0, height - pad - y(lim))} fill="#de7467" opacity="0.07" />
@@ -68,8 +75,13 @@ export function MarkerTrend({ code, points }: { code: LabCode; points: LabPoint[
         <trend.Icon size={14} aria-hidden /> {trend.text}
       </p>
       <small className="marker-meta">
-        Latest {shortDate(last.collectedAt)}
-        {lim !== undefined && <> · reference limit {lim} {def.unit}{below ? " (below)" : ""}</>}
+        {ar ? "آخر نتيجة" : "Latest"} {shortDate(last.collectedAt)}
+        {lim !== undefined && (
+          <>
+            {" "}· {ar ? "الحد المرجعي" : "reference limit"} <span dir="ltr">{lim} {def.unit}</span>
+            {below ? (ar ? " (أقل)" : " (below)") : ""}
+          </>
+        )}
       </small>
     </article>
   );

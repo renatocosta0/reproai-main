@@ -319,6 +319,25 @@ async function main() {
   });
   console.log(`  ✓ Couple   demo.couple@reproai.dev + demo.partner@reproai.dev   joint ${cr.probability}% (draft awaiting review), alert open`);
 
+  // ── 4. Missing data: prescribed and intake done, but no lab results yet ────
+  const xProfile: Profile = { name: "Layla N.", sex: "female", age: 36, bmi: 23.9, cycleRegularity: "REGULAR" };
+  const xCouple = await container("demo-missing");
+  await upsertPatient("demo.missing@reproai.dev", xProfile, xCouple, { tryingToConceive: false, smoking: "NEVER", historyFlags: [], familyEarlyMenopause: true });
+  await prescription(xCouple, clinician.id, "INDIVIDUAL", "demo.missing@reproai.dev", null, xProfile, "Family history of early menopause. AMH ordered; result not yet back.");
+  console.log("  ✓ Missing  demo.missing@reproai.dev   no lab results (assessment will stop at the data gate)");
+
+  // ── 5. No consent: has results but has withdrawn care-team access ─────────
+  const kProfile: Profile = { name: "Omar K.", sex: "male", age: 32, bmi: 25.1 };
+  const kCouple = await container("demo-noconsent");
+  const k = await upsertPatient("demo.noconsent@reproai.dev", kProfile, kCouple, { tryingToConceive: false, smoking: "NEVER", historyFlags: [] });
+  await labs(k.id, clinician.id, [["SPERM_CONCENTRATION", 22, "million/mL", 60]]);
+  await prescription(kCouple, clinician.id, "INDIVIDUAL", "demo.noconsent@reproai.dev", null, kProfile, "Routine semen analysis follow-up.");
+  await prisma.consent.update({
+    where: { userId_purpose: { userId: k.id, purpose: "CLINICIAN_ACCESS" } },
+    data: { granted: false, revokedAt: daysAgo(2) }
+  });
+  console.log("  ✓ Consent  demo.noconsent@reproai.dev has withdrawn care-team access");
+
   console.log("\nDemo personas ready. Enable the buttons with DEMO_LOGIN_ENABLED=\"true\".");
 }
 

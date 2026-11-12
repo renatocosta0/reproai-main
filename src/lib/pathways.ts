@@ -4,6 +4,7 @@
 // source. Options are suggestions to discuss, never prescriptions.
 
 import { isBelowLimit, LABS, latestByCode, THIQA, type LabCode, type LabPoint } from "@/lib/labs";
+import { optionArabic, type OptionAr } from "@/lib/pathways-ar";
 
 export type OptionKind = "RED_FLAG" | "REFER" | "TEST" | "PRESERVATION" | "COUNSEL" | "OPTIMISE";
 
@@ -17,6 +18,8 @@ export interface PathwayOption {
   clinicianText: string;
   reason: string;
   source: string;
+  /** Arabic patient wording (prototype translation). */
+  ar?: OptionAr | null;
 }
 
 export interface PathwayContext {
@@ -304,5 +307,5 @@ export function evaluatePathways(c: PathwayContext): PathwayOption[] {
     });
   }
 
-  return out.sort((a, b) => a.priority - b.priority);
+  return out.map((o) => ({ ...o, ar: optionArabic(o.ruleId, c) })).sort((a, b) => a.priority - b.priority);
 }

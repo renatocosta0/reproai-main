@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { canAccessCase } from "@/lib/clinician-scope";
+import { consentingUserIds } from "@/lib/consent";
 import { suggestProtocols } from "@/lib/protocols";
 import { buildReportPdf } from "@/lib/pdf";
 
@@ -17,6 +18,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     }
     if (session.role === "CLINICIAN" ? !(await canAccessCase(session.userId, params.id)) : session.coupleId !== params.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (session.role === "CLINICIAN") {
+      const members = await prisma.user.findMany({ where: { coupleId: params.id, role: "PATIENT" }, select: { id: true } });
+      const sharing = await consentingUserIds(members.map((m) => m.id), "CLINICIAN_ACCESS");
+      if (members.length === 0 || sharing.size < members.length) {
+        return NextResponse.json({ error: "Every member must share their record with the care team before a report can be produced." }, { status: 403 });
+      }
     }
 
     const couple = await prisma.couple.findUnique({

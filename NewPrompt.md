@@ -43,7 +43,7 @@ Judging criteria (unweighted): health impact and clinical relevance; technical d
 4. **Clinician sign-off before release.** Patients see an assessment only after a clinician has reviewed it, added a note and approved it.
 
 #### 0.5 What is already built (do not rebuild)
-**P0-1 to P0-7 implemented on 12 Nov 2026** (branch `feat/challenge02-benchmark`): missing-data gates, trajectory-first patient view, clinician-verified labs and sign-off, pathway rules engine, granular consent with clinician scoping, evidence dashboard, and `docs/technical-documentation.md`. Remaining: P1 items in 5A.
+**P0-1 to P0-7 implemented on 12 Nov 2026** (branch `feat/challenge02-benchmark`): missing-data gates, trajectory-first patient view, clinician-verified labs and sign-off, pathway rules engine, granular consent with clinician scoping, evidence dashboard, and `docs/technical-documentation.md`. **P1 implemented on 12 Nov 2026** (branch `feat/p1-insight-copilot-arabic`): population insight, clinical copilot, Arabic (RTL) for core patient screens, what-if simulator, guided demo at `/tour` with missing-data and no-consent personas. Remaining: P2 (document only).
 
 
 Design system and auth pages; patient portal (Today, assessment, tracking with BBT coverline and sleep, assistant, couple link, `/pair`); clinician portal (cohort dashboard with couples/individuals tabs, prescribe dialog, follow-up kanban, case record with estimate history, wearable charts, FHIR R4 export, PDF); demo personas (`npm run demo:setup`, `DEMO_LOGIN_ENABLED`); auth on all clinical APIs; revocable pairing. See the README for details.
