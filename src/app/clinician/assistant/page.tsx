@@ -4,9 +4,11 @@ import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Cpu, FileText, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { GroundedReply } from "@/components/assistant/GroundedReply";
+import { ChatHistory, ChatHistoryActions, historyText, useConversations, useHistoryPanel, type ConversationDetail } from "@/components/assistant/ChatHistory";
 import type { GroundedAnswer } from "@/lib/rag/answer";
 import { api, userMessage } from "@/lib/api-client";
 import type { DirectoryResponse } from "@/types/clinician";
+import { useClinicianText } from "@/components/clinician/useClinicianText";
 
 interface Msg {
   role: "user" | "assistant";
@@ -16,8 +18,7 @@ interface Msg {
   error?: boolean;
 }
 
-const PROVIDER: Record<string, string> = { azure: "Azure OpenAI", groq: "Groq", scripted: "Scripted summary · AI unavailable", extractive: "Extractive · AI unavailable", none: "No generation" };
-
+// Suggested questions stay in English in both languages: the guidance corpus is English-only.
 const PROMPTS_CASE = [
   "Summarise this case for a 10-minute consultation.",
   "What is missing from the record, and how does it limit interpretation?",
@@ -44,7 +45,13 @@ function Copilot() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState(false);
+  const history = useConversations("/api/clinician/conversations");
+  const panel = useHistoryPanel();
   const endRef = useRef<HTMLDivElement>(null);
+  const { L, ar, locale } = useClinicianText();
 
   useEffect(() => {
     api<DirectoryResponse>("/api/clinician/couples")
@@ -59,21 +66,64 @@ function Copilot() {
   async function ask(q: string) {
     const question = q.trim();
     if (!question || sending) return;
-    const history = [...messages.filter((m) => !m.error), { role: "user" as const, content: question }];
+    const turns = [...messages.filter((m) => !m.error), { role: "user" as const, content: question }];
     setMessages((m) => [...m, { role: "user", content: question }]);
     setText("");
     setSending(true);
     try {
-      const res = await api<{ reply: string; provider: string; answer: GroundedAnswer }>("/api/clinician/copilot", {
+      const res = await api<{ reply: string; provider: string; answer: GroundedAnswer; conversationId: string | null }>("/api/clinician/copilot", {
         method: "POST",
-        body: JSON.stringify({ caseId: caseId || undefined, messages: history.map(({ role, content }) => ({ role, content })) })
+        body: JSON.stringify({ caseId: caseId || undefined, conversationId, messages: turns.map(({ role, content }) => ({ role, content })) })
       });
       setMessages((m) => [...m, { role: "assistant", content: res.reply, provider: res.provider, answer: res.provider === "scripted" ? undefined : res.answer }]);
+      if (res.conversationId) setConversationId(res.conversationId);
+      void history.refresh();
     } catch (err) {
-      setMessages((m) => [...m, { role: "assistant", content: userMessage(err, "The copilot could not answer."), error: true }]);
+      setMessages((m) => [...m, { role: "assistant", content: userMessage(err, L.copilotError), error: true }]);
     } finally {
       setSending(false);
     }
+  }
+
+  function newChat() {
+    setMessages([]);
+    setConversationId(null);
+    setOpenError(false);
+    setText("");
+    panel.afterPick();
+  }
+
+  async function openChat(id: string) {
+    if (sending || opening) return;
+    panel.afterPick();
+    setOpening(true);
+    setOpenError(false);
+    try {
+      const conv: ConversationDetail = await history.open(id);
+      setCaseId(conv.caseId ?? "");
+      setMessages(
+        conv.messages.flatMap<Msg>((t) => [
+          { role: "user", content: t.question },
+          {
+            role: "assistant",
+            content: t.reply,
+            provider: t.provider ?? undefined,
+            answer: t.provider === "scripted" ? undefined : t.answer ?? undefined
+          }
+        ])
+      );
+      setConversationId(conv.id);
+    } catch {
+      setOpenError(true);
+      void history.refresh();
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  async function deleteChat(id: string) {
+    await history.remove(id);
+    if (id === conversationId) newChat();
   }
 
   function submit(e: FormEvent) {
@@ -84,18 +134,18 @@ function Copilot() {
   const caseName = cases.find((c) => c.id === caseId)?.name;
 
   return (
-    <div className="content assistant-page">
+    <div className="content assistant-page has-history">
       <div className="page-heading">
         <div>
-          <p className="date-label">CLINICAL COPILOT</p>
-          <h1>Explain a case, grounded in its record</h1>
-          <span>Answers come only from the case record and the cited guidance library. Each sentence is checked against its source and flagged if it is not supported. Decisions stay with you.</span>
+          <p className="date-label">{L.copilotEyebrow}</p>
+          <h1>{L.copilotTitle}</h1>
+          <span>{L.copilotSubtitle}</span>
         </div>
         <label className="field copilot-case">
-          <span>Case</span>
+          <span>{L.caseLabel}</span>
           <div className="input-wrap">
-            <select value={caseId} onChange={(e) => { setCaseId(e.target.value); setMessages([]); }}>
-              <option value="">No case (general questions)</option>
+            <select value={caseId} onChange={(e) => { setCaseId(e.target.value); newChat(); }}>
+              <option value="">{L.noCase}</option>
               {cases.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -104,62 +154,86 @@ function Copilot() {
         </label>
       </div>
 
+      <div className={`assistant-layout${panel.open ? " history-open" : ""}`}>
+      <ChatHistory
+        locale={locale}
+        open={panel.open}
+        onClose={() => panel.setOpen(false)}
+        items={history.items}
+        error={history.error}
+        onRetry={() => void history.refresh()}
+        activeId={conversationId}
+        onSelect={(id) => void openChat(id)}
+        onNew={newChat}
+        onDelete={deleteChat}
+        metaFor={(c) => (c.caseId ? cases.find((x) => x.id === c.caseId)?.name : undefined)}
+        disabled={sending || opening}
+      />
       <section className="assistant-shell panel">
         <div className="assistant-head">
           <div className="assistant-orb"><Sparkles size={21} /></div>
           <span>
-            <strong>ReproAI clinical copilot</strong>
-            <small><i /> {caseName ? `Using the record of ${caseName}` : "No case selected"} · cited guidance library</small>
+            <strong>{L.copilotName}</strong>
+            <small><i /> {caseName ? L.usingRecord(caseName) : L.noCaseSelected} · {L.guidanceLibrary}</small>
           </span>
+          <ChatHistoryActions
+            locale={locale}
+            open={panel.open}
+            onToggle={() => panel.setOpen(!panel.open)}
+            onNew={newChat}
+            disabled={sending || opening}
+          />
         </div>
         <div className="messages" aria-live="polite">
-          {messages.length === 0 && (
+          {messages.length === 0 && !opening && (
             <div className="message ai">
               <div className="mini-orb"><Sparkles size={13} /></div>
               <div>
-                {caseName
-                  ? `I can summarise ${caseName}'s record, explain the triggered rules and their sources, point out missing data, or draft a plain-language note. I will not calculate new numbers.`
-                  : "Select a case to discuss a patient's record, or ask a general guideline question."}
+                {caseName ? L.introCase(caseName) : L.introGeneral}
               </div>
             </div>
           )}
           {messages.map((m, i) =>
             m.role === "user" ? (
-              <div className="message user" key={i}><div>{m.content}</div></div>
+              <div className="message user" key={i}><div dir="auto">{m.content}</div></div>
             ) : (
               <div className="message ai" key={i}>
                 <div className="mini-orb"><Sparkles size={13} /></div>
                 <div>
-                  {caseName && !m.error && <div className="tool-badges"><span className="tool-badge"><FileText size={12} /> Case record</span></div>}
-                  {m.answer ? <GroundedReply answer={m.answer} audience="clinician" /> : <div className="reply-text">{m.content}</div>}
-                  {m.provider && <span className="provider-tag"><Cpu size={12} /> {PROVIDER[m.provider] ?? m.provider}</span>}
+                  {caseName && !m.error && <div className="tool-badges"><span className="tool-badge"><FileText size={12} /> {L.caseRecord}</span></div>}
+                  {m.answer ? <GroundedReply answer={m.answer} audience="clinician" locale={locale} /> : <div className="reply-text" dir="auto">{m.content}</div>}
+                  {m.provider && <span className="provider-tag"><Cpu size={12} /> {L.providers[m.provider] ?? m.provider}</span>}
                 </div>
               </div>
             )
           )}
+          {opening && <p className="chat-loading" role="status">{historyText(locale, "opening")}</p>}
+          {openError && <div className="assistant-unavailable" role="alert">{historyText(locale, "openError")}</div>}
           {sending && (
             <div className="message ai">
               <div className="mini-orb"><Sparkles size={13} /></div>
-              <div className="typing" aria-label="Copilot is thinking"><i /><i /><i /></div>
+              <div className="typing" aria-label={L.thinking}><i /><i /><i /></div>
             </div>
           )}
           <div ref={endRef} />
         </div>
-        {messages.length === 0 && (
-          <div className="suggestions">
+        {messages.length === 0 && !opening && (
+          <div className="suggestions" lang="en" dir="ltr">
+            {ar && <small className="muted-note" lang="ar" dir="rtl" style={{ width: "100%" }}>{L.englishPrompts}</small>}
             {(caseName ? PROMPTS_CASE : PROMPTS_GENERAL).map((p) => (
               <button key={p} type="button" onClick={() => void ask(p)} disabled={sending}>{p}</button>
             ))}
           </div>
         )}
         <form className="chat-input" onSubmit={submit}>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask about this case or a guideline…" aria-label="Your question" maxLength={2000} />
-          <button disabled={sending || !text.trim()} aria-label="Send"><Send size={17} /></button>
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={L.askPlaceholder} aria-label={L.yourQuestion} maxLength={2000} dir={text ? "auto" : undefined} />
+          <button disabled={sending || !text.trim()} aria-label={L.send}><Send size={17} className="flip-rtl" /></button>
         </form>
         <div className="assistant-disclaimer">
-          <ShieldCheck size={13} /> Decision support for licensed clinicians. Prototype; not clinically validated. Every query is audit-logged.
+          <ShieldCheck size={13} /> {L.copilotDisclaimer}
         </div>
       </section>
+      </div>
     </div>
   );
 }

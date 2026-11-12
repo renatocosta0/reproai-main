@@ -5,6 +5,7 @@ import { AlertTriangle, ClipboardList, FlaskConical, HeartPulse, Leaf, MessagesS
 import type { OptionKind, PathwayOption } from "@/lib/pathways";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import type { StringKey } from "@/lib/i18n";
+import { CLINICIAN_STRINGS } from "@/lib/i18n-clinician";
 
 const KIND: Record<OptionKind, { label: string; Icon: typeof Leaf; tone: string }> = {
   RED_FLAG: { label: "See a doctor", Icon: AlertTriangle, tone: "coral" },
@@ -29,6 +30,8 @@ export function OptionsList({
 }) {
   const { locale, t } = useLocale();
   const ar = audience === "patient" && locale === "ar";
+  // Clinician Arabic: translated labels around the rule; rule text, IDs and sources stay in English.
+  const clinAr = audience === "clinician" && locale === "ar" ? CLINICIAN_STRINGS.ar : null;
   const shown = limit ? options.slice(0, limit) : options;
   return (
     <div className="options-list">
@@ -41,16 +44,26 @@ export function OptionsList({
             </span>
             <div>
               <div className="option-top">
-                <span className="option-kind">{ar ? t(`kind${o.kind}` as StringKey) : k.label}</span>
-                {o.priority === 1 && <span className="option-soon">{ar ? t("actSoon") : "Act soon"}</span>}
+                <span className="option-kind">{ar ? t(`kind${o.kind}` as StringKey) : clinAr ? clinAr.kind[o.kind] ?? k.label : k.label}</span>
+                {o.priority === 1 && <span className="option-soon">{ar ? t("actSoon") : clinAr ? clinAr.actSoon : "Act soon"}</span>}
                 {audience === "clinician" && <code>{o.ruleId}</code>}
               </div>
-              <strong>{ar && o.ar ? o.ar.title : o.title}</strong>
-              <p>{audience === "patient" ? (ar && o.ar ? o.ar.text : o.patientText) : o.clinicianText}</p>
-              <small>
-                <ClipboardList size={12} aria-hidden /> {ar ? t("why") : "Why"}: {ar && o.ar?.reason ? o.ar.reason : o.reason} · {ar ? t("source") : "Source"}:{" "}
-                <span dir="ltr">{o.source}</span>
-              </small>
+              <strong dir={clinAr ? "auto" : undefined}>{ar && o.ar ? o.ar.title : o.title}</strong>
+              <p dir={clinAr ? "auto" : undefined}>{audience === "patient" ? (ar && o.ar ? o.ar.text : o.patientText) : o.clinicianText}</p>
+              {clinAr ? (
+                // One text run, so the Arabic labels and English reason/source don't split into flex columns.
+                <small>
+                  <ClipboardList size={12} aria-hidden />{" "}
+                  <span>
+                    {clinAr.why}: <bdi>{o.reason}</bdi> · {clinAr.source}: <span dir="ltr">{o.source}</span>
+                  </span>
+                </small>
+              ) : (
+                <small>
+                  <ClipboardList size={12} aria-hidden /> {ar ? t("why") : "Why"}: {ar && o.ar?.reason ? o.ar.reason : o.reason} · {ar ? t("source") : "Source"}:{" "}
+                  <span dir="ltr">{o.source}</span>
+                </small>
+              )}
             </div>
           </article>
         );

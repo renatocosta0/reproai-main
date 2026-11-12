@@ -1,0 +1,42 @@
+/* Right-to-left layout for the clinician portal in Arabic. Direction only: no
+   colours here (colours live in ../reproai.css). The base RTL rules (sidebar on
+   the right, Arabic font, .flip-rtl) are in reproai.css; these mirror the
+   remaining physical left/right values used by clinician pages. Charts keep a
+   left-to-right time axis (their wrappers set dir="ltr"). */
+
+html[dir="rtl"] th,
+html[dir="rtl"] .alert-item,
+html[dir="rtl"] .case-open,
+html[dir="rtl"] .cohort-head,
+html[dir="rtl"] .profile-row,
+html[dir="rtl"] .sidebar nav a { text-align: right; }
+
+html[dir="rtl"] .sidebar nav a b { margin-left: 0; margin-right: auto; }
+html[dir="rtl"] .systems-card small { padding: 4px 15px 0 0; }
+
+html[dir="rtl"] .metric-icon { right: auto; left: 17px; }
+html[dir="rtl"] .cohort-note strong { margin-right: 0; margin-left: 5px; }
+html[dir="rtl"] .field span em { margin-left: 0; margin-right: 5px; }
+html[dir="rtl"] .pipeline li { padding: 5px 5px 5px 10px; }
+html[dir="rtl"] .plain-list { padding: 0 38px 20px 20px; }
+
+html[dir="rtl"] .modal-close { right: auto; left: 18px; }
+
+/* Chat bubbles: the tail sits next to the speaker. */
+html[dir="rtl"] .message > div:last-child { border-radius: 13px 5px 13px 13px; }
+html[dir="rtl"] .message.user { margin-left: 0; margin-right: auto; }
+html[dir="rtl"] .message.user > div { border-radius: 5px 13px 13px 13px; }
+
+
+/* Patient names, emails and other Latin-script values keep their own direction
+   (otherwise "Yousef T." renders as ".Yousef T"). */
+html[dir="rtl"] .person-cell strong,
+html[dir="rtl"] .alert-item strong,
+html[dir="rtl"] .case-top strong,
+html[dir="rtl"] .case-heading h1,
+html[dir="rtl"] .person-head strong,
+html[dir="rtl"] .member-section > div > strong,
+html[dir="rtl"] .cohort-people a,
+html[dir="rtl"] .profile-row strong,
+html[dir="rtl"] .modal h2,
+html[dir="rtl"] .copilot-case option { unicode-bidi: plaintext; }
