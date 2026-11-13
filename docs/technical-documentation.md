@@ -168,7 +168,7 @@ Assessments are only created by a clinician from the record, never typed in by t
 ## 10. Path to pilot (proposed for production)
 
 1. **Integrations:** verified labs from Malaffi (FHIR); entry from TAMM (formerly Sahatna) and from premarital and IFHAS screening invitations; Health Age linkage.
-2. **Governance:** DoH Responsible AI Standard (Oct 2025) conformity review, ADHICS security, UAE data residency, encryption at rest, clinical safety case.
+2. **Governance:** DoH Responsible AI Standard (Oct 2025) conformity review (self-assessment and gaps: [doh-responsible-ai-mapping.md](doh-responsible-ai-mapping.md)), ADHICS security, UAE data residency, encryption at rest, clinical safety case.
 3. **Pilot:** one primary-care cluster and one fertility centre for 6 months. Primary outcome: time from first risk signal to counselling. Secondary: referral completion, preservation discussions within the effective age window, informed-choice quality, anxiety, false reassurance, clinician workload, equity by nationality, age and sex.
 4. **Model:** recalibrate and externally validate on Abu Dhabi outcomes before showing any probability outside clinician review.
 
