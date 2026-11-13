@@ -35,6 +35,14 @@ export default function LoginPage() {
       .catch(() => setDemoEnabled(false));
   }, []);
 
+  // The landing page links to /login#demo; the demo section renders only after
+  // the check above, so scroll to it once it exists.
+  useEffect(() => {
+    if (demoEnabled && window.location.hash === "#demo") {
+      document.getElementById("demo")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [demoEnabled]);
+
   async function demoLogin(persona: DemoPersona) {
     setDemoLoading(persona);
     setError("");
@@ -148,7 +156,7 @@ export default function LoginPage() {
         )}
 
         {demoEnabled && (
-          <div className="demo-login">
+          <div className="demo-login" id="demo">
             <div className="demo-divider"><span>Or explore the demo</span></div>
             <div className="demo-buttons">
               {DEMO_PERSONAS.map(({ persona, label, detail, icon: Icon }) => (

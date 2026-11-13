@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { FileHeart, LineChart, ShieldCheck, Sparkles, UserRoundCheck } from "lucide-react";
+import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 
 // Split-screen shell shared by the login and register pages. The story panel
@@ -8,7 +9,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="login-page">
       <section className="login-story">
-        <Logo />
+        <Link href="/" className="brand-home" aria-label="ReproAI home">
+          <Logo />
+        </Link>
         <div className="story-copy">
           <div className="eyebrow light">
             <Sparkles size={14} aria-hidden /> Fertility intelligence, made human
@@ -55,7 +58,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
       <section className="login-panel">
         <div className="login-mobile-logo">
-          <Logo />
+          <Link href="/" className="brand-home" aria-label="ReproAI home">
+            <Logo />
+          </Link>
         </div>
         {children}
         <div className="login-meta">Abu Dhabi Digital Health Innovation · Challenge 02</div>

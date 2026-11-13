@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Manrope, Noto_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import "./reproai.css";
+import "./landing.css";
 import "./chat-history.css";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
