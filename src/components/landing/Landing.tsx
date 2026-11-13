@@ -33,21 +33,30 @@ const STRINGS = {
     signIn: "Sign in",
     lang: "العربية",
     eyebrow: "Reproductive health over time",
-    title: "See reproductive health change over time, with your care team.",
+    title: "Earlier, clearer reproductive-health decisions, with the clinician in control.",
     lead:
-      "ReproAI brings lab results, cycle and wearable signals and a short history into one record. Clinicians review every result before it is shared, and explain what it means and what options to discuss.",
+      "ReproAI gives health systems and clinicians one honest view of reproductive potential over time: verified lab results, cycle and wearable signals and a short history, with cited next steps. Every result is reviewed by a clinician before the person sees it.",
     ctaDemo: "Explore the demo",
     ctaTour: "Take the guided tour",
     invite: "Patients join through their clinic's invitation. There is no open sign-up.",
     howTitle: "How it works",
-    howLead: "One record per person, or per couple, from the first visit to the next decision.",
+    howLead: "For health systems and clinicians, from the first invitation to the next decision.",
     steps: [
-      { title: "A clinician prescribes it", text: "Your clinic sends a secure activation link. Partners can pair later, and either can unpair at any time." },
-      { title: "You choose who sees what", text: "Five separate consents, each changeable at any time and enforced by the system, not just shown on screen." },
-      { title: "The record builds over time", text: "Verified lab results with their source and date, basal temperature and sleep, and a short self-reported history." },
-      { title: "Your clinician reviews it", text: "If a required result is missing, no estimate is made. New assessments stay as drafts until a clinician signs them off." },
-      { title: "You see what it means", text: "A plain-language result, how it has changed, your clinician's note, and cited options to discuss. Clinicians see the model estimate with its 95% interval." }
+      { title: "Invite people earlier", text: "A clinic prescribes ReproAI with a secure link. Invitations through premarital screening and IFHAS adult screening are proposed for production." },
+      { title: "Build one record over time", text: "Verified lab results with their source and date, cycle and sleep signals, and a short self-reported history, combined only with consent." },
+      { title: "Calculate, never guess", text: "The model runs only when the required results are present; otherwise it names what is missing. Each estimate carries its 95% interval and the factors behind it." },
+      { title: "The clinician reviews and releases", text: "Every result is a draft until a clinician writes a note and releases it. Options come from cited Daman Thiqa and WHO rules." },
+      { title: "Follow up and measure", text: "A follow-up board, population insight on who would benefit from earlier advice, and measures of earlier action with their intervals." }
     ],
+    personTitle: "For individuals and couples",
+    personSteps: [
+      { title: "Joined through your clinic", text: "There is no open sign-up. Your clinic sends a secure link, and partners pair only if both agree." },
+      { title: "You decide who sees what", text: "Five separate consents, each changeable at any time and enforced by the system." },
+      { title: "A trajectory, not a score", text: "Plain-language results in English or Arabic, how they have changed, your clinician's note and cited options to discuss." }
+    ],
+    coverage: "See what runs in the demo, what is simulated and what is proposed",
+    askLink: "Have a general question? Ask the guidance assistant, no account needed",
+    navAsk: "Ask a question",
     whoTitle: "Who it's for",
     who: [
       { title: "Women", text: "Ovarian reserve (AMH, antral follicle count) over time, cycle and basal temperature patterns, and egg-freezing options." },
@@ -79,21 +88,30 @@ const STRINGS = {
     signIn: "تسجيل الدخول",
     lang: "English",
     eyebrow: "الصحة الإنجابية عبر الزمن",
-    title: "تابع تغيّر صحتك الإنجابية عبر الزمن، مع فريق رعايتك.",
+    title: "قرارات أبكر وأوضح في الصحة الإنجابية، والقرار للطبيب.",
     lead:
-      "يجمع ReproAI نتائج المختبر وإشارات الدورة والأجهزة القابلة للارتداء وتاريخاً صحياً موجزاً في سجل واحد. يراجع الطبيب كل نتيجة قبل مشاركتها، ويوضح معناها والخيارات المتاحة للنقاش.",
+      "يمنح ReproAI الأنظمة الصحية والأطباء رؤية صادقة للإمكانات الإنجابية عبر الزمن: نتائج مختبر موثّقة، وإشارات الدورة والأجهزة القابلة للارتداء، وتاريخاً صحياً موجزاً، مع خطوات تالية موثّقة المصادر. يراجع الطبيب كل نتيجة قبل أن يراها الشخص.",
     ctaDemo: "استكشف العرض التوضيحي",
     ctaTour: "ابدأ الجولة الإرشادية",
     invite: "ينضم المرضى عبر دعوة من عيادتهم. لا يوجد تسجيل مفتوح.",
     howTitle: "كيف يعمل",
-    howLead: "سجل واحد لكل شخص أو لكل زوجين، من الزيارة الأولى حتى القرار التالي.",
+    howLead: "للأنظمة الصحية والأطباء، من الدعوة الأولى حتى القرار التالي.",
     steps: [
-      { title: "يصفه لك الطبيب", text: "ترسل عيادتك رابط تفعيل آمناً. يمكن للشريكين الربط لاحقاً، ويمكن لأي منهما إلغاء الربط في أي وقت." },
-      { title: "أنت تختار من يرى ماذا", text: "خمس موافقات منفصلة، يمكن تغيير كل منها في أي وقت، ويطبّقها النظام فعلياً لا على الشاشة فقط." },
-      { title: "يتكوّن السجل مع الوقت", text: "نتائج مختبر موثّقة بمصدرها وتاريخها، ودرجة حرارة الجسم الأساسية والنوم، وتاريخ صحي موجز يُدخله المريض." },
-      { title: "يراجعه طبيبك", text: "إذا غابت نتيجة مطلوبة فلا يُحسب أي تقدير. وتبقى التقييمات الجديدة مسودات حتى يعتمدها الطبيب." },
-      { title: "تفهم ما تعنيه النتيجة", text: "نتيجة بلغة واضحة، وكيف تغيّرت، وملاحظة طبيبك، وخيارات موثّقة المصادر للنقاش. يرى الأطباء تقدير النموذج مع نطاقه بنسبة 95%." }
+      { title: "دعوة الناس في وقت أبكر", text: "تصف العيادة ReproAI عبر رابط آمن. والدعوات عبر فحص ما قبل الزواج وبرنامج الفحص الشامل للبالغين مقترحة لمرحلة الإنتاج." },
+      { title: "سجل واحد يتكوّن مع الوقت", text: "نتائج مختبر موثّقة بمصدرها وتاريخها، وإشارات الدورة والنوم، وتاريخ صحي موجز يُدخله الشخص، ولا تُجمع إلا بموافقته." },
+      { title: "حساب بلا تخمين", text: "لا يعمل النموذج إلا عند توفر النتائج المطلوبة، وإلا فإنه يحدد ما ينقص. ويأتي كل تقدير مع نطاقه بنسبة 95% والعوامل المؤثرة فيه." },
+      { title: "الطبيب يراجع ويعتمد", text: "تبقى كل نتيجة مسودة حتى يكتب الطبيب ملاحظته ويعتمدها. وتستند الخيارات إلى قواعد موثّقة من دليل ضمان ثقة ومنظمة الصحة العالمية." },
+      { title: "المتابعة والقياس", text: "لوحة متابعة، ورؤى على مستوى السكان حول من يستفيد من المشورة المبكرة، ومقاييس للتدخل المبكر مع نطاقاتها." }
     ],
+    personTitle: "للأفراد والأزواج",
+    personSteps: [
+      { title: "الانضمام عبر عيادتك", text: "لا يوجد تسجيل مفتوح. ترسل عيادتك رابطاً آمناً، ولا يرتبط الشريكان إلا بموافقة كليهما." },
+      { title: "أنت تقرر من يرى ماذا", text: "خمس موافقات منفصلة، يمكن تغيير كل منها في أي وقت، ويطبّقها النظام فعلياً." },
+      { title: "مسار عبر الزمن لا درجة", text: "نتائج بلغة واضحة بالعربية أو الإنجليزية، وكيف تغيّرت، وملاحظة طبيبك، وخيارات موثّقة المصادر للنقاش." }
+    ],
+    coverage: "اطّلع على ما يعمل في العرض التوضيحي وما هو محاكى وما هو مقترح",
+    askLink: "لديك سؤال عام؟ اسأل مساعد الإرشادات دون الحاجة إلى حساب",
+    navAsk: "اطرح سؤالاً",
     whoTitle: "لمن صُمّم",
     who: [
       { title: "النساء", text: "مخزون المبيض (AMH وعدد الجريبات الغارية) عبر الزمن، وأنماط الدورة ودرجة الحرارة الأساسية، وخيارات تجميد البويضات." },
@@ -120,7 +138,8 @@ const STRINGS = {
   }
 } as const;
 
-const STEP_ICONS: LucideIcon[] = [UserRoundPlus, FileLock2, Watch, ClipboardCheck, LineChart];
+const STEP_ICONS: LucideIcon[] = [UserRoundPlus, Watch, LineChart, ClipboardCheck, Stethoscope];
+const PERSON_ICONS: LucideIcon[] = [HeartHandshake, FileLock2, BookOpenCheck];
 const WHO_ICONS: LucideIcon[] = [UserRound, UserRound, HeartHandshake, Stethoscope];
 
 export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
@@ -135,6 +154,7 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
           <a href="#how">{t.navHow}</a>
           <a href="#who">{t.navWho}</a>
           <a href="#safety">{t.navSafety}</a>
+          <Link href="/ask">{t.navAsk}</Link>
         </nav>
         <div className="landing-nav-actions">
           <button type="button" className="secondary" onClick={() => setLocale(locale === "ar" ? "en" : "ar")} lang={locale === "ar" ? "en" : "ar"}>
@@ -187,6 +207,29 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
               );
             })}
           </ol>
+          <h3 className="landing-subhead">{t.personTitle}</h3>
+          <div className="landing-grid three">
+            {t.personSteps.map((p, i) => {
+              const Icon = PERSON_ICONS[i];
+              return (
+                <article key={p.title} className="landing-card">
+                  <Icon size={20} aria-hidden />
+                  <h3>{p.title}</h3>
+                  <p>{p.text}</p>
+                </article>
+              );
+            })}
+          </div>
+          <p className="landing-coverage">
+            <Link href="/ask">
+              {t.askLink} <ArrowRight size={15} aria-hidden className="flip-rtl" />
+            </Link>
+          </p>
+          <p className="landing-coverage">
+            <Link href="/coverage">
+              {t.coverage} <ArrowRight size={15} aria-hidden className="flip-rtl" />
+            </Link>
+          </p>
         </section>
 
         <section id="who" className="landing-section">

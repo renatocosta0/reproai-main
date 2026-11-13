@@ -1,0 +1,57 @@
+/* Demo coverage page (/coverage). Plain hex colours on purpose:
+   postcss/dark-theme.js derives the dark-mode twins. Builds on landing.css. */
+
+.cov-body { max-width: 900px; padding-bottom: 0; }
+.cov-body h1 {
+  margin: 8px 0 14px;
+  font-family: var(--font-manrope), var(--font-arabic), sans-serif;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.15;
+}
+.cov-lead { max-width: 68ch; color: #445854; font-size: 16px; line-height: 1.65; margin: 0; }
+.cov-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; }
+
+.cov-req { margin-top: 26px; padding: 20px 22px; border: 1px solid #e3eae6; border-radius: 14px; background: #ffffff; }
+.cov-req-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+.cov-req-head > div { min-width: 0; }
+.cov-req-head h2 { margin: 0 0 4px; font-size: 19px; font-family: var(--font-manrope), var(--font-arabic), sans-serif; }
+.cov-req-head p { margin: 0; color: #71817d; font-size: 14px; line-height: 1.5; }
+.cov-id {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #dff2e9;
+  color: #0c655e;
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.cov-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.cov-rows li { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 14px; align-items: start; padding-top: 10px; border-top: 1px solid #edf1ef; }
+.cov-rows li:first-child { border-top: 0; padding-top: 0; }
+.cov-rows p { margin: 0; color: #2c4440; font-size: 15px; line-height: 1.55; }
+
+.cov-status {
+  justify-self: start;
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cov-live { background: #dff2e9; color: #0c655e; }
+.cov-simulated { background: #fbf1dc; color: #8a5a00; }
+.cov-proposed { background: #edf1ef; color: #536662; }
+
+.cov-where { color: #0c655e; font-weight: 600; font-size: 14px; white-space: nowrap; }
+.cov-where:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .cov-rows li { grid-template-columns: 1fr; gap: 6px; }
+  .cov-req { padding: 16px; }
+}
