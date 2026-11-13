@@ -222,7 +222,7 @@ ReproAI has two roles, and patients can't sign themselves up.
 
 3. **Patient.** The patient opens the link, sets a password and their details, and lands on **Today**. From there they can run an assessment, log or import temperature and sleep readings, ask the assistant, and invite a partner from **Couple link** (`/pair?token=…`).
 
-4. **Follow-up.** Alerts from wearable patterns or low joint estimates appear on the clinician's **Follow-up board**. Each patient record offers a FHIR R4 export and a PDF report.
+4. **Follow-up.** Alerts from wearable patterns or low joint estimates appear on the clinician's **Follow-up board**. Each patient record offers a FHIR R4 export and a printable case report (released information only, English or Arabic, save as PDF from the browser).
 
 `npm run prisma:seed` loads demo couples and accounts instead (see [`prisma/seed.ts`](prisma/seed.ts)). Only use it on a database you're happy to fill with sample data.
 
@@ -300,7 +300,7 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 | `/api/clinician/cases/:id` | GET | Clinician | Full longitudinal record for one case |
 | `/api/follow-up` | GET / POST / PATCH | Clinician | Closed-loop follow-up queue |
 | `/api/fhir/export` | GET | Clinician or own record | FHIR R4 bundle |
-| `/api/reports/:id` | GET | Clinician or own couple | PDF report |
+| `/api/reports/:id` | GET | Clinician (own cases) | Redirects to the printable case report |
 | `/api/health` | GET | Anyone | Health check |
 
 ## Deployment

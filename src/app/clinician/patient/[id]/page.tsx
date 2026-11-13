@@ -145,9 +145,9 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
             </button>
           )}
           {released.length > 0 && (
-            <a className="secondary" href={`/api/reports/${data.id}`}>
+            <Link className="secondary" href={`/clinician/patient/${data.id}/report`}>
               <CloudDownload size={16} /> {L.pdfReport}
-            </a>
+            </Link>
           )}
           {anySharing && (
             <>

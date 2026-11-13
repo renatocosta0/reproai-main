@@ -64,7 +64,7 @@ Sources: `Implementations/questions.md` and the 19 screenshots in `Implementatio
 | **Evidence-status labels everywhere.** "Runs in prototype", "Simulated / synthetic", "Proposed for production", "Benefit not yet proven", "not a claim of compliance". | Builds trust with clinical judges. | ❌ The product and docs over-claim (calibration, AUC, "AES-256" in older copy). |
 | **Bilingual English / Arabic.** Explanations and the care-plan summary are produced in both. | Cultural fit; the male-health brief demands cultural sensitivity and judges are DoH. | ❌ English only. |
 | **Guided, replayable demo for the audience.** "Play ready demo", scripted walkthrough, fictional case selector (including a missing-data case and a no-permission case). | Criterion 3, demonstration quality, especially for a panel reviewing many submissions. | ⚠️ We have one-click demo personas but no guided tour and no "missing data" or "no consent" scenario. |
-| **One visit, one record, every handoff documented.** Exportable visit record (HTML/JSON/PDF) with an audit timeline. | Deployment readiness, governance. | ⚠️ FHIR export and PDF exist; no per-encounter record with an audit trail of who did what. |
+| **One visit, one record, every handoff documented.** Exportable visit record (HTML/JSON/PDF) with an audit timeline. | Deployment readiness, governance. | ⚠️ FHIR export and a printable case report exist; no per-encounter record with an audit trail of who did what. |
 
 ---
 
