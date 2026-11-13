@@ -3812,3 +3812,24 @@ html[dir="rtl"] .switch.on i { right: 23px; }
 .pipeline.live li.wf-blocked { border-color: #f1c9c3; background: #fdf1ef; }
 .pipeline.live li.wf-blocked span { background: #de7467; color: #fff; }
 .pipeline.live li.wf-pending { opacity: 0.8; }
+
+/* ── Printable clinician case report ── */
+.case-report { max-width: 920px; }
+.report-actions { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.report-header { margin-bottom: 18px; }
+.report-header h1 { margin: 4px 0; }
+.report-header span { color: var(--muted); font-size: 14px; }
+.report-section { margin: 0 0 22px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: #fff; break-inside: avoid; }
+.report-section h2 { font-size: 17px; margin: 0 0 10px; }
+.report-kinds { margin: 0; padding-inline-start: 18px; font-size: 14px; line-height: 1.6; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 14px; }
+.report-table th, .report-table td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.report-table th { font-weight: 600; color: var(--muted); font-size: 12px; }
+
+@media print {
+  .sidebar, .sidebar-scrim, .topbar, .no-print, .tour-bar { display: none !important; }
+  .app-shell, .main-shell, main { display: block !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  .case-report { max-width: none; padding: 0 !important; color: #000; }
+  .report-section { border-color: #ccc; background: #fff !important; }
+  .case-report button, .case-report .review-actions { display: none !important; }
+}
