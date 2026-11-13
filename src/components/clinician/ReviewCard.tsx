@@ -10,12 +10,15 @@ import { pct, tierCopy } from "@/lib/tiers";
 import { TIER_AR } from "@/lib/i18n";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
 import type { AssessmentView } from "@/types/record";
+import { DISCARD_REASONS, type DiscardReason } from "@/lib/review-reasons";
 
 /** One assessment: inputs with provenance, result, factors and, for drafts, the clinician review. */
 export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () => void }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<"RELEASE" | "DISCARD" | null>(null);
   const [error, setError] = useState("");
+  const [discarding, setDiscarding] = useState(false);
+  const [reason, setReason] = useState<DiscardReason | null>(null);
   const draft = a.status === "DRAFT";
   const { L, ar, date: shortDate } = useClinicianText();
   const tierLabel = ar ? TIER_AR[a.tier ?? ""]?.label ?? tierCopy(a.tier).label : tierCopy(a.tier).label;
@@ -24,7 +27,7 @@ export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () 
     setBusy(action);
     setError("");
     try {
-      await api(`/api/clinician/assessments/${a.id}`, { method: "PATCH", body: JSON.stringify({ action, note }) });
+      await api(`/api/clinician/assessments/${a.id}`, { method: "PATCH", body: JSON.stringify({ action, note, reason: action === "DISCARD" ? reason : undefined }) });
       onChanged();
     } catch (err) {
       setError(userMessage(err, L.reviewError));
@@ -91,14 +94,43 @@ export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () 
             </span>
             <textarea dir={note ? "auto" : undefined} rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={L.notePlaceholder} />
           </label>
+          {discarding && (
+            <fieldset className="discard-reasons">
+              <legend>{L.discardWhy}</legend>
+              <p>{L.discardWhyHint}</p>
+              {DISCARD_REASONS.map((r) => (
+                <label key={r}>
+                  <input type="radio" name={`discard-${a.id}`} value={r} checked={reason === r} onChange={() => setReason(r)} />
+                  {L.discardReasons[r]}
+                </label>
+              ))}
+            </fieldset>
+          )}
           {error && <FormError>{error}</FormError>}
           <div className="modal-actions">
-            <button className="secondary" onClick={() => review("DISCARD")} disabled={busy !== null}>
-              <Trash2 size={15} /> {busy === "DISCARD" ? L.discarding : L.discardDraft}
-            </button>
-            <button className="primary" onClick={() => review("RELEASE")} disabled={busy !== null || note.trim().length < 10}>
-              <CheckCircle2 size={15} /> {busy === "RELEASE" ? L.releasing : L.approveRelease}
-            </button>
+            {discarding ? (
+              <>
+                <button className="secondary" onClick={() => { setDiscarding(false); setReason(null); setError(""); }} disabled={busy !== null}>
+                  {L.cancel}
+                </button>
+                <button
+                  className="secondary danger"
+                  onClick={() => review("DISCARD")}
+                  disabled={busy !== null || !reason || (reason === "OTHER" && note.trim().length < 10)}
+                >
+                  <Trash2 size={15} /> {busy === "DISCARD" ? L.discarding : L.confirmDiscard}
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="secondary" onClick={() => setDiscarding(true)} disabled={busy !== null}>
+                  <Trash2 size={15} /> {L.discardDraft}
+                </button>
+                <button className="primary" onClick={() => review("RELEASE")} disabled={busy !== null || note.trim().length < 10}>
+                  <CheckCircle2 size={15} /> {busy === "RELEASE" ? L.releasing : L.approveRelease}
+                </button>
+              </>
+            )}
           </div>
         </section>
       ) : (

@@ -4,6 +4,35 @@ import { clinicianCaseIds } from "@/lib/clinician-scope";
 import { liveMetrics, simulationReport } from "@/lib/evaluation";
 import { audit } from "@/lib/audit";
 import ragEval from "@/lib/rag/eval-results.json";
+import { prisma } from "@/lib/db";
+import { DISCARD_ACTION_PREFIX, DISCARD_REASONS, reasonFromAction } from "@/lib/review-reasons";
+
+// Human oversight on this clinician's panel: what happened to drafts, and why
+// discarded ones were discarded (from the audit log).
+async function oversight(caseIds: string[]) {
+  const preds = await prisma.prediction.findMany({
+    where: { coupleId: { in: caseIds }, status: { in: ["DRAFT", "RELEASED", "DISCARDED"] } },
+    select: { id: true, status: true }
+  });
+  const count = (st: string) => preds.filter((p) => p.status === st).length;
+  const discardedIds = preds.filter((p) => p.status === "DISCARDED").map((p) => `prediction:${p.id}`);
+  const logs = discardedIds.length
+    ? await prisma.auditLog.findMany({
+        where: { action: { startsWith: DISCARD_ACTION_PREFIX }, resource: { in: discardedIds } },
+        select: { action: true }
+      })
+    : [];
+  const reasons: Record<string, number> = Object.fromEntries(DISCARD_REASONS.map((r) => [r, 0]));
+  let unrecorded = count("DISCARDED");
+  for (const l of logs) {
+    const r = reasonFromAction(l.action);
+    if (r) {
+      reasons[r] += 1;
+      unrecorded -= 1;
+    }
+  }
+  return { released: count("RELEASED"), discarded: count("DISCARDED"), awaiting: count("DRAFT"), reasons, unrecorded: Math.max(0, unrecorded) };
+}
 
 // GET /api/clinician/evidence — live pathway metrics for this clinician's panel
 // plus the labelled simulated-cohort report. Clinician only.
@@ -14,18 +43,19 @@ export async function GET() {
       return NextResponse.json({ error: "Clinician access required" }, { status: 403 });
     }
     const caseIds = [...(await clinicianCaseIds(session.userId))];
-    const [live, simulation] = await Promise.all([
+    const [live, simulation, review] = await Promise.all([
       liveMetrics(caseIds),
-      simulationReport().catch((e) => ({ error: e instanceof Error ? e.message : "Simulation unavailable" }))
+      simulationReport().catch((e) => ({ error: e instanceof Error ? e.message : "Simulation unavailable" })),
+      oversight(caseIds)
     ]);
     await audit(session.userId, "evidence_viewed", `cases:${caseIds.length}`);
     // Offline evaluation of the grounded assistant (npm run rag:eval). Only
     // the questions it got wrong are sent, so the page can show them.
     const { rows, ...summary } = ragEval as unknown as { rows: Array<Record<string, any>> } & Record<string, unknown>;
-    const misses = rows.filter((r) =>
+    const misses = rows.filter((r) => r.lang !== "ar").filter((r) =>
       r.answerable ? r.hit === false || (r.status !== undefined && r.status !== "answered") : r.status !== undefined ? r.status !== "abstained" : r.retrievalAbstained === false
     ).map((r) => ({ q: r.q, kind: r.kind, answerable: r.answerable, retrieved: r.retrieved, status: r.status ?? null }));
-    return NextResponse.json({ live, simulation, rag: { ...summary, misses }, generatedAt: new Date().toISOString() });
+    return NextResponse.json({ live, simulation, oversight: review, rag: { ...summary, misses }, generatedAt: new Date().toISOString() });
   } catch (error: any) {
     console.error("[GET /api/clinician/evidence] error:", error);
     return NextResponse.json({ error: error?.message ?? "Failed to compute evidence" }, { status: 500 });

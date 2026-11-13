@@ -4,10 +4,12 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { canAccessCase } from "@/lib/clinician-scope";
 import { toAssessmentView } from "@/lib/person-record";
+import { DISCARD_ACTION_PREFIX, isDiscardReason } from "@/lib/review-reasons";
 
-// PATCH /api/clinician/assessments/:id { action: "RELEASE" | "DISCARD", note }
+// PATCH /api/clinician/assessments/:id { action: "RELEASE" | "DISCARD", note, reason }
 // Clinician sign-off: a DRAFT becomes visible to the patient only when a
-// clinician releases it with their note. Discarded drafts are kept for audit.
+// clinician releases it with their note. Discarded drafts are kept for audit,
+// and a discard must say why (src/lib/review-reasons.ts).
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getSession();
@@ -36,11 +38,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ assessment: toAssessmentView(updated) });
     }
     if (body?.action === "DISCARD") {
+      if (!isDiscardReason(body?.reason)) {
+        return NextResponse.json({ error: "Choose why you are discarding this draft." }, { status: 400 });
+      }
+      if (body.reason === "OTHER" && note.length < 10) {
+        return NextResponse.json({ error: "Add a short note (at least 10 characters) explaining the reason." }, { status: 400 });
+      }
       const updated = await prisma.prediction.update({
         where: { id: pred.id },
         data: { status: "DISCARDED", clinicianNote: note || null, reviewedById: session.userId, reviewedAt: new Date() }
       });
-      await audit(session.userId, "assessment_discarded", `prediction:${pred.id}`);
+      await audit(session.userId, `${DISCARD_ACTION_PREFIX}:${body.reason}`, `prediction:${pred.id}`);
       return NextResponse.json({ assessment: toAssessmentView(updated) });
     }
     return NextResponse.json({ error: "action must be RELEASE or DISCARD" }, { status: 400 });

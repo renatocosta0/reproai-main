@@ -162,14 +162,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      <ol className="pipeline" aria-label={L.pipelineAria}>
-        {L.pipeline.map((s, i) => (
-          <li key={s}>
-            <span>{i + 1}</span>
-            {s}
-          </li>
-        ))}
-      </ol>
+      <CaseWorkflow data={data} />
 
       {notice && <div style={{ marginBottom: 14 }}><ClinicalNotice>{notice}</ClinicalNotice></div>}
       {error && <div style={{ marginBottom: 14 }}><FormError>{error}</FormError></div>}
@@ -398,5 +391,65 @@ function MemberSection({
         </div>
       )}
     </section>
+  );
+}
+
+type StepState = "done" | "action" | "blocked" | "pending";
+
+/** The assessment pipeline for this case, with each step's real state. */
+function CaseWorkflow({ data }: { data: CaseDetail }) {
+  const { L, ar } = useClinicianText();
+  const members = data.members;
+  const hidden = members.filter((m) => !m.clinicianAccess);
+  const sharing = members.filter((m) => m.clinicianAccess);
+  const labName = (c: LabCode) => (ar ? LAB_AR[c] ?? LABS[c].label : LABS[c].label);
+  const missing = sharing.flatMap((m) => {
+    const need: string[] = [];
+    if (m.profile?.age === null || m.profile?.age === undefined) need.push(L.inputLabels.age ?? "Age");
+    const code: LabCode | null = m.sex === "female" ? "AMH" : m.sex === "male" ? "SPERM_CONCENTRATION" : null;
+    if (code && !m.labs.some((l) => l.code === code)) need.push(labName(code));
+    return need.map((n) => (members.length > 1 ? `${n} (${m.name ?? m.email})` : n));
+  });
+  const assessed = data.assessments.length > 0;
+  const drafts = data.assessments.filter((a) => a.status === "DRAFT").length;
+  const released = data.assessments.some((a) => a.status === "RELEASED");
+  const openFollowUp = data.followUps.some((f) => f.status !== "CLOSED" && f.status !== "LOST");
+  const closedFollowUp = data.followUps.some((f) => f.status === "CLOSED");
+
+  const steps: { state: StepState; detail: string }[] = [
+    members.length === 0
+      ? { state: "pending", detail: L.wfNoMembers }
+      : hidden.length
+        ? { state: "blocked", detail: hidden.map((m) => L.wfHidden(m.name ?? m.email)).join("; ") }
+        : { state: "done", detail: L.wfDone },
+    sharing.length === 0
+      ? { state: "pending", detail: L.wfNotYet }
+      : missing.length
+        ? { state: "blocked", detail: L.wfMissing(missing.join(", ")) }
+        : { state: "done", detail: L.wfDone },
+    assessed ? { state: "done", detail: L.wfDone } : { state: missing.length || !sharing.length ? "pending" : "action", detail: L.wfNotYet },
+    assessed ? { state: "done", detail: L.wfDone } : { state: "pending", detail: L.wfNotYet },
+    drafts ? { state: "action", detail: L.wfAwaiting(drafts) } : released ? { state: "done", detail: L.wfDone } : { state: "pending", detail: L.wfNotYet },
+    released ? { state: "done", detail: L.wfDone } : { state: "pending", detail: L.wfNotYet },
+    openFollowUp ? { state: "action", detail: L.wfOpen } : closedFollowUp ? { state: "done", detail: L.wfDone } : { state: "pending", detail: L.wfOptional }
+  ];
+  const stateLabel: Record<StepState, string> = { done: L.wfDone, action: L.wfNeedsAction, blocked: L.wfBlocked, pending: L.wfNotYet };
+
+  return (
+    <ol className="pipeline live" aria-label={L.pipelineAria}>
+      {L.pipeline.map((name, i) => {
+        const st = steps[i] ?? { state: "pending" as StepState, detail: "" };
+        return (
+          <li key={name} className={`wf-${st.state}`} title={st.detail}>
+            <span aria-hidden>{st.state === "done" ? "✓" : i + 1}</span>
+            <div>
+              <strong>{name}</strong>
+              <small>{st.state === "done" ? stateLabel.done : st.detail}</small>
+            </div>
+            <em className="sr-only">{stateLabel[st.state]}</em>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
