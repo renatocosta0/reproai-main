@@ -57,6 +57,7 @@ const STRINGS = {
     ],
     safetyTitle: "Safety by design",
     safetyLead: "What ReproAI will not do.",
+    modelCard: "Read the model card: what the model is, what it is not for, and its limitations",
     safety: [
       { title: "Guess missing data", text: "A missing required input stops the assessment and says what is needed." },
       { title: "Share results without sign-off", text: "Patients see only what a clinician has reviewed and released." },
@@ -103,6 +104,7 @@ const STRINGS = {
     ],
     safetyTitle: "السلامة في صميم التصميم",
     safetyLead: "ما لن يفعله ReproAI.",
+    modelCard: "اقرأ بطاقة النموذج: ما هو النموذج، وما لا يُستخدم له، وحدوده",
     safety: [
       { title: "تخمين البيانات الناقصة", text: "غياب أي مُدخل مطلوب يوقف التقييم ويحدد ما ينقص." },
       { title: "مشاركة النتائج دون اعتماد", text: "لا يرى المرضى إلا ما راجعه الطبيب واعتمده." },
@@ -217,6 +219,11 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
               </article>
             ))}
           </div>
+          <p className="landing-more">
+            <Link href="/model-card">
+              {t.modelCard} <ArrowRight size={15} aria-hidden className="flip-rtl" />
+            </Link>
+          </p>
         </section>
 
         <section className="landing-section landing-built">
