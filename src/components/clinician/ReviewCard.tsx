@@ -6,20 +6,10 @@ import { ShapChart } from "@/components/charts/ShapChart";
 import { Completeness, EvidenceChip, SourceChip } from "@/components/record/Chips";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
-import { shortDate } from "@/lib/observation-analysis";
 import { pct, tierCopy } from "@/lib/tiers";
+import { TIER_AR } from "@/lib/i18n";
+import { useClinicianText } from "@/components/clinician/useClinicianText";
 import type { AssessmentView } from "@/types/record";
-
-const INPUT_LABELS: Record<string, string> = {
-  age: "Age",
-  amh: "AMH (ng/mL)",
-  antral_follicle_count: "Antral follicle count",
-  sperm_count: "Sperm concentration (M/mL)",
-  bmi: "BMI",
-  pcos_history: "PCOS history",
-  infertility_duration_months: "Months trying",
-  prior_cycles: "Previous treatment cycles"
-};
 
 /** One assessment: inputs with provenance, result, factors and, for drafts, the clinician review. */
 export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () => void }) {
@@ -27,6 +17,8 @@ export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () 
   const [busy, setBusy] = useState<"RELEASE" | "DISCARD" | null>(null);
   const [error, setError] = useState("");
   const draft = a.status === "DRAFT";
+  const { L, ar, date: shortDate } = useClinicianText();
+  const tierLabel = ar ? TIER_AR[a.tier ?? ""]?.label ?? tierCopy(a.tier).label : tierCopy(a.tier).label;
 
   async function review(action: "RELEASE" | "DISCARD") {
     setBusy(action);
@@ -35,7 +27,7 @@ export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () 
       await api(`/api/clinician/assessments/${a.id}`, { method: "PATCH", body: JSON.stringify({ action, note }) });
       onChanged();
     } catch (err) {
-      setError(userMessage(err, "Could not save the review."));
+      setError(userMessage(err, L.reviewError));
     } finally {
       setBusy(null);
     }
@@ -47,26 +39,26 @@ export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () 
         <div>
           <span className={`status-pill ${draft ? "amber" : "mint"}`}>
             <i />
-            {draft ? "Draft · awaiting your review" : `Released ${a.reviewedAt ? shortDate(a.reviewedAt) : ""}`}
+            {draft ? L.draftAwaiting : L.releasedOn(a.reviewedAt ? shortDate(a.reviewedAt) : "")}
           </span>
-          <h3>{a.scope === "COUPLE" ? "Joint assessment" : "Individual assessment"} · {shortDate(a.createdAt)}</h3>
+          <h3>{a.scope === "COUPLE" ? L.jointAssessment : L.individualAssessment} · {shortDate(a.createdAt)}</h3>
         </div>
         <EvidenceChip text={a.evidenceStatus} />
       </header>
 
       <div className="review-grid">
         <section>
-          <h4>1 · Recorded inputs</h4>
+          <h4>{L.recordedInputs}</h4>
           <table className="inputs-table">
             <tbody>
               {Object.entries(a.inputs ?? {}).map(([k, v]) => (
                 <tr key={k}>
-                  <td>{INPUT_LABELS[k] ?? k}</td>
+                  <td>{L.inputLabels[k] ?? k}</td>
                   <td>
-                    <strong>{typeof v.value === "boolean" ? (v.value ? "Yes" : "No") : v.value}</strong>
+                    <strong>{typeof v.value === "boolean" ? (v.value ? L.yes : L.no) : v.value}</strong>
                   </td>
                   <td>
-                    <SourceChip source={v.source} />
+                    <SourceChip source={v.source} audience="clinician" />
                     {v.date && <small> {shortDate(v.date)}</small>}
                   </td>
                 </tr>
@@ -77,14 +69,14 @@ export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () 
         </section>
 
         <section>
-          <h4>2 · Calculated result</h4>
+          <h4>{L.calculatedResult}</h4>
           <div className="result-box">
             <strong>{pct(a.probability, 1)}</strong>
             <span>
-              95% range {pct(a.confidenceLow)}–{pct(a.confidenceHigh)} · {tierCopy(a.tier).label}
+              {L.range95(pct(a.confidenceLow), pct(a.confidenceHigh))} · {tierLabel}
             </span>
-            {a.percentile !== null && <span>AMH for age: about the {Math.round(a.percentile)}th percentile</span>}
-            <small>{a.modelVersion}</small>
+            {a.percentile !== null && <span>{L.amhPercentile(Math.round(a.percentile))}</span>}
+            <small dir="ltr">{a.modelVersion}</small>
           </div>
           {a.factors && a.factors.length > 0 && <ShapChart factors={a.factors} />}
         </section>
@@ -92,27 +84,27 @@ export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () 
 
       {draft ? (
         <section className="review-decision">
-          <h4>3 · Your decision</h4>
+          <h4>{L.yourDecision}</h4>
           <label className="field">
             <span>
-              Note to the patient <em>shown with the result; plain language</em>
+              {L.noteToPatient} <em>{L.noteHint}</em>
             </span>
-            <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Your egg reserve is in the expected range for your age. We will repeat AMH in 12 months." />
+            <textarea dir={note ? "auto" : undefined} rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder={L.notePlaceholder} />
           </label>
           {error && <FormError>{error}</FormError>}
           <div className="modal-actions">
             <button className="secondary" onClick={() => review("DISCARD")} disabled={busy !== null}>
-              <Trash2 size={15} /> {busy === "DISCARD" ? "Discarding…" : "Discard draft"}
+              <Trash2 size={15} /> {busy === "DISCARD" ? L.discarding : L.discardDraft}
             </button>
             <button className="primary" onClick={() => review("RELEASE")} disabled={busy !== null || note.trim().length < 10}>
-              <CheckCircle2 size={15} /> {busy === "RELEASE" ? "Releasing…" : "Approve and release to patient"}
+              <CheckCircle2 size={15} /> {busy === "RELEASE" ? L.releasing : L.approveRelease}
             </button>
           </div>
         </section>
       ) : (
         a.clinicianNote && (
           <p className="review-note">
-            <BadgeCheck size={15} aria-hidden /> <strong>Clinician note:</strong> {a.clinicianNote}
+            <BadgeCheck size={15} aria-hidden /> <strong>{L.clinicianNote}</strong> <span dir="auto">{a.clinicianNote}</span>
           </p>
         )
       )}

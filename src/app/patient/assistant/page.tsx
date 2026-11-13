@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Cpu, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { firstName, usePatient } from "@/components/patient/PatientContext";
 import { api, ApiError } from "@/lib/api-client";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { GroundedReply } from "@/components/assistant/GroundedReply";
+import { ChatHistory, ChatHistoryActions, historyText, useConversations, useHistoryPanel, type ConversationDetail } from "@/components/assistant/ChatHistory";
 import type { GroundedAnswer } from "@/lib/rag/answer";
 
 interface ChatMessage {
@@ -33,6 +34,11 @@ export default function AssistantPage() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [unavailable, setUnavailable] = useState("");
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState(false);
+  const history = useConversations("/api/patient/conversations");
+  const panel = useHistoryPanel();
   const endRef = useRef<HTMLDivElement>(null);
   const name = firstName(data?.profile.name);
   const suggestions = SUGGESTIONS[data?.profile.sex ?? "default"] ?? SUGGESTIONS.default;
@@ -49,11 +55,13 @@ export default function AssistantPage() {
     setText("");
     setSending(true);
     try {
-      const res = await api<{ answer: GroundedAnswer; reply: string }>("/api/patient/ask", {
+      const res = await api<{ answer: GroundedAnswer; reply: string; conversationId: string | null }>("/api/patient/ask", {
         method: "POST",
-        body: JSON.stringify({ question: q, previousQuestion, locale })
+        body: JSON.stringify({ question: q, previousQuestion, locale, conversationId })
       });
       setMessages((m) => [...m, { role: "assistant", content: res.reply, answer: res.answer }]);
+      if (res.conversationId) setConversationId(res.conversationId);
+      void history.refresh();
     } catch (err) {
       console.error("[Ask ReproAI error]:", err);
       if (err instanceof ApiError && err.status === 503) {
@@ -74,13 +82,50 @@ export default function AssistantPage() {
     }
   }
 
+  const newChat = useCallback(() => {
+    setMessages([]);
+    setConversationId(null);
+    setUnavailable("");
+    setOpenError(false);
+    setText("");
+    panel.afterPick();
+  }, [panel]);
+
+  async function openChat(id: string) {
+    if (sending || opening) return;
+    panel.afterPick();
+    setOpening(true);
+    setOpenError(false);
+    setUnavailable("");
+    try {
+      const conv: ConversationDetail = await history.open(id);
+      setMessages(
+        conv.messages.flatMap<ChatMessage>((t) => [
+          { role: "user", content: t.question },
+          { role: "assistant", content: t.reply, answer: t.answer ?? undefined }
+        ])
+      );
+      setConversationId(conv.id);
+    } catch {
+      setOpenError(true);
+      void history.refresh();
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  async function deleteChat(id: string) {
+    await history.remove(id);
+    if (id === conversationId) newChat();
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault();
     void ask(text);
   }
 
   return (
-    <div className="content patient-content assistant-page">
+    <div className="content patient-content assistant-page has-history">
       <div className="page-heading">
         <div>
           <p className="date-label">CITED GUIDANCE</p>
@@ -88,6 +133,20 @@ export default function AssistantPage() {
           <span>Clear explanations for everyday questions, with your clinician always in the loop.</span>
         </div>
       </div>
+      <div className={`assistant-layout${panel.open ? " history-open" : ""}`}>
+      <ChatHistory
+        locale={locale}
+        open={panel.open}
+        onClose={() => panel.setOpen(false)}
+        items={history.items}
+        error={history.error}
+        onRetry={() => void history.refresh()}
+        activeId={conversationId}
+        onSelect={(id) => void openChat(id)}
+        onNew={newChat}
+        onDelete={deleteChat}
+        disabled={sending || opening}
+      />
       <section className="assistant-shell panel">
         <div className="assistant-head">
           <div className="assistant-orb">
@@ -99,6 +158,13 @@ export default function AssistantPage() {
               <i /> Answers only from cited guidance and your released record
             </small>
           </span>
+          <ChatHistoryActions
+            locale={locale}
+            open={panel.open}
+            onToggle={() => panel.setOpen(!panel.open)}
+            onNew={newChat}
+            disabled={sending || opening}
+          />
         </div>
         <div className="messages" aria-live="polite">
           <div className="message ai">
@@ -128,6 +194,8 @@ export default function AssistantPage() {
               </div>
             )
           )}
+          {opening && <p className="chat-loading" role="status">{historyText(locale, "opening")}</p>}
+          {openError && <div className="assistant-unavailable" role="alert">{historyText(locale, "openError")}</div>}
           {sending && (
             <div className="message ai">
               <div className="mini-orb"><Sparkles size={13} /></div>
@@ -142,7 +210,7 @@ export default function AssistantPage() {
             you can send it later.
           </div>
         )}
-        {messages.length === 0 && (
+        {messages.length === 0 && !opening && (
           <div className="suggestions">
             {suggestions.map((s) => (
               <button key={s} type="button" onClick={() => void ask(s)} disabled={sending}>
@@ -167,6 +235,7 @@ export default function AssistantPage() {
           <ShieldCheck size={13} /> Educational guidance only. ReproAI does not replace advice from your clinical team.
         </div>
       </section>
+      </div>
     </div>
   );
 }

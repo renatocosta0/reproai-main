@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { recordTurn } from "@/lib/chat-history";
 import { canAccessCase } from "@/lib/clinician-scope";
 import { buildCaseFacts, scriptedSummary } from "@/lib/copilot";
 import { groundedAnswer, answerText } from "@/lib/rag/answer";
@@ -9,7 +10,7 @@ import { casePassages } from "@/lib/rag/record-passages";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-// POST /api/clinician/copilot { caseId?, messages }
+// POST /api/clinician/copilot { caseId?, messages, conversationId? }
 // Explains one case for the clinician using the grounded pipeline: the case
 // record and the cited guidance library are the only sources, retrieval always
 // runs first, and each sentence is checked against what it cites. Sentences
@@ -41,10 +42,20 @@ export async function POST(req: NextRequest) {
     });
     await audit(session.userId, "copilot_query", `${caseId ? `couple:${caseId}` : "general"};status:${answer.status};flagged:${answer.flagged}`);
 
-    if (answer.mode === "extractive" && facts) {
-      return NextResponse.json({ answer, reply: scriptedSummary(facts), provider: "scripted" });
-    }
-    return NextResponse.json({ answer, reply: answerText(answer), provider: answer.provider ?? answer.mode });
+    const scripted = answer.mode === "extractive" && facts;
+    const reply = scripted ? scriptedSummary(facts) : answerText(answer);
+    const provider = scripted ? "scripted" : answer.provider ?? answer.mode;
+    const conversationId = await recordTurn({
+      userId: session.userId,
+      assistant: "CLINICIAN_COPILOT",
+      conversationId: typeof body?.conversationId === "string" ? body.conversationId : null,
+      caseId,
+      question,
+      reply,
+      provider,
+      answer
+    });
+    return NextResponse.json({ answer, reply, provider, conversationId });
   } catch (error: any) {
     console.error("[POST /api/clinician/copilot] error:", error);
     return NextResponse.json({ error: "Copilot failed" }, { status: 500 });

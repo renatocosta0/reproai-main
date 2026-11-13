@@ -40,9 +40,14 @@ export default function WearablesPage() {
   const sex = data?.profile.sex ?? null;
   const [mode, setMode] = useState<"none" | "single" | "bulk">("none");
   const [kind, setKind] = useState<Kind>(sex === "male" ? "sleep" : "temperature");
-  const [value, setValue] = useState("");
+  // One draft per kind, so switching between temperature and sleep never carries a value across.
+  const [values, setValues] = useState<Record<Kind, string>>({ temperature: "", sleep: "" });
+  const value = values[kind];
+  const setValue = (v: string) => setValues((prev) => ({ ...prev, [kind]: v }));
   const [date, setDate] = useState(todayISO());
-  const [bulkText, setBulkText] = useState("");
+  const [bulkTexts, setBulkTexts] = useState<Record<Kind, string>>({ temperature: "", sleep: "" });
+  const bulkText = bulkTexts[kind];
+  const setBulkText = (v: string) => setBulkTexts((prev) => ({ ...prev, [kind]: v }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
@@ -73,8 +78,8 @@ export default function WearablesPage() {
       });
       setToast(res.count === 1 ? "Measurement saved to your timeline" : `${res.count} measurements saved to your timeline`);
       setMode("none");
-      setValue("");
-      setBulkText("");
+      setValues({ temperature: "", sleep: "" });
+      setBulkTexts({ temperature: "", sleep: "" });
       await refresh();
     } catch (err) {
       setError(userMessage(err, "Could not save. Please try again."));
@@ -149,7 +154,9 @@ export default function WearablesPage() {
               <h2>{mode === "single" ? "Log a measurement" : "Import readings"}</h2>
               <p>
                 {mode === "single"
-                  ? "Take your temperature on waking, before getting up."
+                  ? kind === "temperature"
+                    ? "Take your temperature on waking, before getting up."
+                    : "Enter how many hours you slept last night."
                   : "Paste one reading per line as date,value, for example exported from a wearable or a spreadsheet."}
               </p>
             </div>
