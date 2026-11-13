@@ -55,8 +55,9 @@ export async function GET(req: NextRequest) {
     });
 
     // Also include FHIR RiskAssessment resource from predictions if available
+    // Discarded drafts are kept for audit but are not part of the clinical record.
     const predictions = await prisma.prediction.findMany({
-      where: scope,
+      where: { ...scope, status: { in: ["DRAFT", "RELEASED"] } },
       orderBy: { createdAt: "desc" },
       take: 10
     });
@@ -117,7 +118,8 @@ export async function GET(req: NextRequest) {
       resource: {
         resourceType: "RiskAssessment",
         id: pred.id,
-        status: "final",
+        // Released = signed off by a clinician; drafts are preliminary until reviewed.
+        status: pred.status === "RELEASED" ? "final" : "preliminary",
         subject: {
           reference: `Patient/${pred.userId ?? pred.coupleId ?? "anonymous"}`,
           display: pred.coupleId ? `Couple ${pred.coupleId.slice(0, 8)}` : `Individual ${pred.userId?.slice(0, 8) ?? "User"}`
@@ -130,23 +132,19 @@ export async function GET(req: NextRequest) {
           coding: [
             {
               system: "https://reproai.health/methods",
-              code: "ml-clinical-ensemble",
-              display: "ReproAI Evidence-Grounded Ensemble Predictor"
+              code: "literature-additive-shapley",
+              display: "ReproAI literature-derived additive model with exact Shapley attribution"
             }
           ],
-          text: "Machine Learning Ensemble calibrated on clinical cohort data"
+          text: `Literature-derived scoring (${pred.modelVersion ?? "model version not recorded"}). Not trained, calibrated or validated on patient outcomes.`
         },
         prediction: [
           {
             outcome: {
-              text: "Assisted Reproductive Treatment (IVF) Success Probability"
+              text: "Reproductive-potential estimate (prototype, not clinically validated; not a calibrated probability of live birth)"
             },
             probabilityDecimal: Number((pred.probability / 100).toFixed(4)),
-            whenRange: {
-              low: { value: pred.confidenceLow ?? undefined, unit: "%" },
-              high: { value: pred.confidenceHigh ?? undefined, unit: "%" }
-            },
-            rationale: pred.factors ?? "Evaluated on maternal age, AMH, sperm concentration, BMI, and clinical history."
+            rationale: `95% interval ${pred.confidenceLow ?? "?"}–${pred.confidenceHigh ?? "?"}%. Decision support for a clinician; not a diagnosis.`
           }
         ],
         meta: {

@@ -129,17 +129,15 @@ export async function POST(req: NextRequest) {
     // 5. Structure FHIR R4 RiskAssessment Resource representation
     const fhirRiskAssessment = {
       resourceType: "RiskAssessment",
-      status: "final",
+      // Not reviewed by a clinician inside ReproAI, so never "final".
+      status: "preliminary",
       occurrenceDateTime: new Date().toISOString(),
       basis: [{ display: `External Patient ID: ${body.external_patient_id ?? "ANONYMOUS"}` }],
       prediction: [
         {
-          outcome: { text: "Assisted Reproductive Treatment (IVF) Success Probability" },
+          outcome: { text: "Reproductive-potential estimate (prototype, not clinically validated; not a calibrated probability of live birth)" },
           probabilityDecimal: Number((probability / 100).toFixed(4)),
-          whenRange: {
-            low: { value: predictionResult.confidence_low ?? undefined, unit: "%" },
-            high: { value: predictionResult.confidence_high ?? undefined, unit: "%" }
-          }
+          rationale: `95% interval ${predictionResult.confidence_low ?? "?"}–${predictionResult.confidence_high ?? "?"}%. For review by a licensed clinician; not a diagnosis.`
         }
       ]
     };

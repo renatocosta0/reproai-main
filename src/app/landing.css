@@ -152,6 +152,29 @@ p.landing-invite {
 .landing-step-icon {
   color: #0c655e;
 }
+.landing-subhead {
+  margin: 36px 0 14px;
+  font-family: var(--font-manrope), var(--font-arabic), sans-serif;
+  font-size: 19px;
+}
+.landing-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.landing-coverage {
+  margin: 20px 0 0;
+}
+.landing-coverage a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0c655e;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.landing-coverage a:hover {
+  text-decoration: underline;
+}
 .landing-steps h3,
 .landing-card h3 {
   margin: 12px 0 6px;
@@ -225,6 +248,9 @@ p.landing-invite {
   }
 }
 @media (max-width: 720px) {
+  .landing-grid.three {
+    grid-template-columns: 1fr;
+  }
   .landing-nav nav {
     display: none;
   }
