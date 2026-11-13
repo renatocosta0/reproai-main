@@ -27,7 +27,7 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 | --- | --- | --- |
 | 3.1 Core foundations | Human oversight (clinician sign-off, override with reason), traceability (inputs and model version per estimate, audit log), role-specific explanations, consent enforced in the API, transparency (model card, labelled evidence status) | No clinical validation; no co-design with clinicians and patients yet; no MFA; no encryption at rest; no UAE hosting; no automated post-deployment monitoring |
 | 3.2 Data management | Inputs are clinician-verified with source and date; nothing is imputed; no patient data is used to train the model | No training dataset exists, so dataset versioning, datasheets and representativeness audits apply only to the guidance corpus and evaluation set |
-| 3.3 Risk management | Known risks are named in the docs and on the Evidence page | No formal risk register, risk owners or risk rating |
+| 3.3 Risk management | Draft risk register with 18 risks, controls, provisional ratings and owner roles | Ratings not yet made with the DoH protocol; owners not named |
 | 3.4 AI literacy | In-product explanation (guided tour, model card, Evidence page, limitations in every view) | Staff training programmes are the deploying entity's role |
 
 ## 3.1 Core foundations
@@ -141,11 +141,11 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 
 | Clause | Requirement (paraphrase) | Status | ReproAI evidence |
 | --- | --- | --- | --- |
-| 3.3.1.1.1 | Risk assessment for all AI systems | 🟡 | Known risks and limitations are documented (technical documentation, model card, Evidence page caveats), but not as a formal assessment. |
-| 3.3.1.1.2 | Track risks in a risk register | ❌ | No risk register yet. |
-| 3.3.1.1.3 | Owner for each risk | ❌ | Not assigned. |
-| 3.3.1.2.1–2 | Rate risks, apply controls, determine residual risk and treatment by tier | ❌ | Not yet rated. The tiers (very high: prohibited; high: conformity assessment with DDGO before and after deployment; medium; low) are defined here and the method is in the Risk Management Protocol. ReproAI should be rated with that protocol before any deployment. |
-| 3.3.1.3.1–2 | Monitor treatment plans and control effectiveness | ❌ | Not yet. |
+| 3.3.1.1.1 | Risk assessment for all AI systems | 🟡 | Draft assessment of 18 risks in [risk-register.md](risk-register.md), built from the documented limitations; provisional ratings, not yet with the DoH protocol. |
+| 3.3.1.1.2 | Track risks in a risk register | 🟡 | Draft register: [risk-register.md](risk-register.md) (v0.1). |
+| 3.3.1.1.3 | Owner for each risk | 🟡 | Each risk has an owner role; named people not yet assigned. |
+| 3.3.1.2.1–2 | Rate risks, apply controls, determine residual risk and treatment by tier | 🟡 | Provisionally rated (inherent and residual, with controls and further treatment) in the draft register; seven residual risks are high, none very high in the prototype as configured. The tiers (very high: prohibited; high: conformity assessment with DDGO before and after deployment; medium; low) are defined here and the method is in the Risk Management Protocol. ReproAI should be rated with that protocol before any deployment. |
+| 3.3.1.3.1–2 | Monitor treatment plans and control effectiveness | 🟡 | Review cadence set in the draft register (every release, monthly in a pilot); not yet exercised. |
 | 3.3.1.4.1 | Communicate risk assessments to stakeholders including DoH | 🏢 | On deployment. |
 
 ## 3.4 AI literacy
@@ -167,8 +167,8 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 
 ## Priority gaps before any pilot
 
-1. Rate the system with the DoH Responsible AI Risk Management Protocol and start a risk
-   register with owners (3.3.1).
+1. Re-rate the draft [risk register](risk-register.md) with the DoH Responsible AI Risk
+   Management Protocol and name an owner for each risk (3.3.1).
 2. Clinical validation and recalibration on local outcomes (3.1.3).
 3. Encryption at rest with managed keys, MFA, and UAE hosting (3.1.4.2, 3.1.4.4.2, 3.1.4.5.1).
 4. Clinician and patient co-design sessions (3.1.1.1.1).
