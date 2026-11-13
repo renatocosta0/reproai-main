@@ -12,6 +12,7 @@ interface EvidenceResponse {
   live: LiveMetrics;
   simulation: SimulationReport | { error: string };
   rag: RagEval;
+  oversight?: { released: number; discarded: number; awaiting: number; reasons: Record<string, number>; unrecorded: number };
   generatedAt: string;
 }
 
@@ -19,6 +20,13 @@ interface RagEval {
   generatedAt: string;
   corpus: { passages: number; byStatus: Record<string, number> };
   questions: { total: number; answerable: number; unanswerable: number };
+  byLanguage?: {
+    ar?: {
+      questions: { answerable: number; unanswerable: number };
+      retrieval: { hitAt4: Proportion; falseAbstention: Proportion; correctAbstention: Proportion };
+      endToEnd: null | { answered: Proportion; correctAbstention: Proportion };
+    };
+  };
   retrieval: { hitAt4: Proportion; falseAbstention: Proportion; correctAbstention: Proportion };
   endToEnd: null | {
     provider: string | null;
@@ -86,6 +94,37 @@ export default function EvidencePage() {
             <Metric label={L.evReferral} value={pc(data.live.referralActedOn.rate)} detail={L.evReferralDetail(ci(data.live.referralActedOn))} />
             <Metric label={L.evRelease} value={days(data.live.daysAssessmentToRelease)} detail={L.evReleaseDetail(data.live.daysAssessmentToRelease.n)} />
           </section>
+
+          {data.oversight && (
+            <section className="panel" style={{ marginBottom: 16 }}>
+              <div className="panel-head">
+                <div>
+                  <h2>{L.oversightTitle}</h2>
+                  <p>{L.oversightText}</p>
+                </div>
+              </div>
+              <div className="oversight-body">
+                <div className="oversight-counts">
+                  <div><strong>{data.oversight.released}</strong><span>{L.ovReleased}</span></div>
+                  <div><strong>{data.oversight.discarded}</strong><span>{L.ovDiscarded}</span></div>
+                  <div><strong>{data.oversight.awaiting}</strong><span>{L.ovAwaiting}</span></div>
+                </div>
+                <div>
+                  <h3 className="mini-title">{L.ovReasons}</h3>
+                  {data.oversight.discarded === 0 ? (
+                    <p className="muted-note">{L.ovNoDiscards}</p>
+                  ) : (
+                    <ul className="oversight-reasons">
+                      {Object.entries(data.oversight.reasons).filter(([, n]) => n > 0).map(([r, n]) => (
+                        <li key={r}><span>{L.discardReasons[r] ?? r}</span><strong>{n}</strong></li>
+                      ))}
+                      {data.oversight.unrecorded > 0 && <li className="muted-note">{L.ovUnrecorded(data.oversight.unrecorded)}</li>}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="panel" style={{ marginBottom: 16 }}>
             <div className="panel-head">
@@ -176,6 +215,25 @@ function RagSection({ r }: { r: RagEval }) {
           <Metric label={L.rgExpected} value={pc(e.expectedSourceCited.rate)} detail={L.rgExpectedDetail(ci(e.expectedSourceCited))} />
           <Metric label={L.rgWrongRefused} value={pc(r.retrieval.falseAbstention.rate)} detail={L.rgWrongRefusedDetail(ci(r.retrieval.falseAbstention))} />
           <Metric label={L.rgUnsupported} value="0" detail={L.rgUnsupportedDetail} />
+        </section>
+      )}
+      {r.byLanguage?.ar && (
+        <section className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel-head">
+            <div>
+              <h2>{L.arTitle}</h2>
+              <p>{L.arText(r.byLanguage.ar.questions.answerable + r.byLanguage.ar.questions.unanswerable)}</p>
+            </div>
+          </div>
+          <section className="metrics-grid" style={{ padding: "0 20px 16px", marginBottom: 0 }}>
+            <Metric label={L.arFound} value={pc(r.byLanguage.ar.retrieval.hitAt4.rate)} detail={ci(r.byLanguage.ar.retrieval.hitAt4)} />
+            <Metric label={L.arRefusedWrongly} value={pc(r.byLanguage.ar.retrieval.falseAbstention.rate)} detail={ci(r.byLanguage.ar.retrieval.falseAbstention)} />
+            <Metric
+              label={L.arCorrectRefusal}
+              value={pc((r.byLanguage.ar.endToEnd?.correctAbstention ?? r.byLanguage.ar.retrieval.correctAbstention).rate)}
+              detail={ci(r.byLanguage.ar.endToEnd?.correctAbstention ?? r.byLanguage.ar.retrieval.correctAbstention)}
+            />
+          </section>
         </section>
       )}
       <section className="panel">
