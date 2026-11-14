@@ -372,6 +372,7 @@ const en = {
   days: "d",
   evidenceEyebrow: "EVIDENCE & SAFETY",
   evidenceTitle: "Is it leading to earlier action?",
+  modelCardLink: "Model card",
   evidenceSubtitle:
     "Live measures from your panel, a simulated check of calibration and false reassurance, and a test of the assistant's grounding.",
   howToRead: "How to read this report",
@@ -975,6 +976,7 @@ const ar: ClinicianStrings = {
   days: "يوم",
   evidenceEyebrow: "الأدلة والسلامة",
   evidenceTitle: "هل يؤدي إلى تدخّل أبكر؟",
+  modelCardLink: "بطاقة النموذج",
   evidenceSubtitle: "مقاييس فعلية من مرضاك، واختبار محاكاة للمعايرة وللطمأنة الزائفة، واختبار لاستناد المساعد إلى المصادر.",
   howToRead: "كيف تقرأ هذا التقرير",
   howToReadText:

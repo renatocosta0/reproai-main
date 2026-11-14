@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, FlaskConical, Info, ListChecks } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, FileText, FlaskConical, Info, ListChecks } from "lucide-react";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import type { LiveMetrics, Proportion, SimulationReport } from "@/lib/evaluation";
@@ -65,6 +66,11 @@ export default function EvidencePage() {
           <p className="date-label">{L.evidenceEyebrow}</p>
           <h1>{L.evidenceTitle}</h1>
           <span>{L.evidenceSubtitle}</span>
+        </div>
+        <div className="heading-actions">
+          <Link className="secondary" href="/model-card">
+            <FileText size={16} /> {L.modelCardLink}
+          </Link>
         </div>
       </div>
 
