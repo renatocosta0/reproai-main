@@ -3781,6 +3781,9 @@ html[dir="rtl"] .switch.on i { right: 23px; }
   display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
 }
 .source-list strong { display: flex; align-items: center; gap: 4px; color: var(--ink); font-size: 12.5px; }
+.source-list .source-title-link { color: var(--teal); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; }
+.source-list .source-title-link:hover { text-decoration: underline; }
+.source-list .source-title-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 3px; }
 .source-list small { display: block; color: var(--muted); margin: 2px 0 4px; overflow-wrap: anywhere; }
 .source-list small a { color: var(--teal); display: inline-flex; align-items: center; gap: 2px; }
 .source-list code { font-size: 11px; background: #eef2f0; padding: 0 4px; border-radius: 4px; }
