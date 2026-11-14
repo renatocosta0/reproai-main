@@ -87,6 +87,23 @@ export interface ModelInfo {
   uncertainty?: string;
   known_limitations?: string[];
   next_steps?: string;
+  /** Arabic versions of the descriptive fields (source titles stay in English). */
+  ar?: {
+    model_name: string;
+    architecture: string;
+    evidence_status: string;
+    performance_claims: string;
+    optional_effect: string;
+    intended_use: string;
+    intended_users: string[];
+    out_of_scope: string[];
+    outcome: string;
+    inputs: Record<string, { required: string[]; optional: string[] }>;
+    explanation_method: string;
+    uncertainty: string;
+    known_limitations: string[];
+    next_steps: string;
+  };
 }
 
 export async function getModelInfo(): Promise<ModelInfo> {
