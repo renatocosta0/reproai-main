@@ -437,4 +437,45 @@ def model_info():
             "optional_effect": f"Set to reference baseline (phi = 0); interval widened by {SE_PER_MISSING_OPTIONAL} log-odds SE each",
         },
         "intended_use": "Decision support for licensed clinicians and plain-language education for patients. Not a diagnosis.",
+        "intended_users": [
+            "Licensed clinicians reviewing a prescribed patient or couple (see the estimate with its 95% interval)",
+            "Patients and couples after clinician release (see a tier and an age percentile, never the probability)",
+        ],
+        "out_of_scope": [
+            "Diagnosing infertility or any condition",
+            "Deciding eligibility for treatment, insurance or employment",
+            "Use without clinician review, or by people not prescribed the service",
+            "Tubal, uterine or endometriosis factors, which the model does not assess",
+            "Predicting the outcome of a specific treatment cycle",
+        ],
+        "outcome": (
+            "A reproductive-potential score on a probability scale (0-100). The curves are shaped on published "
+            "live-birth-per-treatment figures, but the score is not a calibrated probability of live birth or "
+            "pregnancy for any person, and must not be presented as one."
+        ),
+        "inputs": {
+            (f"{s} / {x}" if x else s): {
+                "required": [INPUT_LABELS[f] for f in r],
+                "optional": [INPUT_LABELS[f] for f in o],
+            }
+            for (s, x), (r, o) in REQUIREMENTS.items()
+        },
+        "explanation_method": (
+            "The model is additive on the log-odds scale, so each input's contribution is its exact Shapley value: "
+            "its score minus the reference-population expectation. Contributions add up to the difference from the "
+            "reference; they are not causal effects."
+        ),
+        "uncertainty": (
+            f"95% interval from a log-odds standard error of {SE_BASE}, widened by {SE_PER_MISSING_OPTIONAL} for each "
+            "missing optional input and further at age 40 or over and after three or more prior cycles. The interval "
+            "reflects input completeness under the model's assumptions, not validated predictive uncertainty."
+        ),
+        "known_limitations": [
+            "Not trained, recalibrated or validated on patient outcomes; no discrimination or calibration statistic is claimed.",
+            "Curves come mostly from UK, European and US registries and studies; transferability to the UAE population is unknown.",
+            "A single AMH or semen result varies between tests and laboratories; repeat abnormal results.",
+            "Self-reported inputs (BMI, PCOS history, time trying) are not verified.",
+            "The reference expectations used for Shapley values are literature-based, not measured in a local population.",
+        ],
+        "next_steps": "Recalibrate and externally validate on Abu Dhabi outcomes before any clinical use.",
     }
