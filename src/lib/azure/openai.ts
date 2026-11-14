@@ -36,6 +36,17 @@ export interface ChatResult {
   raw: unknown;
 }
 
+// Reasoning models (GPT-5/6 families, o-series, gpt-chat-latest) reject
+// `temperature` and require `max_completion_tokens` instead of `max_tokens`.
+// Detected from the deployment name; set AZURE_OPENAI_REASONING=true|false to
+// override when a deployment is renamed away from its model id.
+function isReasoningDeployment(deployment: string): boolean {
+  const override = process.env.AZURE_OPENAI_REASONING;
+  if (override === "true") return true;
+  if (override === "false") return false;
+  return /gpt-[56]|gpt-chat|^o[134](-|$)/.test(deployment.toLowerCase());
+}
+
 function buildHeaders(cfg: NonNullable<ReturnType<typeof getAzureOpenAIConfig>>, options: ChatOptions): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (cfg.apiKey) {
@@ -61,22 +72,58 @@ export async function chatRaw(
     cfg.deployment
   )}/chat/completions?api-version=${cfg.apiVersion}`;
 
-  const body: Record<string, unknown> = {
-    messages,
-    temperature: options.temperature ?? 0.3,
-    max_tokens: options.maxTokens ?? 600
-  };
+  const reasoning = isReasoningDeployment(cfg.deployment);
+  // Reasoning tokens count inside max_completion_tokens, so give reasoning
+  // models headroom above the caller's visible-output budget.
+  const budget = options.maxTokens ?? 600;
+  const completionTokens = reasoning ? Math.min(budget + 1600, 8192) : budget;
+  const body: Record<string, unknown> = { messages };
+  if (reasoning) {
+    body.max_completion_tokens = completionTokens;
+  } else {
+    body.temperature = options.temperature ?? 0.3;
+    body.max_tokens = completionTokens;
+  }
   if (options.tools && options.tools.length > 0) {
     body.tools = options.tools;
     body.tool_choice = "auto";
   }
 
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     method: "POST",
     headers: buildHeaders(cfg, options),
     body: JSON.stringify(body),
     cache: "no-store"
   });
+
+  // Defensive fallback: if Azure rejects the sampling parameters (a reasoning
+  // model whose deployment name slipped past detection), retry once without them.
+  if (!res.ok && res.status === 400) {
+    const detail = await res.text();
+    if (/Unsupported parameter|max_tokens|temperature/i.test(detail)) {
+      const retry: Record<string, unknown> = { messages };
+      retry.max_completion_tokens = completionTokens;
+      if (options.tools && options.tools.length > 0) {
+        retry.tools = options.tools;
+        retry.tool_choice = "auto";
+      }
+      res = await fetch(url, {
+        method: "POST",
+        headers: buildHeaders(cfg, options),
+        body: JSON.stringify(retry),
+        cache: "no-store"
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string; tool_calls?: RawToolCall[] } }>;
+        };
+        const message = data.choices?.[0]?.message;
+        return { content: message?.content ?? null, toolCalls: message?.tool_calls ?? [], raw: message ?? null };
+      }
+      throw new Error(`Azure OpenAI error (${res.status}): ${detail}`);
+    }
+    throw new Error(`Azure OpenAI error (${res.status}): ${detail}`);
+  }
 
   if (!res.ok) {
     const detail = await res.text();
