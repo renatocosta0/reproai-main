@@ -24,6 +24,8 @@ import { ConfidenceBar, PotentialGauge } from "@/components/patient/PotentialGau
 import { TemperatureChart } from "@/components/charts/TemperatureChart";
 import { SleepChart } from "@/components/charts/SleepChart";
 import { FormError } from "@/components/ui/Notice";
+import { useLocale } from "@/components/i18n/LocaleContext";
+import { percentileWordsAr, TIER_AR } from "@/lib/i18n";
 import {
   analyzeBbt,
   formatHours,
@@ -37,9 +39,184 @@ import {
 } from "@/lib/observation-analysis";
 import { tierCopy, WHO_SPERM_LOWER_LIMIT } from "@/lib/tiers";
 
-function greeting(): string {
+const S = {
+  en: {
+    morning: "Good morning",
+    afternoon: "Good afternoon",
+    evening: "Good evening",
+    loadError: "Could not load your profile.",
+    subtitle: "Here is what your recorded data shows so far.",
+    loadingInsight: "Loading your insight",
+    insightEyebrow: "YOUR INSIGHT",
+    aboutTitle: "Tell us a little about you",
+    aboutDetail: "About three minutes; no lab results needed",
+    tempLogged: "Morning temperature logged",
+    logTemp: "Log your morning temperature",
+    readingsNeeded: (n: number, of: number) => `${n} of ${of} readings needed to see your pattern`,
+    readingsRecorded: (n: number) => `${n} readings recorded`,
+    semenFromClinician: "Your semen analysis comes from your clinician",
+    semenFromClinicianDetail: "Your clinician records it from the lab report",
+    keepSleep: "Keep up 7+ hours of sleep",
+    aimSleep: "Aim for 7+ hours of sleep",
+    sleepAvg: (h: string, n: number) => `${h} average over ${n} nights`,
+    startSleep: "Start logging sleep to see your average",
+    linkPartnerStep: "Link with a partner (optional)",
+    linkPartnerDetail: "Unlocks a joint estimate when you plan a pregnancy together",
+    riseTitle: "Your temperature shows a clear rise",
+    riseText: (s: string) => `A sustained rise of ${s}°C is consistent with ovulation. Keep logging so your care team can see your full pattern.`,
+    riseLabel: "Post-rise shift",
+    noRiseTitle: "No clear rise yet this cycle",
+    noRiseText: "This is common and can vary from cycle to cycle. Your care team will look at it together with your other results.",
+    buildTitle: "Build your temperature pattern",
+    buildText: (n: number) => `Log your temperature each morning before getting up. After ${n} readings we can show whether a rise appears.`,
+    buildLabel: "Readings so far",
+    semenInRange: "Your semen analysis is within range",
+    semenDiscuss: "Your sperm count is worth discussing",
+    semenAboveText: (v: number, lim: number) => `${v} million/mL is above the WHO lower reference limit of ${lim} million/mL. Sleep, weight and activity help keep it there.`,
+    semenBelowText: (v: number, lim: number) => `${v} million/mL is below the WHO reference of ${lim} million/mL. This is common, often improves with lifestyle changes, and your clinician can advise.`,
+    millionPerMl: "million/mL",
+    semenPendingText: "When your clinician records your semen analysis, you will see how it compares with WHO reference values.",
+    welcomeTitle: "Welcome to ReproAI",
+    welcomeText: "Once your clinician has reviewed your results, a personalised view of your reproductive health appears here.",
+    viewTrajectory: "View my trajectory",
+    explorePattern: "Explore your pattern",
+    jointEstimate: "Your joint estimate",
+    reproPicture: "Your reproductive picture",
+    reviewedOn: (d: string) => `Reviewed by your clinician · ${d}`,
+    notAssessed: "Not assessed yet",
+    reviewedLatest: "Your clinician has reviewed your latest results.",
+    amhIs: (w: string) => `Your AMH is ${w}.`,
+    estimateNote: "An estimate to discuss with your care team, not a diagnosis.",
+    pendingTitle: "A result is with your clinician",
+    pendingText: "You will see it here once they have reviewed it and added a note for you.",
+    baselineTitle: "Your baseline comes from your clinician",
+    baselineText: "When your clinician records results such as an AMH test or a semen analysis and reviews them, your picture appears here.",
+    nextSteps: "Your next best steps",
+    nextStepsSub: "Based on what you have recorded",
+    signals: "Your health signals",
+    signalsFemale: "Basal body temperature and sleep",
+    signalsMale: "Sleep, lifestyle and lab markers",
+    viewDetails: "View details",
+    noTempTitle: "No temperature readings yet",
+    noTempText: "Your temperature chart appears here once you log at least two morning readings.",
+    habitsTitle: "Track the habits that matter",
+    habitsText: "Sleep, weight and activity influence sperm quality. Log your sleep to see trends here.",
+    logMeasurement: "Log a measurement",
+    tempToday: "Temperature today",
+    latestTemp: "Latest temperature",
+    notLogged: "Not logged",
+    spermConc: "Sperm concentration",
+    notRecorded: "Not recorded",
+    inRange: "In range",
+    belowRef: "Below ref.",
+    sleepLast: "Sleep last logged",
+    good: "Good",
+    below7: "Below 7h",
+    cycle: "Cycle regularity",
+    bmi: "Body mass index",
+    bmiTarget: "Target 20–24.9",
+    cycleValue: { REGULAR: "Regular", IRREGULAR: "Irregular", AMENORRHEA: "Absent" } as Record<string, string>,
+    planningTitle: "Planning a pregnancy together?",
+    planningText: "Link with your partner for a joint estimate. Your own records stay private, and you can unlink any time.",
+    linkPartner: "Link partner",
+    linkedWith: (n: string) => `Linked with ${n}`,
+    linkedText: "You can run a joint assessment that combines both partners' clinical factors.",
+    jointAssessment: "Joint assessment",
+    questionTitle: "Have a question about your journey?",
+    questionText: "ReproAI answers from cited Daman Thiqa and WHO guidance and your released record, with your clinician in the loop.",
+    askReproai: "Ask ReproAI"
+  },
+  ar: {
+    morning: "صباح الخير",
+    afternoon: "مساء الخير",
+    evening: "مساء الخير",
+    loadError: "تعذّر تحميل ملفك الشخصي.",
+    subtitle: "هذا ما تُظهره بياناتك المسجّلة حتى الآن.",
+    loadingInsight: "جارٍ تحميل ملخصك",
+    insightEyebrow: "ملخصك",
+    aboutTitle: "أخبرنا قليلًا عن نفسك",
+    aboutDetail: "نحو ثلاث دقائق، دون الحاجة إلى نتائج مختبر",
+    tempLogged: "سُجّلت درجة حرارة الصباح",
+    logTemp: "سجّل درجة حرارتك الصباحية",
+    readingsNeeded: (n: number, of: number) => `القراءات المسجّلة: ${n} من ${of} لازمة لإظهار نمطك`,
+    readingsRecorded: (n: number) => `القراءات المسجّلة: ${n}`,
+    semenFromClinician: "تحليل السائل المنوي يسجّله طبيبك",
+    semenFromClinicianDetail: "يسجّله طبيبك من تقرير المختبر",
+    keepSleep: "حافظ على النوم ٧ ساعات أو أكثر",
+    aimSleep: "احرص على النوم ٧ ساعات أو أكثر",
+    sleepAvg: (h: string, n: number) => `متوسط ${h} على مدى ليالٍ عددها ${n}`,
+    startSleep: "ابدأ بتسجيل نومك لترى متوسطه",
+    linkPartnerStep: "الارتباط بالشريك (اختياري)",
+    linkPartnerDetail: "يتيح تقديرًا مشتركًا عند التخطيط للحمل معًا",
+    riseTitle: "تُظهر حرارتك ارتفاعًا واضحًا",
+    riseText: (s: string) => `ارتفاع مستمر بمقدار ${s}°م يتوافق مع حدوث الإباضة. واصل التسجيل ليرى فريق رعايتك نمطك كاملًا.`,
+    riseLabel: "مقدار الارتفاع",
+    noRiseTitle: "لا يوجد ارتفاع واضح في هذه الدورة بعد",
+    noRiseText: "هذا شائع وقد يختلف من دورة إلى أخرى. سينظر فريق رعايتك فيه مع نتائجك الأخرى.",
+    buildTitle: "ابنِ نمط حرارتك",
+    buildText: (n: number) => `سجّل حرارتك كل صباح قبل النهوض. بعد ${n} قراءة يمكننا إظهار ما إذا كان هناك ارتفاع.`,
+    buildLabel: "القراءات حتى الآن",
+    semenInRange: "تحليل السائل المنوي ضمن النطاق",
+    semenDiscuss: "عدد الحيوانات المنوية يستحق النقاش",
+    semenAboveText: (v: number, lim: number) => `${v} مليون/مل أعلى من الحد المرجعي الأدنى لمنظمة الصحة العالمية (${lim} مليون/مل). يساعد النوم والوزن والنشاط على الحفاظ عليه.`,
+    semenBelowText: (v: number, lim: number) => `${v} مليون/مل أقل من الحد المرجعي لمنظمة الصحة العالمية (${lim} مليون/مل). هذا شائع، وغالبًا ما يتحسن بتغيير نمط الحياة، ويمكن لطبيبك أن ينصحك.`,
+    millionPerMl: "مليون/مل",
+    semenPendingText: "عندما يسجّل طبيبك تحليل السائل المنوي، سترى كيف يقارن بالقيم المرجعية لمنظمة الصحة العالمية.",
+    welcomeTitle: "مرحبًا بك في ReproAI",
+    welcomeText: "بعد أن يراجع طبيبك نتائجك، ستظهر هنا صورة مخصصة لصحتك الإنجابية.",
+    viewTrajectory: "عرض مساري",
+    explorePattern: "استكشف نمطك",
+    jointEstimate: "تقديركما المشترك",
+    reproPicture: "صورتك الإنجابية",
+    reviewedOn: (d: string) => `راجعها طبيبك · ${d}`,
+    notAssessed: "لم يُقيَّم بعد",
+    reviewedLatest: "راجع طبيبك أحدث نتائجك.",
+    amhIs: (w: string) => `هرمون AMH لديك ${w}.`,
+    estimateNote: "تقدير للنقاش مع فريق رعايتك، وليس تشخيصًا.",
+    pendingTitle: "توجد نتيجة لدى طبيبك",
+    pendingText: "ستظهر هنا بعد أن يراجعها ويضيف ملاحظة لك.",
+    baselineTitle: "خط الأساس يأتي من طبيبك",
+    baselineText: "عندما يسجّل طبيبك نتائج مثل فحص AMH أو تحليل السائل المنوي ويراجعها، تظهر صورتك هنا.",
+    nextSteps: "خطواتك التالية",
+    nextStepsSub: "بناءً على ما سجّلته",
+    signals: "مؤشراتك الصحية",
+    signalsFemale: "درجة حرارة الجسم الأساسية والنوم",
+    signalsMale: "النوم ونمط الحياة والمؤشرات المخبرية",
+    viewDetails: "عرض التفاصيل",
+    noTempTitle: "لا توجد قراءات حرارة بعد",
+    noTempText: "يظهر مخطط الحرارة هنا بعد تسجيل قراءتين صباحيتين على الأقل.",
+    habitsTitle: "تابع العادات المهمة",
+    habitsText: "يؤثر النوم والوزن والنشاط في جودة الحيوانات المنوية. سجّل نومك لترى الاتجاهات هنا.",
+    logMeasurement: "سجّل قياسًا",
+    tempToday: "حرارة اليوم",
+    latestTemp: "آخر قراءة حرارة",
+    notLogged: "غير مسجّل",
+    spermConc: "تركيز الحيوانات المنوية",
+    notRecorded: "غير مسجّل",
+    inRange: "ضمن النطاق",
+    belowRef: "أقل من المرجع",
+    sleepLast: "آخر نوم مسجّل",
+    good: "جيد",
+    below7: "أقل من ٧ ساعات",
+    cycle: "انتظام الدورة",
+    bmi: "مؤشر كتلة الجسم",
+    bmiTarget: "الهدف ٢٠–٢٤٫٩",
+    cycleValue: { REGULAR: "منتظمة", IRREGULAR: "غير منتظمة", AMENORRHEA: "منقطعة" } as Record<string, string>,
+    planningTitle: "تخططان للحمل معًا؟",
+    planningText: "ارتبط بشريكك للحصول على تقدير مشترك. تبقى سجلاتك خاصة، ويمكنك إلغاء الارتباط في أي وقت.",
+    linkPartner: "الارتباط بالشريك",
+    linkedWith: (n: string) => `مرتبط مع ${n}`,
+    linkedText: "يمكنك إجراء تقييم مشترك يجمع العوامل السريرية لكلا الشريكين.",
+    jointAssessment: "التقييم المشترك",
+    questionTitle: "لديك سؤال عن رحلتك؟",
+    questionText: "يجيب ReproAI من إرشادات ضمان ثقة ومنظمة الصحة العالمية الموثّقة ومن سجلك المعتمد، مع إشراك طبيبك.",
+    askReproai: "اسأل ReproAI"
+  }
+};
+
+function greetingKey(): "morning" | "afternoon" | "evening" {
   const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  return h < 12 ? "morning" : h < 18 ? "afternoon" : "evening";
 }
 
 interface Step {
@@ -54,6 +231,9 @@ export default function OverviewPage() {
   const { data, loading, error } = usePatient();
   const { observations, loading: obsLoading } = useObservations(data?.profile.userId);
   const { record } = useRecord();
+  const { locale } = useLocale();
+  const ar = locale === "ar";
+  const L = S[locale];
 
   if (loading) {
     return (
@@ -65,7 +245,7 @@ export default function OverviewPage() {
   if (error || !data) {
     return (
       <div className="content patient-content">
-        <FormError>{error || "Could not load your profile."}</FormError>
+        <FormError>{error || L.loadError}</FormError>
       </div>
     );
   }
@@ -83,6 +263,9 @@ export default function OverviewPage() {
   const recentBbt = analyzeBbt(recentTemps);
   const recentSleep = sleepPoints.slice(-21);
   const recentSleepStats = sleepStats(recentSleep);
+  const tier = (t: string | null | undefined) => (ar && TIER_AR[t ?? ""] ? TIER_AR[t ?? ""] : tierCopy(t));
+  const dateL = (d: string | Date) =>
+    ar ? new Date(d).toLocaleDateString("ar-AE-u-nu-latn", { day: "numeric", month: "short" }) : shortDate(d);
 
   // ── Next best steps, derived only from what is (or isn't) recorded ─────────
   const steps: Step[] = [];
@@ -90,8 +273,8 @@ export default function OverviewPage() {
     steps.push({
       href: "/patient/about",
       icon: <span className="step-icon calendar"><ClipboardCheck size={16} /></span>,
-      title: "Tell us a little about you",
-      detail: "About three minutes; no lab results needed"
+      title: L.aboutTitle,
+      detail: L.aboutDetail
     });
   }
   // The most urgent pathway option from the rules engine leads the list.
@@ -100,8 +283,8 @@ export default function OverviewPage() {
     steps.unshift({
       href: "/patient/assessment",
       icon: <span className="step-icon calendar"><Sparkles size={16} /></span>,
-      title: topOption.title,
-      detail: topOption.reason
+      title: ar && topOption.ar ? topOption.ar.title : topOption.title,
+      detail: ar && topOption.ar?.reason ? topOption.ar.reason : topOption.reason
     });
   }
   if (sex === "female") {
@@ -112,11 +295,8 @@ export default function OverviewPage() {
       ) : (
         <span className="step-icon"><Thermometer size={16} /></span>
       ),
-      title: loggedTempToday ? "Morning temperature logged" : "Log your morning temperature",
-      detail:
-        temps.length < MIN_BBT_READINGS
-          ? `${temps.length} of ${MIN_BBT_READINGS} readings needed to see your pattern`
-          : `${temps.length} readings recorded`,
+      title: loggedTempToday ? L.tempLogged : L.logTemp,
+      detail: temps.length < MIN_BBT_READINGS ? L.readingsNeeded(temps.length, MIN_BBT_READINGS) : L.readingsRecorded(temps.length),
       done: loggedTempToday
     });
   }
@@ -124,22 +304,22 @@ export default function OverviewPage() {
     steps.push({
       href: "/patient/assessment",
       icon: <span className="step-icon"><Droplets size={16} /></span>,
-      title: "Add your semen analysis",
-      detail: "Sperm concentration from your most recent lab report"
+      title: L.semenFromClinician,
+      detail: L.semenFromClinicianDetail
     });
   }
   steps.push({
     href: "/patient/wearables",
     icon: <span className="step-icon moon"><MoonStar size={16} /></span>,
-    title: sleep && sleep.mean >= 7 ? "Keep up 7+ hours of sleep" : "Aim for 7+ hours of sleep",
-    detail: sleep ? `${formatHours(sleep.mean)} average over ${sleep.nights} nights` : "Start logging sleep to see your average"
+    title: sleep && sleep.mean >= 7 ? L.keepSleep : L.aimSleep,
+    detail: sleep ? L.sleepAvg(formatHours(sleep.mean), sleep.nights) : L.startSleep
   });
   if (!isPaired) {
     steps.push({
       href: "/patient/pairing",
       icon: <span className="step-icon calendar"><HeartHandshake size={16} /></span>,
-      title: "Link with a partner (optional)",
-      detail: "Unlocks a joint estimate when you plan a pregnancy together"
+      title: L.linkPartnerStep,
+      detail: L.linkPartnerDetail
     });
   }
 
@@ -150,64 +330,63 @@ export default function OverviewPage() {
   let insightLabel = "";
   if (sex === "female") {
     if (bbt.status === "BIPHASIC") {
-      insightTitle = "Your temperature shows a clear rise";
-      insightText = `A sustained rise of ${bbt.shift.toFixed(2)}°C is consistent with ovulation. Keep logging so your care team can see your full pattern.`;
+      insightTitle = L.riseTitle;
+      insightText = L.riseText(bbt.shift.toFixed(2));
       insightValue = `+${bbt.shift.toFixed(2)}°C`;
-      insightLabel = "Post-rise shift";
+      insightLabel = L.riseLabel;
     } else if (bbt.status === "MONOPHASIC") {
-      insightTitle = "No clear rise yet this cycle";
-      insightText = "This is common and can vary from cycle to cycle. Your care team will look at it together with your other results.";
+      insightTitle = L.noRiseTitle;
+      insightText = L.noRiseText;
     } else {
-      insightTitle = "Build your temperature pattern";
-      insightText = `Log your temperature each morning before getting up. After ${MIN_BBT_READINGS} readings we can show whether a rise appears.`;
+      insightTitle = L.buildTitle;
+      insightText = L.buildText(MIN_BBT_READINGS);
       insightValue = `${temps.length}/${MIN_BBT_READINGS}`;
-      insightLabel = "Readings so far";
+      insightLabel = L.buildLabel;
     }
   } else if (sex === "male") {
     if (profile.spermCount !== null) {
       const above = profile.spermCount >= WHO_SPERM_LOWER_LIMIT;
-      insightTitle = above ? "Your semen analysis is within range" : "Your sperm count is worth discussing";
-      insightText = above
-        ? `${profile.spermCount} million/mL is above the WHO lower reference limit of ${WHO_SPERM_LOWER_LIMIT} million/mL. Sleep, weight and activity help keep it there.`
-        : `${profile.spermCount} million/mL is below the WHO reference of ${WHO_SPERM_LOWER_LIMIT} million/mL. This is common, often improves with lifestyle changes, and your clinician can advise.`;
+      insightTitle = above ? L.semenInRange : L.semenDiscuss;
+      insightText = above ? L.semenAboveText(profile.spermCount, WHO_SPERM_LOWER_LIMIT) : L.semenBelowText(profile.spermCount, WHO_SPERM_LOWER_LIMIT);
       insightValue = `${profile.spermCount}`;
-      insightLabel = "million/mL";
+      insightLabel = L.millionPerMl;
     } else {
-      insightTitle = "Add your semen analysis";
-      insightText = "Enter the sperm concentration from your lab report to see how it compares with WHO reference values.";
+      insightTitle = L.semenFromClinician;
+      insightText = L.semenPendingText;
     }
   } else {
-    insightTitle = "Welcome to ReproAI";
-    insightText = "Complete your assessment to see a personalised view of your reproductive health.";
+    insightTitle = L.welcomeTitle;
+    insightText = L.welcomeText;
   }
+  const semenPending = sex === "male" && profile.spermCount === null;
 
   return (
     <div className="content patient-content">
       <div className="patient-welcome">
         <div>
           <p className="date-label">
-            {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }).toUpperCase()}
+            {new Date().toLocaleDateString(ar ? "ar-AE-u-nu-latn" : "en-GB", { weekday: "long", day: "numeric", month: "long" }).toUpperCase()}
           </p>
           <h1>
-            {greeting()}
-            {name ? `, ${name}` : ""}
+            {L[greetingKey()]}
+            {name ? `${ar ? "، " : ", "}${name}` : ""}
           </h1>
-          <span>Here is what your recorded data shows so far.</span>
+          <span>{L.subtitle}</span>
         </div>
       </div>
 
       {obsLoading ? (
-        <div className="loading-block" style={{ height: 232, margin: "0 0 17px" }} aria-label="Loading your insight" />
+        <div className="loading-block" style={{ height: 232, margin: "0 0 17px" }} aria-label={L.loadingInsight} />
       ) : (
       <section className="journey-banner">
         <div className="journey-copy">
           <div className="eyebrow light">
-            <Sparkles size={14} /> YOUR INSIGHT
+            <Sparkles size={14} /> {L.insightEyebrow}
           </div>
           <h2>{insightTitle}</h2>
           <p>{insightText}</p>
-          <Link href={sex === "male" && profile.spermCount === null ? "/patient/assessment" : "/patient/wearables"}>
-            {sex === "male" && profile.spermCount === null ? "Add results" : "Explore your pattern"} <ArrowRight size={16} />
+          <Link href={semenPending ? "/patient/assessment" : "/patient/wearables"}>
+            {semenPending ? L.viewTrajectory : L.explorePattern} <ArrowRight size={16} className="flip-rtl" />
           </Link>
         </div>
         <div className="journey-art" aria-hidden="true">
@@ -234,7 +413,7 @@ export default function OverviewPage() {
           </svg>
           {insightValue && (
             <div className="art-note">
-              <span>{insightValue}</span>
+              <span dir="ltr">{insightValue}</span>
               <small>{insightLabel}</small>
             </div>
           )}
@@ -246,16 +425,16 @@ export default function OverviewPage() {
         <article className="panel potential-card">
           <div className="panel-head">
             <div>
-              <h2>{latestPrediction?.scope === "COUPLE" ? "Your joint estimate" : "Your reproductive picture"}</h2>
-              <p>{latestPrediction ? `Reviewed by your clinician · ${shortDate(latestPrediction.createdAt)}` : "Not assessed yet"}</p>
+              <h2>{latestPrediction?.scope === "COUPLE" ? L.jointEstimate : L.reproPicture}</h2>
+              <p>{latestPrediction ? L.reviewedOn(dateL(latestPrediction.createdAt)) : L.notAssessed}</p>
             </div>
           </div>
           {latestPrediction && latestPrediction.scope !== "COUPLE" ? (
             <div className="empty-state">
-              <span className="soft-pill"><Sparkles size={14} /> {tierCopy(latestPrediction.tier).label}</span>
-              <strong>{tierCopy(latestPrediction.tier).summary || "Your clinician has reviewed your latest results."}</strong>
+              <span className="soft-pill"><Sparkles size={14} /> {tier(latestPrediction.tier).label}</span>
+              <strong>{tier(latestPrediction.tier).summary || L.reviewedLatest}</strong>
               {record?.assessments[0]?.percentile != null && sex === "female" && (
-                <span>Your AMH is {percentileWords(record.assessments[0].percentile!)}.</span>
+                <span>{L.amhIs(ar ? percentileWordsAr(record.assessments[0].percentile!) : percentileWords(record.assessments[0].percentile!))}</span>
               )}
             </div>
           ) : latestPrediction ? (
@@ -263,30 +442,28 @@ export default function OverviewPage() {
               <PotentialGauge probability={latestPrediction.probability} tier={latestPrediction.tier} />
               <div className="potential-copy">
                 <span className="soft-pill">
-                  <Sparkles size={14} /> {tierCopy(latestPrediction.tier).label}
+                  <Sparkles size={14} /> {tier(latestPrediction.tier).label}
                 </span>
-                <p>{tierCopy(latestPrediction.tier).summary || "An estimate to discuss with your care team, not a diagnosis."}</p>
+                <p>{tier(latestPrediction.tier).summary || L.estimateNote}</p>
                 <ConfidenceBar low={latestPrediction.confidenceLow} high={latestPrediction.confidenceHigh} />
               </div>
             </div>
           ) : (
             <div className="empty-state">
-              <strong>{record?.pendingReview ? "A result is with your clinician" : "Your baseline comes from your clinician"}</strong>
-              {record?.pendingReview
-                ? "You will see it here once they have reviewed it and added a note for you."
-                : "When your clinician records results such as an AMH test or a semen analysis and reviews them, your picture appears here."}
+              <strong>{record?.pendingReview ? L.pendingTitle : L.baselineTitle}</strong>
+              {record?.pendingReview ? L.pendingText : L.baselineText}
             </div>
           )}
           <Link className="full-link" href="/patient/assessment">
-            View my trajectory <ArrowRight size={15} />
+            {L.viewTrajectory} <ArrowRight size={15} className="flip-rtl" />
           </Link>
         </article>
 
         <article className="panel next-card">
           <div className="panel-head">
             <div>
-              <h2>Your next best steps</h2>
-              <p>Based on what you have recorded</p>
+              <h2>{L.nextSteps}</h2>
+              <p>{L.nextStepsSub}</p>
             </div>
           </div>
           <div className="steps-list">
@@ -298,7 +475,7 @@ export default function OverviewPage() {
                   <strong>{s.title}</strong>
                   <small>{s.detail}</small>
                 </span>
-                <ChevronRight size={16} />
+                <ChevronRight size={16} className="flip-rtl" />
               </Link>
             ))}
           </div>
@@ -308,15 +485,15 @@ export default function OverviewPage() {
       <section className="panel signals-card">
         <div className="panel-head">
           <div>
-            <h2>Your health signals</h2>
-            <p>{sex === "female" ? "Basal body temperature and sleep" : "Sleep, lifestyle and lab markers"}</p>
+            <h2>{L.signals}</h2>
+            <p>{sex === "female" ? L.signalsFemale : L.signalsMale}</p>
           </div>
           <Link className="text-button" href="/patient/wearables">
-            View details <ArrowRight size={15} />
+            {L.viewDetails} <ArrowRight size={15} className="flip-rtl" />
           </Link>
         </div>
         <div className="signal-grid">
-          <div className="chart-area">
+          <div className="chart-area" dir="ltr">
             {obsLoading ? (
               <div className="loading-block" style={{ margin: 0 }} />
             ) : sex === "female" && recentTemps.length >= 2 ? (
@@ -324,13 +501,11 @@ export default function OverviewPage() {
             ) : sex !== "female" && recentSleep.length >= 2 && recentSleepStats ? (
               <SleepChart points={recentSleep} stats={recentSleepStats} />
             ) : (
-              <div className="empty-state" style={{ padding: "8px 0" }}>
-                <strong>{sex === "female" ? "No temperature readings yet" : "Track the habits that matter"}</strong>
-                {sex === "female"
-                  ? "Your temperature chart appears here once you log at least two morning readings."
-                  : "Sleep, weight and activity influence sperm quality. Log your sleep to see trends here."}
+              <div className="empty-state" style={{ padding: "8px 0" }} dir={ar ? "rtl" : "ltr"}>
+                <strong>{sex === "female" ? L.noTempTitle : L.habitsTitle}</strong>
+                {sex === "female" ? L.noTempText : L.habitsText}
                 <Link className="text-button" href="/patient/wearables">
-                  Log a measurement <ArrowRight size={14} />
+                  {L.logMeasurement} <ArrowRight size={14} className="flip-rtl" />
                 </Link>
               </div>
             )}
@@ -339,40 +514,40 @@ export default function OverviewPage() {
             {sex === "female" && (
               <Stat
                 icon={<span className="stat-icon temp"><Thermometer size={17} /></span>}
-                label={lastTemp && isToday(lastTemp.date) ? "Temperature today" : "Latest temperature"}
-                value={lastTemp ? `${lastTemp.value.toFixed(2)}°C` : "Not logged"}
-                note={lastTemp && !isToday(lastTemp.date) ? shortDate(lastTemp.date) : undefined}
+                label={lastTemp && isToday(lastTemp.date) ? L.tempToday : L.latestTemp}
+                value={lastTemp ? `${lastTemp.value.toFixed(2)}°C` : L.notLogged}
+                note={lastTemp && !isToday(lastTemp.date) ? dateL(lastTemp.date) : undefined}
               />
             )}
             {sex === "male" && (
               <Stat
                 icon={<span className="stat-icon temp"><Droplets size={17} /></span>}
-                label="Sperm concentration"
-                value={profile.spermCount !== null ? `${profile.spermCount} M/mL` : "Not recorded"}
-                note={profile.spermCount !== null ? (profile.spermCount >= WHO_SPERM_LOWER_LIMIT ? "In range" : "Below ref.") : undefined}
+                label={L.spermConc}
+                value={profile.spermCount !== null ? `${profile.spermCount} M/mL` : L.notRecorded}
+                note={profile.spermCount !== null ? (profile.spermCount >= WHO_SPERM_LOWER_LIMIT ? L.inRange : L.belowRef) : undefined}
                 good={profile.spermCount !== null && profile.spermCount >= WHO_SPERM_LOWER_LIMIT}
               />
             )}
             <Stat
               icon={<span className="stat-icon sleep"><MoonStar size={17} /></span>}
-              label="Sleep last logged"
-              value={sleep?.last != null ? formatHours(sleep.last) : "Not logged"}
-              note={sleep?.last != null ? (sleep.last >= 7 ? "Good" : "Below 7h") : undefined}
+              label={L.sleepLast}
+              value={sleep?.last != null ? formatHours(sleep.last) : L.notLogged}
+              note={sleep?.last != null ? (sleep.last >= 7 ? L.good : L.below7) : undefined}
               good={sleep?.last != null && sleep.last >= 7}
             />
             <Stat
               icon={<span className="stat-icon cycle">{sex === "female" ? <Activity size={17} /> : <Scale size={17} />}</span>}
-              label={sex === "female" ? "Cycle regularity" : "Body mass index"}
+              label={sex === "female" ? L.cycle : L.bmi}
               value={
                 sex === "female"
                   ? profile.cycleRegularity
-                    ? profile.cycleRegularity.charAt(0) + profile.cycleRegularity.slice(1).toLowerCase()
-                    : "Not recorded"
+                    ? L.cycleValue[profile.cycleRegularity] ?? profile.cycleRegularity
+                    : L.notRecorded
                   : profile.bmi !== null
                     ? profile.bmi.toFixed(1)
-                    : "Not recorded"
+                    : L.notRecorded
               }
-              note={sex !== "female" && profile.bmi !== null ? (profile.bmi >= 20 && profile.bmi < 25 ? "In range" : "Target 20–24.9") : undefined}
+              note={sex !== "female" && profile.bmi !== null ? (profile.bmi >= 20 && profile.bmi < 25 ? L.inRange : L.bmiTarget) : undefined}
               good={sex !== "female" && profile.bmi !== null && profile.bmi >= 20 && profile.bmi < 25}
             />
           </div>
@@ -385,11 +560,11 @@ export default function OverviewPage() {
             <HeartHandshake size={21} />
           </div>
           <span>
-            <strong>Planning a pregnancy together?</strong>
-            <small>Link with your partner for a joint estimate. Your own records stay private, and you can unlink any time.</small>
+            <strong>{L.planningTitle}</strong>
+            <small>{L.planningText}</small>
           </span>
           <Link href="/patient/pairing">
-            Link partner <ArrowRight size={15} />
+            {L.linkPartner} <ArrowRight size={15} className="flip-rtl" />
           </Link>
         </section>
       )}
@@ -399,11 +574,11 @@ export default function OverviewPage() {
             <CalendarDays size={21} />
           </div>
           <span>
-            <strong>Linked with {firstName(partner.name) ?? partner.email}</strong>
-            <small>You can run a joint assessment that combines both partners&apos; clinical factors.</small>
+            <strong>{L.linkedWith(firstName(partner.name) ?? partner.email)}</strong>
+            <small>{L.linkedText}</small>
           </span>
           <Link href="/patient/assessment">
-            Joint assessment <ArrowRight size={15} />
+            {L.jointAssessment} <ArrowRight size={15} className="flip-rtl" />
           </Link>
         </section>
       )}
@@ -413,11 +588,11 @@ export default function OverviewPage() {
           <MessageCircle size={21} />
         </div>
         <span>
-          <strong>Have a question about your journey?</strong>
-          <small>ReproAI answers using WHO and ESHRE guidance, with your clinician in the loop.</small>
+          <strong>{L.questionTitle}</strong>
+          <small>{L.questionText}</small>
         </span>
         <Link href="/patient/assistant">
-          Ask ReproAI <ArrowRight size={15} />
+          {L.askReproai} <ArrowRight size={15} className="flip-rtl" />
         </Link>
       </section>
     </div>

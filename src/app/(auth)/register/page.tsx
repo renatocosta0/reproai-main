@@ -1,7 +1,6 @@
-import Link from "next/link";
-import { ArrowLeft, MailCheck } from "lucide-react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { RegisterForm } from "@/components/auth/RegisterForm";
+import { RegisterInviteGate } from "@/components/auth/InviteGates";
 import { resolveInviteToken } from "@/lib/invites";
 
 export const dynamic = "force-dynamic";
@@ -19,28 +18,7 @@ export default async function RegisterPage({
   if (!invite) {
     return (
       <AuthShell>
-        <div className="gate-card">
-          <div className="gate-icon">
-            <MailCheck size={22} aria-hidden />
-          </div>
-          <div>
-            <div className="eyebrow">{token ? "Link not valid" : "Secure activation"}</div>
-            <h2 style={{ marginTop: 10 }}>Invitation Required</h2>
-          </div>
-          <p>
-            ReproAI requires a clinical prescription or a partner pairing invite to activate an
-            account. Please verify your invitation link or contact your clinic.
-          </p>
-          {token && (
-            <p style={{ fontSize: 13 }}>
-              This link may have already been used or may have expired. Partner invitations are
-              valid for 7 days.
-            </p>
-          )}
-          <Link href="/login" className="secondary-link">
-            <ArrowLeft size={16} aria-hidden /> Back to sign in
-          </Link>
-        </div>
+        <RegisterInviteGate hadToken={Boolean(token)} />
       </AuthShell>
     );
   }
@@ -52,11 +30,8 @@ export default async function RegisterPage({
         kind={invite.kind}
         // A couple prescription is valid for either partner's email, so let them type it.
         email={invite.allowedEmails.length === 1 ? invite.allowedEmails[0] : ""}
-        emailHint={
-          invite.allowedEmails.length > 1
-            ? "Use the email address your clinic sent this invitation to (either partner's)."
-            : undefined
-        }
+        // The form shows the couple-email hint in the reader's language.
+        emailHint={invite.allowedEmails.length > 1 ? "couple" : undefined}
         name={invite.kind === "CLINIC" && invite.allowedEmails.length === 1 ? invite.name : null}
         sex={invite.kind === "CLINIC" && invite.allowedEmails.length === 1 ? invite.sex : null}
         senderName={invite.kind === "PARTNER" ? invite.senderName : null}

@@ -52,8 +52,8 @@ export function PatientShell({ children }: { children: ReactNode }) {
       navLabel={t("navLabel")}
       nav={NAV.map((n) => ({ href: n.href, label: t(n.key), icon: n.icon }))}
       user={{
-        name: name ?? "Your account",
-        subtitle: data?.isPaired ? "Couple workspace" : "Individual workspace",
+        name: name ?? t("yourAccount"),
+        subtitle: data?.isPaired ? t("coupleWorkspace") : t("individualWorkspace"),
         initials: initials(name, "Me")
       }}
       topActions={topActions}

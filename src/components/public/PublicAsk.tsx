@@ -34,7 +34,8 @@ const STRINGS = {
       "Should my husband be tested too?",
       "Who is eligible for social egg freezing?"
     ],
-    error: "The assistant could not answer just now. Please try again."
+    error: "The assistant could not answer just now. Please try again.",
+    footer: "Prototype for the Abu Dhabi Future Health Digital Innovation Challenge (Challenge 02, Fertility). Not clinically validated and not a diagnostic device. In an emergency, call 998."
   },
   ar: {
     home: "الرئيسية",
@@ -57,7 +58,8 @@ const STRINGS = {
       "Should my husband be tested too?",
       "Who is eligible for social egg freezing?"
     ],
-    error: "تعذّر على المساعد الإجابة الآن. يُرجى المحاولة مرة أخرى."
+    error: "تعذّر على المساعد الإجابة الآن. يُرجى المحاولة مرة أخرى.",
+    footer: "نموذج أولي لتحدي أبوظبي للابتكار الرقمي في الصحة المستقبلية (التحدي 02، الخصوبة). لم يُتحقق منه سريريًا وليس جهازًا تشخيصيًا. في حالات الطوارئ، اتصل بالرقم 998."
   }
 } as const;
 
@@ -190,10 +192,7 @@ export function PublicAsk() {
       </main>
 
       <footer className="landing-footer">
-        <p>
-          Prototype for the Abu Dhabi Future Health Digital Innovation Challenge (Challenge 02, Fertility). Not clinically
-          validated and not a diagnostic device. In an emergency, call 998.
-        </p>
+        <p>{t.footer}</p>
       </footer>
     </div>
   );

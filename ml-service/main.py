@@ -125,6 +125,18 @@ INPUT_LABELS = {
     "prior_cycles": "Previous treatment cycles",
 }
 
+# Arabic labels for the model card (prototype translation).
+INPUT_LABELS_AR = {
+    "age": "العمر",
+    "amh": "فحص هرمون AMH",
+    "sperm_count": "تحليل السائل المنوي (تركيز الحيوانات المنوية)",
+    "bmi": "الطول والوزن (مؤشر كتلة الجسم)",
+    "antral_follicle_count": "عدد الجريبات الغارية (موجات فوق صوتية)",
+    "pcos_history": "تاريخ تكيّس المبايض",
+    "infertility_duration_months": "مدة محاولة الإنجاب",
+    "prior_cycles": "دورات العلاج السابقة",
+}
+
 # Required and optional inputs per assessment type.
 REQUIREMENTS = {
     ("INDIVIDUAL", "female"): (["age", "amh"], ["bmi", "antral_follicle_count", "pcos_history", "infertility_duration_months"]),
@@ -437,4 +449,95 @@ def model_info():
             "optional_effect": f"Set to reference baseline (phi = 0); interval widened by {SE_PER_MISSING_OPTIONAL} log-odds SE each",
         },
         "intended_use": "Decision support for licensed clinicians and plain-language education for patients. Not a diagnosis.",
+        "intended_users": [
+            "Licensed clinicians reviewing a prescribed patient or couple (see the estimate with its 95% interval)",
+            "Patients and couples after clinician release (see a tier and an age percentile, never the probability)",
+        ],
+        "out_of_scope": [
+            "Diagnosing infertility or any condition",
+            "Deciding eligibility for treatment, insurance or employment",
+            "Use without clinician review, or by people not prescribed the service",
+            "Tubal, uterine or endometriosis factors, which the model does not assess",
+            "Predicting the outcome of a specific treatment cycle",
+        ],
+        "outcome": (
+            "A reproductive-potential score on a probability scale (0-100). The curves are shaped on published "
+            "live-birth-per-treatment figures, but the score is not a calibrated probability of live birth or "
+            "pregnancy for any person, and must not be presented as one."
+        ),
+        "inputs": {
+            (f"{s} / {x}" if x else s): {
+                "required": [INPUT_LABELS[f] for f in r],
+                "optional": [INPUT_LABELS[f] for f in o],
+            }
+            for (s, x), (r, o) in REQUIREMENTS.items()
+        },
+        "explanation_method": (
+            "The model is additive on the log-odds scale, so each input's contribution is its exact Shapley value: "
+            "its score minus the reference-population expectation. Contributions add up to the difference from the "
+            "reference; they are not causal effects."
+        ),
+        "uncertainty": (
+            f"95% interval from a log-odds standard error of {SE_BASE}, widened by {SE_PER_MISSING_OPTIONAL} for each "
+            "missing optional input and further at age 40 or over and after three or more prior cycles. The interval "
+            "reflects input completeness under the model's assumptions, not validated predictive uncertainty."
+        ),
+        "known_limitations": [
+            "Not trained, recalibrated or validated on patient outcomes; no discrimination or calibration statistic is claimed.",
+            "Curves come mostly from UK, European and US registries and studies; transferability to the UAE population is unknown.",
+            "A single AMH or semen result varies between tests and laboratories; repeat abnormal results.",
+            "Self-reported inputs (BMI, PCOS history, time trying) are not verified.",
+            "The reference expectations used for Shapley values are literature-based, not measured in a local population.",
+        ],
+        "next_steps": "Recalibrate and externally validate on Abu Dhabi outcomes before any clinical use.",
+        # Arabic version of the descriptive fields (prototype translation; to be
+        # reviewed by a native-speaking clinician). Source titles stay in English.
+        "ar": {
+            "model_name": "نموذج ReproAI لتقدير الإمكانات الإنجابية",
+            "architecture": "نموذج جمعي على مقياس اللوغاريتم الاحتمالي بمنحنيات سريرية سلسة وتفكيك شابلي دقيق",
+            "evidence_status": "تقدير مستند إلى الأدبيات العلمية. يعمل في نموذج أولي. لم يُتحقق منه سريريًا.",
+            "performance_claims": "لا توجد. لم يُدرَّب أو يُتحقق منه على بيانات مرضى.",
+            "optional_effect": f"تُضبط على قيمة خط الأساس المرجعية (phi = 0)، ويتسع النطاق بمقدار {SE_PER_MISSING_OPTIONAL} خطأ معياري لوغاريتمي لكل مُدخل",
+            "intended_use": "دعم القرار للأطباء المرخّصين، وتثقيف المرضى بلغة واضحة. ليس تشخيصًا.",
+            "intended_users": [
+                "الأطباء المرخّصون عند مراجعة مريض أو زوجين وُصفت لهم الخدمة (يرون التقدير مع نطاقه بنسبة 95%)",
+                "المرضى والأزواج بعد اعتماد الطبيب (يرون فئة ونسبة مئوية حسب العمر، ولا يرون الاحتمال أبدًا)",
+            ],
+            "out_of_scope": [
+                "تشخيص العقم أو أي حالة أخرى",
+                "تحديد الأهلية للعلاج أو التأمين أو التوظيف",
+                "الاستخدام دون مراجعة الطبيب، أو من قبل أشخاص لم تُوصف لهم الخدمة",
+                "عوامل قناتي فالوب أو الرحم أو بطانة الرحم المهاجرة، التي لا يقيّمها النموذج",
+                "التنبؤ بنتيجة دورة علاج بعينها",
+            ],
+            "outcome": (
+                "درجة للإمكانات الإنجابية على مقياس احتمالي (0-100). صُمّمت المنحنيات استنادًا إلى أرقام منشورة "
+                "عن الولادات الحية لكل دورة علاج، لكن الدرجة ليست احتمالًا معايرًا للولادة الحية أو الحمل لأي شخص، "
+                "ولا يجوز تقديمها على أنها كذلك."
+            ),
+            "inputs": {
+                (f"{s} / {x}" if x else s): {
+                    "required": [INPUT_LABELS_AR[f] for f in r],
+                    "optional": [INPUT_LABELS_AR[f] for f in o],
+                }
+                for (s, x), (r, o) in REQUIREMENTS.items()
+            },
+            "explanation_method": (
+                "النموذج جمعي على مقياس اللوغاريتم الاحتمالي، لذا فإن مساهمة كل مُدخل هي قيمة شابلي الدقيقة له: "
+                "درجته ناقص القيمة المتوقعة في المجتمع المرجعي. تُجمع المساهمات لتساوي الفرق عن المرجع، وهي ليست آثارًا سببية."
+            ),
+            "uncertainty": (
+                f"نطاق 95% مبني على خطأ معياري لوغاريتمي قدره {SE_BASE}، يتسع بمقدار {SE_PER_MISSING_OPTIONAL} لكل مُدخل "
+                "اختياري ناقص، ويتسع أكثر عند عمر 40 فما فوق وبعد ثلاث دورات سابقة أو أكثر. يعكس النطاق اكتمال المُدخلات "
+                "ضمن افتراضات النموذج، وليس عدم يقين تنبؤي مُتحقَّقًا منه."
+            ),
+            "known_limitations": [
+                "لم يُدرَّب أو يُعَد ضبطه أو يُتحقق منه على نتائج مرضى، ولا يُدّعى أي مقياس للتمييز أو المعايرة.",
+                "تأتي المنحنيات غالبًا من سجلات ودراسات في المملكة المتحدة وأوروبا والولايات المتحدة، ومدى انطباقها على سكان الإمارات غير معروف.",
+                "تتفاوت نتيجة AMH أو تحليل السائل المنوي الواحدة بين الفحوص والمختبرات، لذا تُعاد النتائج غير الطبيعية.",
+                "المُدخلات التي يُدخلها المريض بنفسه (مؤشر كتلة الجسم، وتاريخ تكيّس المبايض، ومدة المحاولة) غير مُتحقَّق منها.",
+                "القيم المتوقعة المرجعية المستخدمة لقيم شابلي مستندة إلى الأدبيات، وليست مقيسة في مجتمع محلي.",
+            ],
+            "next_steps": "إعادة المعايرة والتحقق الخارجي على نتائج من أبوظبي قبل أي استخدام سريري.",
+        },
     }

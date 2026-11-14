@@ -9,6 +9,7 @@ import { Field } from "@/components/ui/Field";
 import { ClinicalNotice, FormError } from "@/components/ui/Notice";
 import { api, ApiError, homeForRole, userMessage } from "@/lib/api-client";
 import type { Role } from "@/types";
+import { useLocale } from "@/components/i18n/LocaleContext";
 
 type DemoPersona = "CLINICIAN" | "FEMALE" | "MALE" | "COUPLE";
 
@@ -19,8 +20,68 @@ const DEMO_PERSONAS: { persona: DemoPersona; label: string; detail: string; icon
   { persona: "COUPLE", label: "Couple", detail: "Joint estimate", icon: HeartHandshake }
 ];
 
+
+const S = {
+  en: {
+    personas: {
+      CLINICIAN: ["Clinician", "Cohort and follow-up"],
+      FEMALE: ["Female patient", "Ovarian reserve, BBT"],
+      MALE: ["Male patient", "Semen health, sleep"],
+      COUPLE: ["Couple", "Joint estimate"]
+    } as Record<DemoPersona, [string, string]>,
+    demoError: "Demo sign-in failed. Please try again.",
+    badLogin: "That email and password don't match an account.",
+    loginError: "Sign-in failed. Please check your connection and try again.",
+    welcome: "Welcome to ReproAI",
+    title: "Sign in to your workspace",
+    sub: "Your care journey, securely in one place.",
+    accountType: "Account type",
+    patientTab: "Individual / Couple",
+    clinicianTab: "Clinician",
+    email: "Email address",
+    password: "Password",
+    signingIn: "Signing in…",
+    continue: "Continue securely",
+    patientNotice: "ReproAI is prescribed by licensed healthcare providers. If you are a new patient, please use the secure activation link sent to your email by your fertility clinic or partner.",
+    clinicianNote: "Clinician accounts are provisioned by your organisation",
+    orDemo: "Or explore the demo",
+    opening: "Opening…",
+    tour: "Take the guided demo (12 steps)",
+    demoNote: "Demo accounts use sample data. No password needed."
+  },
+  ar: {
+    personas: {
+      CLINICIAN: ["طبيب", "المرضى والمتابعة"],
+      FEMALE: ["مريضة", "مخزون المبيض، الحرارة الأساسية"],
+      MALE: ["مريض", "صحة السائل المنوي، النوم"],
+      COUPLE: ["زوجان", "تقدير مشترك"]
+    } as Record<DemoPersona, [string, string]>,
+    demoError: "تعذّر الدخول إلى العرض التوضيحي. يُرجى المحاولة مرة أخرى.",
+    badLogin: "البريد الإلكتروني وكلمة المرور لا يطابقان أي حساب.",
+    loginError: "تعذّر تسجيل الدخول. يُرجى التحقق من اتصالك والمحاولة مرة أخرى.",
+    welcome: "مرحبًا بك في ReproAI",
+    title: "سجّل الدخول إلى مساحة عملك",
+    sub: "رحلة رعايتك في مكان واحد آمن.",
+    accountType: "نوع الحساب",
+    patientTab: "فرد / زوجان",
+    clinicianTab: "طبيب",
+    email: "البريد الإلكتروني",
+    password: "كلمة المرور",
+    signingIn: "جارٍ تسجيل الدخول…",
+    continue: "متابعة بأمان",
+    patientNotice: "يصف ReproAI مقدّمو رعاية صحية مرخّصون. إذا كنت مريضًا جديدًا، فاستخدم رابط التفعيل الآمن الذي أرسلته عيادة الخصوبة أو شريكك إلى بريدك الإلكتروني.",
+    clinicianNote: "تُنشئ مؤسستك حسابات الأطباء",
+    orDemo: "أو استكشف العرض التوضيحي",
+    opening: "جارٍ الفتح…",
+    tour: "ابدأ الجولة الإرشادية (١٢ خطوة)",
+    demoNote: "تستخدم حسابات العرض بيانات نموذجية، ولا تحتاج إلى كلمة مرور."
+  }
+};
+
 export default function LoginPage() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const L = S[locale];
   const [role, setRole] = useState<Role>("PATIENT");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,7 +115,7 @@ export default function LoginPage() {
       router.replace(homeForRole(result.role));
       router.refresh();
     } catch (err) {
-      setError(userMessage(err, "Demo sign-in failed. Please try again."));
+      setError(userMessage(err, L.demoError));
       setDemoLoading(null);
     }
   }
@@ -77,8 +138,8 @@ export default function LoginPage() {
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
-          ? "That email and password don't match an account."
-          : userMessage(err, "Sign-in failed. Please check your connection and try again.")
+          ? L.badLogin
+          : userMessage(err, L.loginError)
       );
       setLoading(false);
     }
@@ -89,13 +150,13 @@ export default function LoginPage() {
       <form className="login-card" onSubmit={submit} noValidate={false}>
         <div>
           <div className="eyebrow">
-            <Leaf size={14} aria-hidden /> Welcome to ReproAI
+            <Leaf size={14} aria-hidden /> {L.welcome}
           </div>
-          <h2>Sign in to your workspace</h2>
-          <p>Your care journey, securely in one place.</p>
+          <h2>{L.title}</h2>
+          <p>{L.sub}</p>
         </div>
 
-        <div className="role-tabs" role="tablist" aria-label="Account type">
+        <div className="role-tabs" role="tablist" aria-label={L.accountType}>
           <button
             type="button"
             role="tab"
@@ -103,7 +164,7 @@ export default function LoginPage() {
             className={role === "PATIENT" ? "active" : ""}
             onClick={() => setRole("PATIENT")}
           >
-            <HeartHandshake size={17} aria-hidden /> Individual / Couple
+            <HeartHandshake size={17} aria-hidden /> {L.patientTab}
           </button>
           <button
             type="button"
@@ -112,12 +173,12 @@ export default function LoginPage() {
             className={role === "CLINICIAN" ? "active" : ""}
             onClick={() => setRole("CLINICIAN")}
           >
-            <Stethoscope size={17} aria-hidden /> Clinician
+            <Stethoscope size={17} aria-hidden /> {L.clinicianTab}
           </button>
         </div>
 
         <Field
-          label="Email address"
+          label={L.email}
           name="email"
           type="email"
           icon={Mail}
@@ -127,7 +188,7 @@ export default function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
         />
         <Field
-          label="Password"
+          label={L.password}
           name="password"
           type="password"
           icon={LockKeyhole}
@@ -140,40 +201,38 @@ export default function LoginPage() {
         {error && <FormError>{error}</FormError>}
 
         <button className="primary wide" disabled={loading}>
-          {loading ? "Signing in…" : "Continue securely"} <ArrowRight size={17} aria-hidden />
+          {loading ? L.signingIn : L.continue} <ArrowRight size={17} aria-hidden className="flip-rtl" />
         </button>
 
         {role === "PATIENT" ? (
           <ClinicalNotice>
-            ReproAI is prescribed by licensed healthcare providers. If you are a new patient, please
-            use the secure activation link sent to your email by your fertility clinic or partner.
+            {L.patientNotice}
           </ClinicalNotice>
         ) : (
           <div className="login-note">
-            <ShieldCheck size={15} aria-hidden /> Clinician accounts are provisioned by your
-            organisation
+            <ShieldCheck size={15} aria-hidden /> {L.clinicianNote}
           </div>
         )}
 
         {demoEnabled && (
           <div className="demo-login" id="demo">
-            <div className="demo-divider"><span>Or explore the demo</span></div>
+            <div className="demo-divider"><span>{L.orDemo}</span></div>
             <div className="demo-buttons">
-              {DEMO_PERSONAS.map(({ persona, label, detail, icon: Icon }) => (
+              {DEMO_PERSONAS.map(({ persona, icon: Icon }) => (
                 <button key={persona} type="button" className="secondary" onClick={() => demoLogin(persona)} disabled={demoLoading !== null}>
                   <Icon size={16} aria-hidden />
                   <span>
-                    <strong>{demoLoading === persona ? "Opening…" : label}</strong>
-                    <small>{detail}</small>
+                    <strong>{demoLoading === persona ? L.opening : L.personas[persona][0]}</strong>
+                    <small>{L.personas[persona][1]}</small>
                   </span>
                 </button>
               ))}
             </div>
             <Link href="/tour" className="demo-tour-link">
-              <PlayCircle size={15} aria-hidden /> Take the guided demo (12 steps)
+              <PlayCircle size={15} aria-hidden /> {L.tour}
             </Link>
             <p className="demo-note">
-              <PlayCircle size={13} aria-hidden /> Demo accounts use sample data. No password needed.
+              <PlayCircle size={13} aria-hidden /> {L.demoNote}
             </p>
           </div>
         )}

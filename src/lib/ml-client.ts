@@ -68,3 +68,46 @@ export async function predictBatch(items: PredictionInput[]): Promise<Prediction
   if (!res.ok) throw new Error(`ML service error (${res.status}): ${await res.text()}`);
   return ((await res.json()) as { results: PredictionOutput[] }).results;
 }
+
+/** The model card served by the ML service (GET /model-info). */
+export interface ModelInfo {
+  model_name: string;
+  version: string;
+  architecture: string;
+  evidence_sources: string[];
+  evidence_status: string;
+  performance_claims: string;
+  missing_data_policy: { required: Record<string, string[]>; optional_effect: string };
+  intended_use: string;
+  intended_users?: string[];
+  out_of_scope?: string[];
+  outcome?: string;
+  inputs?: Record<string, { required: string[]; optional: string[] }>;
+  explanation_method?: string;
+  uncertainty?: string;
+  known_limitations?: string[];
+  next_steps?: string;
+  /** Arabic versions of the descriptive fields (source titles stay in English). */
+  ar?: {
+    model_name: string;
+    architecture: string;
+    evidence_status: string;
+    performance_claims: string;
+    optional_effect: string;
+    intended_use: string;
+    intended_users: string[];
+    out_of_scope: string[];
+    outcome: string;
+    inputs: Record<string, { required: string[]; optional: string[] }>;
+    explanation_method: string;
+    uncertainty: string;
+    known_limitations: string[];
+    next_steps: string;
+  };
+}
+
+export async function getModelInfo(): Promise<ModelInfo> {
+  const res = await fetch(`${ML_API_URL}/model-info`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`ML service error (${res.status})`);
+  return res.json();
+}
