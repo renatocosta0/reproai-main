@@ -11,6 +11,8 @@ export interface RecordPassage {
   id: string;
   title: string;
   text: string;
+  /** In-app page showing this information (set server-side; never from the model). */
+  url?: string;
 }
 
 const day = (iso: string) => iso.slice(0, 10);
@@ -27,10 +29,10 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
       p.tryingToConceive ? `trying to conceive${p.infertilityDurationMonths ? ` for ${p.infertilityDurationMonths} months` : ""}` : null,
       p.smoking ? `smoking ${p.smoking.toLowerCase()}` : null
     ].filter(Boolean);
-    out.push({ id: "REC-PROFILE", title: "Your profile", text: `Your profile records ${bits.join(", ")}. These details are self-reported in your intake.` });
+    out.push({ id: "REC-PROFILE", title: "Your profile", text: `Your profile records ${bits.join(", ")}. These details are self-reported in your intake.`, url: "/patient/overview" });
   }
   if (!rec.consents.LAB_RESULTS.granted) {
-    out.push({ id: "REC-LABS", title: "Your lab results", text: "You have chosen not to share lab results, so none are shown or used." });
+    out.push({ id: "REC-LABS", title: "Your lab results", text: "You have chosen not to share lab results, so none are shown or used.", url: "/patient/assessment" });
   } else {
     const byCode = new Map<string, typeof rec.labs>();
     for (const l of rec.labs) byCode.set(l.code, [...(byCode.get(l.code) ?? []), l]);
@@ -46,10 +48,11 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
       out.push({
         id: `REC-${code}`,
         title: `Your ${def.label}`,
-        text: `Your latest ${def.label} is ${latest.value} ${def.unit}, measured on ${day(latest.collectedAt)} (${sourceWords(latest.source)}).${limit}${history}`
+        text: `Your latest ${def.label} is ${latest.value} ${def.unit}, measured on ${day(latest.collectedAt)} (${sourceWords(latest.source)}).${limit}${history}`,
+        url: "/patient/assessment"
       });
     }
-    if (byCode.size === 0) out.push({ id: "REC-LABS", title: "Your lab results", text: "There are no lab results in your record yet." });
+    if (byCode.size === 0) out.push({ id: "REC-LABS", title: "Your lab results", text: "There are no lab results in your record yet.", url: "/patient/assessment" });
   }
   const released = rec.assessments.filter((a) => a.status === "RELEASED");
   const a = released[0];
@@ -60,6 +63,7 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
     out.push({
       id: "REC-ASSESSMENT",
       title: "Your latest released assessment",
+      url: "/patient/assessment",
       text:
         `Your latest assessment was released by your clinician on ${day(a.reviewedAt ?? a.createdAt)} (${a.scope === "COUPLE" ? "joint, with your partner" : "individual"}). ` +
         `${a.tier ? `Its tier is ${a.tier.toLowerCase()}. ` : ""}` +
@@ -69,13 +73,14 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
         `${a.clinicianNote ? `Your clinician's note: ${a.clinicianNote}` : ""}`
     });
   } else {
-    out.push({ id: "REC-ASSESSMENT", title: "Your assessments", text: "No assessment has been released to you yet." });
+    out.push({ id: "REC-ASSESSMENT", title: "Your assessments", text: "No assessment has been released to you yet.", url: "/patient/assessment" });
   }
-  if (pendingReview) out.push({ id: "REC-PENDING", title: "Assessment in review", text: "A new assessment is with your clinician for review. You will see it once they release it." });
+  if (pendingReview) out.push({ id: "REC-PENDING", title: "Assessment in review", text: "A new assessment is with your clinician for review. You will see it once they release it.", url: "/patient/assessment" });
   if (rec.options.length) {
     out.push({
       id: "REC-OPTIONS",
       title: "Your options to discuss",
+      url: "/patient/assessment",
       text: rec.options.slice(0, 6).map((o) => `${o.title} (rule ${o.ruleId}; ${o.source}): ${o.patientText} Why: ${o.reason}`).join(" ")
     });
   }
@@ -84,6 +89,7 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
     out.push({
       id: "REC-WEARABLES",
       title: "Your wearable data",
+      url: "/patient/wearables",
       text: `Your record has ${w.temperatureReadings} temperature readings and ${w.sleepNights} nights of sleep${w.meanSleepHours !== null ? `, averaging ${w.meanSleepHours} hours` : ""}. The temperature pattern is ${w.bbtStatus.toLowerCase().replace(/_/g, " ")}.`
     });
   }
@@ -92,32 +98,36 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
 
 export function casePassages(facts: CaseFacts): RecordPassage[] {
   const out: RecordPassage[] = [];
+  const caseUrl = `/clinician/patient/${facts.caseId}`;
   facts.members.forEach((m, i) => {
     const n = i + 1;
     const head = `${m.name} (${m.sex ?? "sex not recorded"}, age ${m.age ?? "not recorded"})`;
     if (!m.sharesWithClinician) {
-      out.push({ id: `CASE-M${n}`, title: m.name, text: `${head} has not given care-team access, so their results are hidden.` });
+      out.push({ id: `CASE-M${n}`, title: m.name, url: caseUrl, text: `${head} has not given care-team access, so their results are hidden.` });
       return;
     }
     const intake = m.intake as Record<string, unknown> | undefined;
     out.push({
       id: `CASE-M${n}`,
       title: m.name,
+      url: caseUrl,
       text: `${head}. Intake (self-reported): trying to conceive ${intake?.tryingToConceive ? `yes, ${intake?.monthsTrying ?? "unknown"} months` : "no"}; cycle ${intake?.cyclePattern ?? "not recorded"}; BMI ${intake?.bmi ?? "not recorded"}; smoking ${intake?.smoking ?? "not recorded"}; history ${(intake?.history as string[] | undefined)?.join(", ") || "none recorded"}.`
     });
     if (m.labs?.length) {
       out.push({
         id: `CASE-M${n}-LABS`,
         title: `${m.name}: labs`,
+        url: caseUrl,
         text: m.labs.map((l) => `${l.marker} ${l.value} ${l.unit} on ${l.date} (${sourceWords(l.source)})${l.belowReference ? ", below reference" : ""}`).join("; ") + "."
       });
     } else {
-      out.push({ id: `CASE-M${n}-LABS`, title: `${m.name}: labs`, text: `${m.name} has no lab results in the record.` });
+      out.push({ id: `CASE-M${n}-LABS`, title: `${m.name}: labs`, url: caseUrl, text: `${m.name} has no lab results in the record.` });
     }
     if (m.triggeredRules?.length) {
       out.push({
         id: `CASE-M${n}-RULES`,
         title: `${m.name}: triggered rules`,
+        url: caseUrl,
         text: m.triggeredRules.map((r) => `Rule ${r.id}, ${r.title}: ${r.reason} (${r.source})`).join(" ")
       });
     }
@@ -126,6 +136,7 @@ export function casePassages(facts: CaseFacts): RecordPassage[] {
     out.push({
       id: `CASE-A${i + 1}`,
       title: `${i === 0 ? "most recent " : ""}${a.scope.toLowerCase()} assessment, ${a.status.toLowerCase()}`,
+      url: caseUrl,
       text:
         `${i === 0 ? "Most recent assessment. " : "Earlier assessment. "}${a.scope} assessment dated ${a.date}, status ${a.status}. Model estimate (prototype, not clinically validated) ${a.estimatePercent}% with 95% interval ${a.interval95[0] ?? "?"}–${a.interval95[1] ?? "?"}%. ` +
         `Tier ${a.tier ?? "none"}. Completeness ${a.completeness !== null ? Math.round(a.completeness * 100) + "%" : "not recorded"}. ` +

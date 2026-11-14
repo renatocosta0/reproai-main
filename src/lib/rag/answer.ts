@@ -126,12 +126,16 @@ function parseJson(raw: string): { sentences?: { text?: unknown; cites?: unknown
   }
 }
 
-function toSource(id: string, record: Map<string, RecordPassage>): SourceRef | null {
+function toSource(id: string, record: Map<string, RecordPassage>, asker: "patient" | "clinician"): SourceRef | null {
   const r = record.get(id);
-  if (r) return { id, title: r.title, label: "Your record", kind: "record", text: r.text };
+  if (r) return { id, title: r.title, label: "Your record", kind: "record", url: r.url, text: r.text };
   const p = PASSAGE_BY_ID[id];
   if (!p) return null;
-  return { id, title: p.title, label: citationLabel(p), kind: "guidance", status: p.status, statusLabel: STATUS_LABEL[p.status], url: SOURCES[p.doc]?.url, text: p.text };
+  // Internal doc links can point at clinician-only pages; patients never get
+  // those links (the citation itself is still shown).
+  const docUrl = SOURCES[p.doc]?.url;
+  const url = asker === "clinician" || docUrl?.startsWith("http") ? docUrl : undefined;
+  return { id, title: p.title, label: citationLabel(p), kind: "guidance", status: p.status, statusLabel: STATUS_LABEL[p.status], url, text: p.text };
 }
 
 function systemPrompt(o: AskOptions): string {
@@ -225,7 +229,7 @@ export async function groundedAnswer(question: string, o: AskOptions): Promise<G
     console.warn("[rag] LLM unavailable, extractive answer:", e instanceof Error ? e.message : e);
   }
 
-  const toSources = (ids: string[]) => [...new Set(ids)].map((id) => toSource(id, recordMap)).filter(Boolean) as SourceRef[];
+  const toSources = (ids: string[]) => [...new Set(ids)].map((id) => toSource(id, recordMap, o.audience)).filter(Boolean) as SourceRef[];
 
   if (raw === null) {
     const sentences = extractive(passageIds, recordMap);

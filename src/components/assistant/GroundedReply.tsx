@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, BookOpen, ChevronDown, ExternalLink, FileText, Phone, SearchX, ShieldCheck } from "lucide-react";
-import type { GroundedAnswer } from "@/lib/rag/answer";
+import type { GroundedAnswer, SourceRef } from "@/lib/rag/answer";
 
 const T = {
   en: {
@@ -107,11 +108,13 @@ function SourceList({ answer, num, title, t }: { answer: GroundedAnswer; num: (i
         <li key={s.id}>
           <span className="source-num">{num(s.id) || "·"}</span>
           <div>
-            <strong>{s.kind === "record" ? <FileText size={12} /> : null} {s.title}</strong>
+            <strong>
+              {s.kind === "record" ? <FileText size={12} /> : null} <SourceTitle s={s} t={t} />
+            </strong>
             <small>
               {s.label} · <code>{s.id}</code>
               {s.statusLabel && <> · <em>{s.statusLabel}</em></>}
-              {s.url && s.url.startsWith("http") && (
+              {isExternal(s.url) && (
                 <> · <a href={s.url} target="_blank" rel="noopener noreferrer">{t.open} <ExternalLink size={10} /></a></>
               )}
             </small>
@@ -121,4 +124,27 @@ function SourceList({ answer, num, title, t }: { answer: GroundedAnswer; num: (i
       ))}
     </ol>
   );
+}
+
+const isExternal = (url?: string): url is string => Boolean(url && url.startsWith("http"));
+const isInternal = (url?: string): url is string => Boolean(url && url.startsWith("/"));
+
+// The source title is the link: external guidance opens the document in a new
+// tab, record sources navigate in-app to the page that shows that information.
+function SourceTitle({ s, t }: { s: SourceRef; t: (typeof T)["en"] }) {
+  if (isExternal(s.url)) {
+    return (
+      <a href={s.url} target="_blank" rel="noopener noreferrer" className="source-title-link">
+        {s.title} <ExternalLink size={11} aria-label={t.open} />
+      </a>
+    );
+  }
+  if (isInternal(s.url)) {
+    return (
+      <Link href={s.url} className="source-title-link">
+        {s.title}
+      </Link>
+    );
+  }
+  return <>{s.title}</>;
 }
