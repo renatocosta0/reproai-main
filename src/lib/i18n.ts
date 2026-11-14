@@ -15,6 +15,9 @@ export const STRINGS = {
   navPrivacy: { en: "Privacy & consent", ar: "الخصوصية والموافقة" },
   navLabel: { en: "YOUR JOURNEY", ar: "رحلتك" },
   individualMode: { en: "Individual mode", ar: "وضع فردي" },
+  individualWorkspace: { en: "Individual workspace", ar: "مساحة فردية" },
+  coupleWorkspace: { en: "Couple workspace", ar: "مساحة الزوجين" },
+  yourAccount: { en: "Your account", ar: "حسابك" },
   pairedWith: { en: "Paired with", ar: "مرتبط مع" },
   switchLanguage: { en: "العربية", ar: "English" },
   translationNotice: {

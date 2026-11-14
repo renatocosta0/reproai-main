@@ -27,9 +27,44 @@ const SUGGESTIONS: Record<string, string[]> = {
   default: ["When should we see a specialist?", "Who can see my information?"]
 };
 
+
+const S = {
+  en: {
+    eyebrow: "CITED GUIDANCE",
+    title: "Ask ReproAI",
+    subtitle: "Clear explanations for everyday questions, with your clinician always in the loop.",
+    assistantName: "ReproAI care assistant",
+    assistantSub: "Answers only from cited guidance and your released record",
+    hello: (name: string | null) => `Hello${name ? ` ${name}` : ""}. I can explain your released results and the guidance behind them in plain language. I only answer from the Thiqa and WHO guidance in my library and from your record, and I show the source for every sentence. If something isn't covered, I'll say so rather than guess. I don't diagnose.`,
+    englishSources: "",
+    thinking: "ReproAI is thinking",
+    unavailable: "The assistant isn't available yet: your clinic hasn't enabled it. Your question has been kept so you can send it later.",
+    placeholder: "Ask a question about your journey…",
+    yourQuestion: "Your question",
+    send: "Send",
+    disclaimer: "Educational guidance only. ReproAI does not replace advice from your clinical team."
+  },
+  ar: {
+    eyebrow: "إرشادات موثّقة المصادر",
+    title: "اسأل ReproAI",
+    subtitle: "شرح واضح للأسئلة اليومية، مع إشراك طبيبك دائمًا.",
+    assistantName: "مساعد الرعاية من ReproAI",
+    assistantSub: "يجيب فقط من الإرشادات الموثّقة ومن سجلك المعتمد",
+    hello: (name: string | null) => `مرحبًا${name ? ` ${name}` : ""}. يمكنني أن أشرح نتائجك المعتمدة والإرشادات التي تستند إليها بلغة واضحة. أجيب فقط من إرشادات ضمان ثقة ومنظمة الصحة العالمية في مكتبتي ومن سجلك، وأُظهر المصدر لكل جملة. إذا لم يكن الأمر مشمولًا، سأقول ذلك بدل التخمين. ولا أقدّم تشخيصًا.`,
+    englishSources: "المصادر بالإنجليزية فقط، لذا قد لا أجيب عن الأسئلة المكتوبة بالعربية. جرّب طرح السؤال بالإنجليزية.",
+    thinking: "ReproAI يفكّر",
+    unavailable: "المساعد غير متاح بعد لأن عيادتك لم تفعّله. احتفظنا بسؤالك لترسله لاحقًا.",
+    placeholder: "اطرح سؤالًا عن رحلتك…",
+    yourQuestion: "سؤالك",
+    send: "إرسال",
+    disclaimer: "إرشادات تثقيفية فقط. لا يغني ReproAI عن نصيحة فريقك الطبي."
+  }
+};
+
 export default function AssistantPage() {
   const { data } = usePatient();
   const { locale } = useLocale();
+  const L = S[locale];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -128,9 +163,9 @@ export default function AssistantPage() {
     <div className="content patient-content assistant-page has-history">
       <div className="page-heading">
         <div>
-          <p className="date-label">CITED GUIDANCE</p>
-          <h1>Ask ReproAI</h1>
-          <span>Clear explanations for everyday questions, with your clinician always in the loop.</span>
+          <p className="date-label">{L.eyebrow}</p>
+          <h1>{L.title}</h1>
+          <span>{L.subtitle}</span>
         </div>
       </div>
       <div className={`assistant-layout${panel.open ? " history-open" : ""}`}>
@@ -153,9 +188,9 @@ export default function AssistantPage() {
             <Sparkles size={21} />
           </div>
           <span>
-            <strong>ReproAI care assistant</strong>
+            <strong>{L.assistantName}</strong>
             <small>
-              <i /> Answers only from cited guidance and your released record
+              <i /> {L.assistantSub}
             </small>
           </span>
           <ChatHistoryActions
@@ -170,9 +205,8 @@ export default function AssistantPage() {
           <div className="message ai">
             <div className="mini-orb"><Sparkles size={13} /></div>
             <div>
-              Hello{name ? ` ${name}` : ""}. I can explain your released results and the guidance behind them in plain
-              language. I only answer from the Thiqa and WHO guidance in my library and from your record, and I show the
-              source for every sentence. If something isn&apos;t covered, I&apos;ll say so rather than guess. I don&apos;t diagnose.
+              {L.hello(name ?? null)}
+              {L.englishSources && <p className="muted-note" style={{ marginTop: 8 }}>{L.englishSources}</p>}
             </div>
           </div>
           {messages.map((m, i) =>
@@ -199,19 +233,18 @@ export default function AssistantPage() {
           {sending && (
             <div className="message ai">
               <div className="mini-orb"><Sparkles size={13} /></div>
-              <div className="typing" aria-label="ReproAI is thinking"><i /><i /><i /></div>
+              <div className="typing" aria-label={L.thinking}><i /><i /><i /></div>
             </div>
           )}
           <div ref={endRef} />
         </div>
         {unavailable && (
           <div className="assistant-unavailable" role="alert">
-            The assistant isn&apos;t available yet: your clinic hasn&apos;t enabled it. Your question has been kept so
-            you can send it later.
+            {L.unavailable}
           </div>
         )}
         {messages.length === 0 && !opening && (
-          <div className="suggestions">
+          <div className="suggestions" lang="en" dir="ltr">
             {suggestions.map((s) => (
               <button key={s} type="button" onClick={() => void ask(s)} disabled={sending}>
                 {s}
@@ -223,16 +256,16 @@ export default function AssistantPage() {
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Ask a question about your journey…"
-            aria-label="Your question"
+            placeholder={L.placeholder}
+            aria-label={L.yourQuestion}
             maxLength={2000}
           />
-          <button disabled={sending || !text.trim()} aria-label="Send">
-            <Send size={17} />
+          <button disabled={sending || !text.trim()} aria-label={L.send}>
+            <Send size={17} className="flip-rtl" />
           </button>
         </form>
         <div className="assistant-disclaimer">
-          <ShieldCheck size={13} /> Educational guidance only. ReproAI does not replace advice from your clinical team.
+          <ShieldCheck size={13} /> {L.disclaimer}
         </div>
       </section>
       </div>
