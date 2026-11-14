@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, Languages } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -41,6 +41,11 @@ const UI = {
       "The assistants never calculate estimates; they explain recorded and released information and cite their sources."
     ],
     evidenceNote: "Clinicians can see live panel measures, a labelled simulation and the assistant evaluation on the Evidence & safety page.",
+    assistant: "The assistant (explains, never scores)",
+    assistantBody: (model: string, provider: string) =>
+      `Questions in the app are answered by ${model} (${provider}), grounded on ReproAI's cited guidance library and the patient's released record. Every sentence must cite a source and anything that cannot be verified is removed. The assistant never calculates estimates. If the model is unavailable, the cited passages are shown as written and labelled as such.`,
+    assistantUnavailable: "No assistant model is configured on this deployment.",
+    providerNames: { azure: "Azure OpenAI (Microsoft Foundry)", groq: "Groq", none: "not configured" } as Record<string, string>,
     footer: "Prototype for the Abu Dhabi Future Health Digital Innovation Challenge (Challenge 02, Fertility). Not clinically validated and not a diagnostic device."
   },
   ar: {
@@ -76,6 +81,11 @@ const UI = {
       "لا يحسب المساعدان أي تقدير أبدًا؛ بل يشرحان المعلومات المسجّلة والمعتمدة ويذكران مصادرها."
     ],
     evidenceNote: "يمكن للأطباء رؤية مقاييس حية للوحة، ومحاكاة موسومة، وتقييم المساعد في صفحة الأدلة والسلامة.",
+    assistant: "المساعد (يشرح ولا يحسب)",
+    assistantBody: (model: string, provider: string) =>
+      `تُجاب أسئلة التطبيق عبر ${model} (${provider}) مستندةً إلى مكتبة الإرشادات الموثّقة في ReproAI وسجل المريض المعتمد. يجب أن تذكر كل جملة مصدرها، وما لا يمكن التحقق منه يُزال. لا يحسب المساعد أي تقدير أبدًا. وعند تعذّر توفّر النموذج تُعرض المقتطفات الموثّقة كما هي مع الإشارة إلى ذلك.`,
+    assistantUnavailable: "لا يوجد نموذج مساعد مُهيأ في هذا النشر.",
+    providerNames: { azure: "Azure OpenAI (مايكروسوفت فاوندري)", groq: "Groq", none: "غير مُهيأ" } as Record<string, string>,
     footer: "نموذج أولي لتحدي أبوظبي للابتكار الرقمي في الصحة المستقبلية (التحدي 02، الخصوبة). لم يُتحقق منه سريريًا وليس جهازًا تشخيصيًا."
   }
 };
@@ -86,6 +96,22 @@ export function ModelCardView({ info }: { info: ModelInfo | null }) {
   const t = UI[locale];
   // Arabic text comes from the service too; fall back to English if an older service has none.
   const a = ar && info?.ar ? info.ar : null;
+
+  // Live assistant provider and model for the transparency section.
+  // Read from /api/azure/status so the card never hardcodes a model name.
+  const [llm, setLlm] = useState<{ provider: string; model: string | null } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/azure/status")
+      .then((r) => r.json())
+      .then((d: { llm?: { provider: string; model: string | null } }) => {
+        if (alive && d?.llm) setLlm(d.llm);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <div className="landing model-card">
@@ -189,6 +215,16 @@ export function ModelCardView({ info }: { info: ModelInfo | null }) {
               <List items={t.safeguardList} />
               <p className="mc-note">{t.evidenceNote}</p>
             </Section>
+
+            {llm ? (
+              <Section title={t.assistant}>
+                <p>
+                  {llm.provider !== "none" && llm.model
+                    ? t.assistantBody(llm.model, t.providerNames[llm.provider] ?? llm.provider)
+                    : t.assistantUnavailable}
+                </p>
+              </Section>
+            ) : null}
           </>
         )}
       </main>
