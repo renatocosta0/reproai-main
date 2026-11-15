@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReproAI · evidence pack</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --paper: #f5f5f5; --ink: #2d3142; --muted: #4f5d75; --soft: #5a6580;
+      --accent: #bf4520; --work: #2f7d4f; --partial: #a8641a; --proposed: #8a8f9e;
+      --sans: 'Geist', system-ui, sans-serif;
+      --serif: 'Instrument Serif', serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family: var(--sans); background: var(--paper); color: var(--ink); padding: 3rem 2rem; }
+    .sheet { max-width: 1280px; margin: 0 auto 4rem; }
+    .eyebrow { font-family: var(--mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+    h2 { font-family: var(--serif); font-size: clamp(1.4rem, 2vw + 0.7rem, 2.1rem); font-weight: 400;
+      letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .standfirst { font-size: 0.86rem; line-height: 1.5; color: var(--muted); max-width: 78ch; margin-bottom: 1.4rem; }
+    .rule { height: 1px; background: rgba(45,49,66,0.12); margin: 0 0 1.25rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--soft); text-align: left; padding: 0 0.9rem 0.5rem; font-weight: 500; }
+    tbody tr { border-top: 1px solid rgba(45,49,66,0.10); }
+    tbody tr:nth-child(even) { background: rgba(45,49,66,0.02); }
+    td { padding: 0.7rem 0.9rem; vertical-align: top; line-height: 1.45; color: var(--muted); }
+    td:first-child { white-space: nowrap; }
+    .layer { font-weight: 600; color: var(--ink); font-size: 0.84rem; }
+    .num { font-family: var(--mono); font-size: 0.62rem; color: var(--soft); letter-spacing: 0.1em; }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.45rem;
+      vertical-align: 0.03em; flex: none; }
+    .dot.work { background: var(--work); }
+    .dot.partial { background: var(--partial); }
+    .dot.proposed { background: var(--proposed); }
+    .pill { display: inline-flex; align-items: center; white-space: nowrap; font-family: var(--mono);
+      font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.16rem 0.5rem;
+      border-radius: 3px; border: 1px solid; }
+    .pill.work { color: var(--work); border-color: rgba(47,125,79,0.45); background: rgba(47,125,79,0.06); }
+    .pill.partial { color: var(--partial); border-color: rgba(168,100,26,0.45); background: rgba(168,100,26,0.06); }
+    .pill.proposed { color: #6f7483; border-color: rgba(138,143,158,0.5); background: rgba(138,143,158,0.07); }
+    .caveat { font-size: 0.74rem; color: var(--soft); }
+
+    .legend { display: flex; gap: 1.6rem; flex-wrap: wrap; margin-top: 1.1rem;
+      font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.06em; color: var(--soft); }
+    .legend span { display: inline-flex; align-items: center; }
+
+    /* roadmap */
+    .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .phase { background: #fff; border: 1px solid rgba(45,49,66,0.12); border-radius: 6px;
+      padding: 1rem 1rem 0; display: flex; flex-direction: column; min-height: 15rem; }
+    .phase.now { background: #2d3142; border-color: #2d3142; color: var(--ink); }
+    .phase.now .phase-title, .phase.now .phase-body { color: #f5f5f5; }
+    .phase-head { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.6rem; }
+    .phase-num { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.12em; color: var(--accent); }
+    .phase-tag { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.12em; color: var(--soft); text-transform: uppercase; }
+    .phase.now .phase-tag { color: #9aa0b4; }
+    .phase-title { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 0.5rem; }
+    .phase-body { font-size: 0.76rem; line-height: 1.5; color: var(--muted); flex: 1; }
+    .gate { margin: 0 -1rem; padding: 0.7rem 1rem 0.9rem; border-top: 1px solid rgba(45,49,66,0.10);
+      background: rgba(47,125,79,0.07); border-radius: 0 0 6px 6px; }
+    .gate-label { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.12em; color: var(--work);
+      text-transform: uppercase; display: block; margin-bottom: 0.25rem; }
+    .gate-text { font-size: 0.72rem; line-height: 1.4; color: var(--ink); font-weight: 500; }
+    .phase.now .gate { background: rgba(47,125,79,0.16); border-top-color: rgba(245,245,245,0.15); }
+    .phase.now .gate-text { color: #f5f5f5; }
+    .phase.now .gate-label { color: #6fce93; }
+
+    footer { max-width: 1280px; margin: 0 auto; padding-top: 0.75rem; border-top: 1px solid rgba(45,49,66,0.12);
+      display: flex; justify-content: space-between; gap: 1rem; font-family: var(--mono); font-size: 0.6rem;
+      letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+    @media print {
+      body { padding: 0; }
+      .sheet { page-break-after: always; margin-bottom: 0; }
+      .sheet:last-of-type { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Figure A ──────────────────────────────────────────────────────── -->
+<section class="sheet">
+  <p class="eyebrow">Evidence · Runs in prototype · Not clinically validated</p>
+  <h2>From prototype stack to production stack</h2>
+  <p class="standfirst">Eight layers, each with the honest gap between what is built and what a hospital deployment would require. Nothing on the right column is claimed as done.</p>
+  <div class="rule"></div>
+
+  <table>
+    <thead>
+      <tr><th style="width:16%">Layer</th><th style="width:42%">Prototype today</th><th style="width:42%">Production candidate</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="layer">Interface</span></td>
+        <td><span class="dot work"></span>Bilingual portal (EN/AR) and clinician panel; demo sign-in</td>
+        <td>Accessible web app, right-to-left Arabic, hospital SSO over OIDC</td>
+      </tr>
+      <tr>
+        <td><span class="layer">Orchestration</span></td>
+        <td><span class="dot work"></span>Next.js server actions on Vercel; gated assessment flow</td>
+        <td>Durable workflow engine: typed state, checkpoints, replay</td>
+      </tr>
+      <tr>
+        <td><span class="layer">Measurement</span></td>
+        <td><span class="dot work"></span>Deterministic scoring model and pathway rules; per-factor Shapley</td>
+        <td>Versioned, tested scoring; UAE local norms; validated thresholds</td>
+      </tr>
+      <tr>
+        <td><span class="layer">Language models</span></td>
+        <td><span class="dot partial"></span>Azure OpenAI gpt-5-mini, UAE North; schema-checked, citation-verified</td>
+        <td>Approved in-region endpoint; regional inference; DLP on prompts</td>
+      </tr>
+      <tr>
+        <td><span class="layer">Evidence</span></td>
+        <td><span class="dot partial"></span>Curated corpus (Thiqa, WHO, ESHRE); passage-level citations verified</td>
+        <td>Clinician-approved corpus; reviewed citations; versioned change log</td>
+      </tr>
+      <tr>
+        <td><span class="layer">Integration</span></td>
+        <td><span class="dot proposed"></span>No EHR connection; clinician enters data; FHIR R4 export</td>
+        <td>Authorised record API (FHIR where supported); partner agreement</td>
+      </tr>
+      <tr>
+        <td><span class="layer">Oversight</span></td>
+        <td><span class="dot work"></span>Clinician creates, releases or discards; DRAFT state; audit trail</td>
+        <td>Authenticated sign-off; staffed review queue; incident and rollback log</td>
+      </tr>
+      <tr>
+        <td><span class="layer">Operations</span></td>
+        <td><span class="dot work"></span>Neon Postgres, AES-256-GCM at rest; consent enforced in the API</td>
+        <td>Agreed hosting and data residency; monitoring, retention, rollback</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="legend">
+    <span><i class="dot work"></i> Working · exercised end to end</span>
+    <span><i class="dot partial"></i> Partial · documented gap</span>
+    <span><i class="dot proposed"></i> Not built</span>
+  </div>
+</section>
+
+<!-- ── Figure B ──────────────────────────────────────────────────────── -->
+<section class="sheet">
+  <p class="eyebrow">Evidence · Brief coverage</p>
+  <h2>What each requirement actually gets</h2>
+  <p class="standfirst">The six brief requirements, what runs against each, and the caveat that limits the claim. The caveat column is the point: a requirement without one would be a claim we cannot support.</p>
+  <div class="rule"></div>
+
+  <table>
+    <thead>
+      <tr><th style="width:5%">#</th><th style="width:20%">Requirement</th><th style="width:36%">What runs</th><th style="width:16%">Status</th><th style="width:23%">Caveat</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="num">R1</span></td>
+        <td><span class="layer">Longitudinal view</span></td>
+        <td>Per-marker trajectories (AMH, AFC, semen) against reference limits and the person's first result, with direction-of-change wording</td>
+        <td><span class="pill work">Working in demo</span></td>
+        <td class="caveat">Limits are published values; no UAE local norms yet</td>
+      </tr>
+      <tr>
+        <td><span class="num">R2</span></td>
+        <td><span class="layer">Plain language, evidence, missing data</span></td>
+        <td>Missing required inputs stop the assessment and name what is missing; per-factor Shapley; provenance on every value</td>
+        <td><span class="pill work">Working in demo</span></td>
+        <td class="caveat">Intervals come from synthetic calibration</td>
+      </tr>
+      <tr>
+        <td><span class="num">R3</span></td>
+        <td><span class="layer">Timely, personalised options</span></td>
+        <td>Deterministic pathway rules with IDs and citations; every option states why and its source</td>
+        <td><span class="pill work">Working in demo</span></td>
+        <td class="caveat">Cites guidance; no outcome evidence that the options change outcomes</td>
+      </tr>
+      <tr>
+        <td><span class="num">R4</span></td>
+        <td><span class="layer">Clinician and system usefulness</span></td>
+        <td>Case record, follow-up board, cohort dashboard, evidence dashboard, FHIR R4 export</td>
+        <td><span class="pill work">Working in demo</span></td>
+        <td class="caveat">Single tenant; cross-clinic system view is proposed</td>
+      </tr>
+      <tr>
+        <td><span class="num">R5</span></td>
+        <td><span class="layer">Privacy, non-discrimination, control</span></td>
+        <td>Per-purpose consent enforced in the API and audited; clinicians scoped to their own panel; no open sign-up</td>
+        <td><span class="pill work">Working in demo</span></td>
+        <td class="caveat">Deployment authentication is demo-only, not SSO</td>
+      </tr>
+      <tr>
+        <td><span class="num">R6</span></td>
+        <td><span class="layer">Evidence of earlier action</span></td>
+        <td>Live panel measures from the audit log with Wilson 95% intervals: signal to appointment, referral follow-through, review turnaround</td>
+        <td><span class="pill work">Working in demo</span> <span class="pill partial">Cohort simulated</span></td>
+        <td class="caveat">No pilot data yet; the cohort check is synthetic</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="legend">
+    <span><i class="dot work"></i> Working in demo</span>
+    <span><i class="dot partial"></i> Simulated or partial</span>
+  </div>
+</section>
+
+<!-- ── Figure C ──────────────────────────────────────────────────────── -->
+<section class="sheet">
+  <p class="eyebrow">Evidence · Path to pilot</p>
+  <h2>Roadmap to a clinical pilot</h2>
+  <p class="standfirst">Four phases. Each has an exit gate that must be met before the next begins — so readiness is a test, not an opinion.</p>
+  <div class="rule"></div>
+
+  <div class="phases">
+    <div class="phase now">
+      <div class="phase-head"><span class="phase-num">01</span><span class="phase-tag">Now</span></div>
+      <p class="phase-title">Research prototype</p>
+      <p class="phase-body">Gated assessment, deterministic scoring with Shapley, citation-verified answers, encryption at rest, bilingual portal.</p>
+      <div class="gate">
+        <span class="gate-label">Exit gate</span>
+        <p class="gate-text">Inspectable flow and tested failure paths</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head"><span class="phase-num">02</span><span class="phase-tag">Co-design</span></div>
+      <p class="phase-title">Arabic and clinical review</p>
+      <p class="phase-body">Native-speaking clinician review of every Arabic string and passage; UAE reference limits; accessibility audit.</p>
+      <div class="gate">
+        <span class="gate-label">Exit gate</span>
+        <p class="gate-text">Arabic retrieval and copy accepted by a reviewing clinician</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head"><span class="phase-num">03</span><span class="phase-tag">Validate</span></div>
+      <p class="phase-title">Measurement and change criteria</p>
+      <p class="phase-body">Prospective accuracy against local norms, abstention rate, citation validity and performance by subgroup — all prespecified.</p>
+      <div class="gate">
+        <span class="gate-label">Exit gate</span>
+        <p class="gate-text">Prespecified accuracy met by subgroup</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head"><span class="phase-num">04</span><span class="phase-tag">Pilot</span></div>
+      <p class="phase-title">Controlled clinical pilot</p>
+      <p class="phase-body">Authorised data links, staffed review queue, incident handling, rollback, agreed hosting and data residency.</p>
+      <div class="gate">
+        <span class="gate-label">Exit gate</span>
+        <p class="gate-text">Safety, referral burden, time to assessment</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>reproai · evidence pack · prototype</span>
+  <span>claims labelled · gaps stated · no clinical validation claimed</span>
+</footer>
+
+</body>
+</html>
