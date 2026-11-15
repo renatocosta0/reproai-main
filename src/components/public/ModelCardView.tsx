@@ -38,7 +38,8 @@ const UI = {
       "Patients never see an estimate until a clinician has reviewed and released it, and then see a tier and percentile rather than the probability.",
       "Lab values are entered or verified by clinicians and carry their source and date; patients cannot write lab values.",
       "Every estimate is stored with the exact inputs and model version that produced it.",
-      "The assistants never calculate estimates; they explain recorded and released information and cite their sources."
+      "The assistants never calculate estimates; they explain recorded and released information and cite their sources.",
+      "Sensitive data at rest (patient names, medical history, clinician notes, model inputs and factors) is encrypted with AES-256-GCM via the database ORM layer."
     ],
     evidenceNote: "Clinicians can see live panel measures, a labelled simulation and the assistant evaluation on the Evidence & safety page.",
     assistant: "The assistant (explains, never scores)",
@@ -78,7 +79,8 @@ const UI = {
       "لا يرى المرضى أي تقدير قبل أن يراجعه الطبيب ويعتمده، ثم يرون فئة ونسبة مئوية بدل الاحتمال.",
       "يُدخل الأطباء قيم المختبر أو يتحققون منها، وتحمل مصدرها وتاريخها؛ ولا يمكن للمرضى إدخال قيم مخبرية.",
       "يُحفظ كل تقدير مع مُدخلاته الدقيقة وإصدار النموذج الذي أنتجه.",
-      "لا يحسب المساعدان أي تقدير أبدًا؛ بل يشرحان المعلومات المسجّلة والمعتمدة ويذكران مصادرها."
+      "لا يحسب المساعدان أي تقدير أبدًا؛ بل يشرحان المعلومات المسجّلة والمعتمدة ويذكران مصادرها.",
+      "تُشفَّر البيانات الحساسة المحفوظة (أسماء المرضى، السجل الطبي، ملاحظات الأطباء، مُدخلات النموذج وعوامله) بخوارزمية AES-256-GCM عبر طبقة إدارة قاعدة البيانات."
     ],
     evidenceNote: "يمكن للأطباء رؤية مقاييس حية للوحة، ومحاكاة موسومة، وتقييم المساعد في صفحة الأدلة والسلامة.",
     assistant: "المساعد (يشرح ولا يحسب)",

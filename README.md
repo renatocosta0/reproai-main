@@ -188,7 +188,7 @@ Check everything is up with `curl http://localhost:8000/health` and `curl http:/
 | `DIRECT_URL` | Yes | Direct PostgreSQL connection string used by Prisma for schema changes |
 | `AUTH_SECRET` | Yes | Secret used to sign session JWTs |
 | `ML_API_URL` | Yes | Base URL of the ML service, `http://localhost:8000` locally |
-| `ENCRYPTION_KEY` | No | 32-byte base64 key for field encryption (see [Roadmap](#roadmap)) |
+| `ENCRYPTION_KEY` | Yes | 32-byte base64 key for AES-256-GCM field encryption at rest |
 | `SESSION_COOKIE` | No | Session cookie name, default `reproai_session` |
 | `IVF_CYCLE_COST` | No | Cost per IVF cycle in USD for the savings estimate, default `12000` |
 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION` | No | Preferred assistant provider |
@@ -313,9 +313,8 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 
 See the [open issues](https://github.com/renatocosta0/reproai-main/issues) for the full list. Known next steps:
 
-- Send invitation and pairing emails instead of copy-and-share links
-- Apply `src/lib/encryption.ts` to sensitive fields at rest
-- Malaffi import of verified results; screening-programme invitations (premarital, IFHAS) and a TAMM entry point
+- Send invitation and pairing emails / SMS via UAE Pass instead of copy-and-share links
+- Malaffi live API ingestion (FHIR R4); screening-programme invitations (premarital, IFHAS) and a TAMM entry point
 - Real-world calibration and external validation before any probability is shown outside clinician review
 - Replace the SQLite-era migration history with a PostgreSQL baseline migration
 - Automated tests (Vitest is installed) and CI for the new UI
