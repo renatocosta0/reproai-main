@@ -441,6 +441,7 @@ def model_info():
             "WHO Laboratory Manual for the Examination of Human Semen, 6th ed. (2021)",
             "ESHRE ovarian stimulation and preservation guidelines (2020-2023); POSEIDON criteria",
             "Bhattacharya et al. (2021) meta-analysis of live-birth predictors",
+            "Daman Thiqa ART Adjudication Guideline v3.6 (2025) for local clinical pathways and reserve thresholds",
         ],
         "evidence_status": EVIDENCE_STATUS,
         "performance_claims": "None. Not trained or validated on patient data.",
