@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { ArrowLeft, Languages } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { TourBar } from "@/components/tour/TourBar";
 import { useLocale } from "@/components/i18n/LocaleContext";
 
 type Status = "live" | "simulated" | "proposed";
@@ -45,7 +46,7 @@ const REQUIREMENTS: Requirement[] = [
           en: "AMH, antral follicle count and semen parameters charted over time against reference limits and the person's first result, with direction-of-change wording.",
           ar: "هرمون AMH وعدد الجريبات الغارية ومؤشرات السائل المنوي على مخطط عبر الزمن مقابل الحدود المرجعية وأول نتيجة للشخص، مع وصف لاتجاه التغيّر."
         },
-        where: { label: step("8", { en: "Reem", ar: "ريم" }), href: "/tour" }
+        where: { label: step("1", { en: "Nadia", ar: "نادية" }), href: "/tour" }
       },
       {
         status: "live",
@@ -81,7 +82,7 @@ const REQUIREMENTS: Requirement[] = [
           en: "A missing required input (AMH or semen analysis) stops the assessment and names what is needed; nothing is guessed.",
           ar: "غياب مُدخل مطلوب (AMH أو تحليل السائل المنوي) يوقف التقييم ويحدد ما ينقص، ولا يُخمَّن شيء."
         },
-        where: { label: step("4", { en: "Layla", ar: "ليلى" }), href: "/tour" }
+        where: { label: step("5", { en: "Layla", ar: "ليلى" }), href: "/tour" }
       },
       {
         status: "live",
@@ -105,7 +106,7 @@ const REQUIREMENTS: Requirement[] = [
           en: "Assistants that cite a source for every sentence and say \"not in ReproAI's guidance\" otherwise.",
           ar: "مساعدان يذكران مصدرًا لكل جملة، ويقولان «غير موجود في إرشادات ReproAI» عند عدم التغطية."
         },
-        where: { label: step("6"), href: "/tour" }
+        where: { label: step("4"), href: "/tour" }
       }
     ]
   },
@@ -123,7 +124,7 @@ const REQUIREMENTS: Requirement[] = [
           en: "Deterministic rules with IDs and citations (Daman Thiqa ART guideline, WHO): red flags, referral by time trying and age, ovarian-reserve and semen testing, preservation discussion including the Thiqa social egg-freezing pathway, preconception counselling, weight, smoking, sleep.",
           ar: "قواعد ثابتة برموز ومصادر (دليل ضمان ثقة للمساعدة على الإنجاب، ومنظمة الصحة العالمية): علامات تحذيرية، والإحالة حسب مدة المحاولة والعمر، وفحص مخزون المبيض والسائل المنوي، ونقاش حفظ الخصوبة بما في ذلك مسار ثقة لتجميد البويضات الاجتماعي، والاستشارة قبل الحمل، والوزن، والتدخين، والنوم."
         },
-        where: { label: { en: "Tour steps 8, 10, 11", ar: "الخطوات 8 و10 و11 في الجولة" }, href: "/tour" }
+        where: { label: { en: "Tour steps 1 and 9", ar: "الخطوتان 1 و9 في الجولة" }, href: "/tour" }
       },
       {
         status: "live",
@@ -152,7 +153,7 @@ const REQUIREMENTS: Requirement[] = [
           en: "Clinicians see only the people they prescribed: a case record with verified labs, intake, triggered rules, history, a workflow strip, FHIR R4 export and a printable case report.",
           ar: "يرى الأطباء فقط من وصفوا لهم الخدمة: سجل حالة بنتائج مختبر موثّقة، والاستبيان، والقواعد المفعّلة، والتاريخ، وشريط سير العمل، وتصدير FHIR R4، وتقرير حالة قابل للطباعة."
         },
-        where: { label: { en: "Tour steps 1 and 3", ar: "الخطوتان 1 و3 في الجولة" }, href: "/tour" }
+        where: { label: { en: "Tour steps 2 and 6", ar: "الخطوتان 2 و6 في الجولة" }, href: "/tour" }
       },
       {
         status: "live",
@@ -167,7 +168,7 @@ const REQUIREMENTS: Requirement[] = [
           en: "Population insight: groups who would benefit from earlier advice, named for the clinician's own panel and anonymous service-wide with small groups suppressed.",
           ar: "رؤى على مستوى السكان: مجموعات تستفيد من المشورة المبكرة، بالأسماء لمرضى الطبيب نفسه، ومجهولة الهوية على مستوى الخدمة مع إخفاء الفئات الصغيرة."
         },
-        where: { label: step("2"), href: "/tour" }
+        where: { label: step("3"), href: "/tour" }
       },
       {
         status: "proposed",
@@ -191,13 +192,12 @@ const REQUIREMENTS: Requirement[] = [
         text: {
           en: "Five separate consents (care-team access, lab results, wearables, partner sharing, anonymous statistics), changeable at any time, enforced in the API and audit-logged.",
           ar: "خمس موافقات منفصلة (اطلاع فريق الرعاية، ونتائج المختبر، والأجهزة القابلة للارتداء، والمشاركة مع الشريك، والإحصاءات المجهولة)، قابلة للتغيير في أي وقت، ويطبّقها النظام ويسجّلها."
-        },
-        where: { label: step("12"), href: "/tour" }
+        }
       },
       {
         status: "live",
         text: { en: "Withdrawing care-team access hides results and blocks assessments.", ar: "سحب إذن اطلاع فريق الرعاية يُخفي النتائج ويوقف التقييمات." },
-        where: { label: step("5", { en: "Omar", ar: "عمر" }), href: "/tour" }
+        where: { label: step("5"), href: "/tour" }
       },
       {
         status: "live",
@@ -229,7 +229,7 @@ const REQUIREMENTS: Requirement[] = [
           en: "Panel measures from the app's own records with Wilson 95% intervals: time from signal to appointment, referral follow-through, baseline coverage, review turnaround, by sex and age group.",
           ar: "مقاييس من سجلات التطبيق نفسه مع نطاقات ويلسون بنسبة 95%: الوقت من الإشارة إلى الموعد، ومتابعة الإحالات، وتغطية خط الأساس، وسرعة المراجعة، حسب الجنس والفئة العمرية."
         },
-        where: { label: step("7"), href: "/tour" }
+        where: { label: step("8"), href: "/tour" }
       },
       {
         status: "live",
@@ -398,6 +398,8 @@ export function Coverage() {
       <footer className="landing-footer">
         <p>{t.footer}</p>
       </footer>
+      {/* Public page: keep the guided-demo bar reachable while the tour is running (tour step: scope). */}
+      <TourBar />
     </div>
   );
 }

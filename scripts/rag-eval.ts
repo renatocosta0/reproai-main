@@ -161,7 +161,7 @@ async function main() {
         : null,
     caveats: [
       "Questions were written by the ReproAI team, not collected from patients or clinicians.",
-      "Headline figures are for English questions. The guidance corpus is English only; Arabic questions are measured separately.",
+      "Headline figures are for English questions. The guidance corpus is English only; Arabic questions are mapped to English corpus terms at retrieval time (src/lib/rag/arabic.ts) and reported separately.",
       "Abstention thresholds were tuned on this same set, so retrieval figures are optimistic.",
       "End-to-end figures depend on the LLM provider and model and vary between runs.",
       "Sentence support is checked automatically (numbers, wording, quotes, LLM judge); it has not been reviewed by clinicians."

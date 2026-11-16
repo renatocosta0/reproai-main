@@ -9,12 +9,15 @@ import { api, userMessage } from "@/lib/api-client";
 import { pct, tierCopy } from "@/lib/tiers";
 import { TIER_AR } from "@/lib/i18n";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { clearDraftNote, readDraftNote } from "@/lib/draft-note";
 import type { AssessmentView } from "@/types/record";
 import { DISCARD_REASONS, type DiscardReason } from "@/lib/review-reasons";
 
 /** One assessment: inputs with provenance, result, factors and, for drafts, the clinician review. */
 export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () => void }) {
-  const [note, setNote] = useState("");
+  // A draft note proposed by the agent (approved in the assistant) is offered
+  // here as a starting point; the clinician can edit it before releasing.
+  const [note, setNote] = useState(() => (a.status === "DRAFT" ? readDraftNote() ?? "" : ""));
   const [busy, setBusy] = useState<"RELEASE" | "DISCARD" | null>(null);
   const [error, setError] = useState("");
   const [discarding, setDiscarding] = useState(false);
@@ -28,6 +31,7 @@ export function ReviewCard({ a, onChanged }: { a: AssessmentView; onChanged: () 
     setError("");
     try {
       await api(`/api/clinician/assessments/${a.id}`, { method: "PATCH", body: JSON.stringify({ action, note, reason: action === "DISCARD" ? reason : undefined }) });
+      if (action === "RELEASE") clearDraftNote();
       onChanged();
     } catch (err) {
       setError(userMessage(err, L.reviewError));

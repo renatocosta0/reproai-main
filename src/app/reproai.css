@@ -998,6 +998,11 @@
   color: #75837f;
   font-size: 14px;
 }
+.metric-label > .metric-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 .metric-label svg {
   visibility: hidden;
 }
@@ -1012,6 +1017,33 @@
   margin-top: 7px;
   color: #758783;
   font-size: 13px;
+}
+/* Tiles that drill through to a page: every statistic on the overview is a link. */
+a.metric-card {
+  display: block;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+a.metric-card:hover {
+  border-color: #c8d8d2;
+  box-shadow: 0 6px 18px rgba(24, 54, 50, 0.08);
+}
+a.metric-card:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+.metric-label .chev {
+  flex: none;
+  color: #a4b0ad;
+}
+a.metric-card:hover .metric-label svg,
+a.metric-card:focus-visible .metric-label svg {
+  visibility: visible;
 }
 .dashboard-grid {
   display: grid;
@@ -1061,16 +1093,33 @@
   display: flex;
   flex-direction: column;
 }
-.legend-list > div {
+.legend-list > * {
+  width: calc(100% + 20px);
   display: grid;
   grid-template-columns: 10px 1fr 25px 35px;
   align-items: center;
   gap: 10px;
-  padding: 14px 0;
-  border-bottom: 1px solid #edf1ef;
-}
-.legend-list > div:last-child {
+  margin: 0 -10px;
+  padding: 14px 10px;
   border: 0;
+  border-bottom: 1px solid #edf1ef;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+.legend-list > *:last-child {
+  border-bottom: 0;
+}
+.legend-list > *:hover {
+  background: #f6faf8;
+}
+.legend-list > *:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -1px;
 }
 .legend-list i {
   width: 7px;
@@ -1202,6 +1251,65 @@
   color: var(--teal);
   font-size: 14px;
   font-weight: 700;
+}
+/* Summary strip on /clinician/cases: each figure links to its own filtered view. */
+.cases-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.cases-summary a {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px 14px;
+  border: 1px solid #e1e8e4;
+  border-radius: 11px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cases-summary a:hover {
+  border-color: #c8d8d2;
+  box-shadow: 0 6px 18px rgba(24, 54, 50, 0.07);
+}
+.cases-summary a:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+.cases-summary a.is-active {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px rgba(31, 120, 108, 0.16);
+}
+.cases-summary strong {
+  color: #183632;
+  font: 700 24px var(--font-manrope), "Manrope", sans-serif;
+  letter-spacing: -0.04em;
+}
+.cases-summary span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #75837f;
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+.cases-summary i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.cases-summary i.mint {
+  background: #6eb7a4;
+}
+.cases-summary i.amber {
+  background: #e5b167;
+}
+.cases-summary i.coral {
+  background: #db776a;
 }
 .couples-panel {
   overflow: hidden;
@@ -2390,6 +2498,60 @@ td {
   font-size: 11px;
 }
 
+/* Governed agent action: propose → approve → audited follow-up */
+.proposal-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 28px 0;
+}
+.action-proposal {
+  margin: 14px 28px;
+  padding: 14px 16px;
+  border: 1px solid #dce7e2;
+  border-left: 3px solid var(--teal);
+  border-radius: 10px;
+  background: #f4f9f7;
+  color: #526560;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.action-proposal.approved {
+  border-left-color: #54a482;
+  background: #f1faf4;
+}
+.proposal-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  color: #3a504b;
+  font-size: 13px;
+}
+.proposal-head svg {
+  color: var(--teal);
+}
+.proposal-sub {
+  margin-bottom: 8px;
+  color: #3a504b;
+  font-weight: 600;
+}
+.proposal-rationale {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+.proposal-rationale li {
+  margin-bottom: 4px;
+}
+.action-proposal .field {
+  display: block;
+  margin-bottom: 10px;
+}
+.action-proposal .modal-actions {
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;
@@ -3306,6 +3468,12 @@ a.person-cell,
 a.plain-icon {
   color: inherit;
   text-decoration: none;
+}
+/* Couple / individual marker on the combined list at /clinician/cases */
+.type-cell {
+  color: #758783;
+  font-size: 12px;
+  text-transform: uppercase;
 }
 .couples-panel .panel-head {
   flex-wrap: wrap;

@@ -1,12 +1,14 @@
-// Retrieval over the grounding corpus: BM25 with light stemming and clinical
-// synonym expansion, plus a deterministic abstention rule. Retrieval always runs
-// before any generation; the LLM never decides whether to look things up.
+// Retrieval over the grounding corpus: BM25 with light stemming, clinical
+// synonym expansion, and Arabic → English term mapping (src/lib/rag/arabic.ts),
+// plus a deterministic abstention rule. Retrieval always runs before any
+// generation; the LLM never decides whether to look things up.
 //
 // If Azure AI Search is configured (AZURE_SEARCH_*), its results are used instead
 // and mapped to the same Passage shape, so the rest of the pipeline is unchanged.
 
 import { getAzureSearchConfig } from "@/lib/azure/config";
 import { PASSAGES, type Audience, type Passage } from "@/lib/rag/corpus";
+import { hasArabic, translateQueryPiece } from "@/lib/rag/arabic";
 
 export interface Hit {
   passage: Passage;
@@ -43,8 +45,8 @@ const SYNONYMS: Record<string, string[]> = {
   wife: ["female", "partner"],
   man: ["male"],
   men: ["male"],
-  woman: ["female"],
-  women: ["female"],
+  woman: ["female", "women"],
+  women: ["female", "woman"],
   egg: ["oocyte", "ovarian"],
   eggs: ["oocyte", "ovarian"],
   freezing: ["cryopreservation", "preservation", "storage"],
@@ -56,6 +58,9 @@ const SYNONYMS: Record<string, string[]> = {
   period: ["cycle", "amenorrhoea"],
   periods: ["cycle", "amenorrhoea"],
   irregular: ["amenorrhoea", "oligo"],
+  regular: ["irregular", "cycle"],
+  early: ["earlier", "sooner"],
+  reduced: ["low"],
   cancer: ["oncology", "chemotherapy"],
   chemo: ["chemotherapy", "oncology"],
   smoke: ["smoking", "tobacco"],
@@ -163,8 +168,19 @@ function bm25(query: Query, audience: Audience): Hit[] {
 function parseQuery(query: string): Query {
   const weights = new Map<string, number>();
   const groups: string[][] = [];
-  const raw = query.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 1 && !STOP.has(w));
+  // Split into ranking terms. Latin words are used as-is; Arabic words are
+  // mapped through the fixed lexicon in src/lib/rag/arabic.ts to the English
+  // corpus terms they carry, so an Arabic question ranks the same passages as
+  // its English equivalent. Unmapped Arabic words are kept as unmatched terms
+  // (they lower coverage, which supports honest abstention).
+  const raw: string[] = [];
+  for (const piece of query.split(/\s+/)) {
+    if (!piece) continue;
+    if (hasArabic(piece)) raw.push(...translateQueryPiece(piece));
+    else raw.push(...piece.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/));
+  }
   for (const w of raw) {
+    if (!w || w.length <= 1 || STOP.has(w)) continue;
     const t = stem(w);
     if (!t) continue;
     weights.set(t, 1);
