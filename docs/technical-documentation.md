@@ -139,6 +139,7 @@ Assessments are only created by a clinician from the record, never typed in by t
 - **Non-discrimination:** shown to every patient: reproductive information is never used for employment, insurance or decisions unrelated to care.
 - **Provenance:** every lab result and assessment input carries its source (clinician verified, self-reported, imported) and date.
 - **Audit:** logins, registrations, consent changes, lab entries, assessment runs, releases, discards, case views and follow-up transitions.
+- **Encryption at rest:** AES-256-GCM encryption with key rotation support (`ENCRYPTION_KEY`) hooked directly into the Prisma ORM layer (`src/lib/db.ts`), automatically encrypting patient names, medical history flags, clinician notes, assessment inputs/factors, follow-up notes, and chat transcripts before saving.
 - **Interoperability:** FHIR R4 export of `Patient`, `Observation` and `RiskAssessment` resources for a case or a person.
 
 ## 8. Assumptions
@@ -162,7 +163,7 @@ Assessments are only created by a clinician from the record, never typed in by t
 - **Arabic:** a prototype translation covering navigation, trajectory, options and consent; it needs review by a native-speaking clinician, and the intake, Today and tracking pages are still English-only.
 - **Wearables:** readings are logged or pasted; there is no certified device integration. Basal temperature is a weak, retrospective ovulation signal.
 - **Assistants:** depend on an external LLM provider and may be unavailable (they then show source passages as written). The corpus is small (about 40 passages) and English-only, so Arabic questions are usually refused (the evaluation measures this with 10 Arabic questions, reported separately on the Evidence page); the WHO 2025 passages come from WHO's announcement rather than the full guideline. Verification is automatic: the number, wording and quotation checks catch fabricated figures and off-source wording, but a sentence can reuse the source's words and still mislead, and the LLM judge can be wrong. The evaluation questions were written by the team and the thresholds were tuned on them, so its figures are optimistic.
-- **Data protection:** encryption at rest for sensitive fields is not yet applied (the helper exists); production would also need ADHICS-aligned hosting in the UAE.
+- **Data protection:** sensitive fields are encrypted at rest with AES-256-GCM via the Prisma ORM layer; production would also need ADHICS-aligned hosting in the UAE.
 - **Notifications:** invitation and pairing links are shown to copy; no email or SMS is sent.
 
 ## 10. Path to pilot (proposed for production)

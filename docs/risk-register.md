@@ -34,7 +34,7 @@ and a high residual risk needs a conformity assessment with DoH DDGO before and 
 | R5 | The assistant states something unsupported or wrong (hallucination) | Clinical safety, AI | 4×4 = 16 High | Retrieval before every answer; abstains when nothing relevant; every sentence must cite a passage; number, wording, quote and attribution checks; patients see only verified sentences; urgent-symptom fixed reply; evaluation on the Evidence page | 2×3 = 6 Medium | Clinician review of a sample of answers; expand the corpus only with real sources | Product owner | Open |
 | R6 | Arabic speakers get less help: the guidance corpus is English only, so most Arabic questions are refused; parts of the patient UI are English only | Equity | 5×3 = 15 High | Refusal rather than an unsourced answer; Arabic measured and shown on the Evidence page *(PR #11)*; Arabic UI in both portals for most screens | 5×2 = 10 High | Translate and clinically review the corpus; finish Arabic for intake and tracking pages; native-speaking clinician review of all Arabic | Product owner | Open |
 | R7 | Unequal performance across groups cannot be detected: nationality and language are not recorded; live samples are small | Equity | 4×3 = 12 High | Evidence page reports by sex and age group and warns that small groups are unstable; no fairness claim made | 4×2 = 8 Medium | Record nationality and language with consent; subgroup reporting in the pilot | Data scientist | Open |
-| R8 | Personal health data is exposed from the database: no encryption at rest | Privacy, security | 3×5 = 15 High | Role-based access in middleware and every route; clinicians limited to their own cases; consent checks; audit log; TLS in transit | 3×4 = 12 High | Encrypt sensitive fields at rest with managed keys, one key shared by all environments (3.1.4.4.2) | Engineering lead | Open |
+| R8 | Personal health data is exposed from the database | Privacy, security | 3×5 = 15 High | Role-based access in middleware and every route; clinicians limited to their own cases; consent checks; audit log; TLS in transit; AES-256-GCM encryption at rest on all sensitive fields (name, medical history, clinician notes, inputs, chat) via Prisma client extension in `src/lib/db.ts` | 1×4 = 4 Low | Azure Key Vault / managed HSM key rotation for production (3.1.4.4.2) | Engineering lead | Mitigated |
 | R9 | Account takeover: password-only sign-in, no multi-factor authentication | Security | 3×4 = 12 High | JWT cookie sessions; no open patient sign-up (invitation only); clinician accounts provisioned | 3×4 = 12 High | Multi-factor authentication for clinicians first (3.1.4.2); session and lockout policy | Engineering lead | Open |
 | R10 | Data stored or processed outside the UAE: cloud database and LLM providers abroad | Regulatory, privacy | 5×4 = 20 Very high | Demonstration data is synthetic; no real patient data in the prototype | 5×1 = 5 Medium (prototype only) | UAE-hosted database and LLM (or UAE-region Azure) before any real data (3.1.4.5.1) | Engineering lead, deploying entity | Open |
 | R11 | Consent is bypassed or misunderstood | Privacy | 3×4 = 12 High | Five separate consents, each revocable, enforced in the API and audit-logged; plain-language consent text in English and Arabic; non-discrimination guarantee | 1×4 = 4 Low | Explicit "opt out of AI-assisted assessment" choice (3.1.6.1.3); user testing of the consent screens | Product owner | Open |
@@ -51,9 +51,9 @@ and a high residual risk needs a conformity assessment with DoH DDGO before and 
 | Residual band | Risks |
 | --- | --- |
 | Very high | None in the prototype as configured (synthetic data, clinician-only estimates). R10 becomes very high the moment real patient data is used outside the UAE. |
-| High | R1, R2, R6, R8, R9, R17, R18 |
+| High | R1, R2, R6, R9, R17, R18 |
 | Medium | R3, R5, R7, R10 (prototype only), R12, R14, R15, R16 |
-| Low | R4, R11, R13 |
+| Low | R4, R8, R11, R13 |
 
 Because several residual risks are high, the standard (3.3.1.2.2.2) would require a conformity
 assessment with DoH DDGO before and after any deployment.

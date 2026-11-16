@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T17:13:34.517Z",
+  "generatedAt": "2026-11-14T20:42:04.219Z",
   "corpus": {
     "passages": 37,
     "byStatus": {
@@ -89,15 +89,15 @@
     }
   },
   "endToEnd": {
-    "provider": "groq",
+    "provider": "azure",
     "judge": true,
     "llmFallbacks": 0,
     "answered": {
-      "numerator": 35,
+      "numerator": 34,
       "denominator": 36,
-      "rate": 0.9722222222222222,
-      "low": 0.8582996626496918,
-      "high": 0.9950797197044302
+      "rate": 0.9444444444444444,
+      "low": 0.8185502589238878,
+      "high": 0.9846303362329332
     },
     "correctAbstention": {
       "numerator": 12,
@@ -107,25 +107,25 @@
       "high": 1
     },
     "expectedSourceCited": {
-      "numerator": 35,
-      "denominator": 35,
+      "numerator": 34,
+      "denominator": 34,
       "rate": 1,
-      "low": 0.9010957324106112,
+      "low": 0.8984820937803899,
       "high": 1
     },
     "citationValidity": {
-      "numerator": 47,
-      "denominator": 47,
+      "numerator": 80,
+      "denominator": 80,
       "rate": 1,
-      "low": 0.9244398288016114,
+      "low": 0.954180263735425,
       "high": 1
     },
     "supportedSentences": {
-      "numerator": 40,
-      "denominator": 47,
-      "rate": 0.851063829787234,
-      "low": 0.7231410342888723,
-      "high": 0.925933739125025
+      "numerator": 72,
+      "denominator": 80,
+      "rate": 0.9,
+      "low": 0.8148912101660255,
+      "high": 0.9484530008223144
     }
   },
   "caveats": [
@@ -149,14 +149,14 @@
       ],
       "retrievalAbstained": false,
       "hit": true,
-      "status": "answered",
+      "status": "abstained",
       "mode": "llm",
-      "shown": 1,
-      "removed": 0,
-      "cites": [
-        "THQ-3"
-      ],
-      "issues": []
+      "shown": 0,
+      "removed": 1,
+      "cites": [],
+      "issues": [
+        "judge: not supported"
+      ]
     },
     {
       "q": "What are reasons to be assessed before a full year of trying?",
@@ -174,7 +174,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 4,
       "removed": 0,
       "cites": [
         "THQ-4"
@@ -195,15 +195,15 @@
       ],
       "retrievalAbstained": false,
       "hit": true,
-      "status": "abstained",
+      "status": "answered",
       "mode": "llm",
-      "shown": 0,
-      "removed": 2,
-      "cites": [],
-      "issues": [
-        "wording not found in cited passage (irregular, list, don, wait)",
-        "judge: not supported"
-      ]
+      "shown": 3,
+      "removed": 0,
+      "cites": [
+        "THQ-4",
+        "RAI-4"
+      ],
+      "issues": []
     },
     {
       "q": "I'm 37 and have been trying for 7 months. Is that a reason to be assessed earlier?",
@@ -222,11 +222,14 @@
       "status": "answered",
       "mode": "llm",
       "shown": 1,
-      "removed": 0,
+      "removed": 2,
       "cites": [
         "THQ-4"
       ],
-      "issues": []
+      "issues": [
+        "number not in cited passage: 4",
+        "number not in cited passage: 3"
+      ]
     },
     {
       "q": "What sperm concentration does the Thiqa guideline treat as abnormal?",
@@ -244,7 +247,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "THQ-5"
@@ -314,11 +317,12 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 4,
       "removed": 0,
       "cites": [
         "THQ-6",
-        "THQ-17"
+        "THQ-17",
+        "ESHRE-1"
       ],
       "issues": []
     },
@@ -337,7 +341,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "THQ-7"
@@ -361,7 +365,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 1,
       "cites": [
         "THQ-7"
@@ -389,11 +393,14 @@
       "status": "answered",
       "mode": "llm",
       "shown": 1,
-      "removed": 0,
+      "removed": 2,
       "cites": [
         "THQ-9"
       ],
-      "issues": []
+      "issues": [
+        "judge: not supported",
+        "judge: not supported"
+      ]
     },
     {
       "q": "What AMH level counts as reduced ovarian reserve?",
@@ -412,7 +419,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "THQ-10",
@@ -460,9 +467,10 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
+        "THQ-18",
         "THQ-12"
       ],
       "issues": []
@@ -482,7 +490,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "THQ-13"
@@ -511,6 +519,7 @@
       "shown": 1,
       "removed": 0,
       "cites": [
+        "THQ-16",
         "THQ-17"
       ],
       "issues": []
@@ -532,7 +541,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "THQ-18"
@@ -554,14 +563,14 @@
       ],
       "retrievalAbstained": false,
       "hit": true,
-      "status": "answered",
+      "status": "abstained",
       "mode": "llm",
-      "shown": 1,
-      "removed": 0,
-      "cites": [
-        "THQ-18"
-      ],
-      "issues": []
+      "shown": 0,
+      "removed": 1,
+      "cites": [],
+      "issues": [
+        "judge: not supported"
+      ]
     },
     {
       "q": "How many social egg freezing cycles are covered in a lifetime?",
@@ -627,10 +636,11 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
-        "THQ-19"
+        "THQ-19",
+        "THQ-16"
       ],
       "issues": []
     },
@@ -654,11 +664,13 @@
       "status": "answered",
       "mode": "llm",
       "shown": 1,
-      "removed": 0,
+      "removed": 1,
       "cites": [
         "THQ-17"
       ],
-      "issues": []
+      "issues": [
+        "wording not found in cited passage (rule, list, medical, reason)"
+      ]
     },
     {
       "q": "What treatments count as assisted reproduction?",
@@ -726,15 +738,13 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
-      "removed": 2,
+      "shown": 3,
+      "removed": 0,
       "cites": [
-        "WHO25-2"
+        "WHO25-2",
+        "RAI-7"
       ],
-      "issues": [
-        "wording not found in cited passage (conceive, eat, stay, physically)",
-        "wording not found in cited passage (good, habit, encourag, although)"
-      ]
+      "issues": []
     },
     {
       "q": "Does smoking affect fertility?",
@@ -751,7 +761,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "WHO25-2"
@@ -773,7 +783,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "WHO25-3"
@@ -796,7 +806,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 4,
       "removed": 0,
       "cites": [
         "WHO25-4",
@@ -820,14 +830,12 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
-      "removed": 1,
+      "shown": 2,
+      "removed": 0,
       "cites": [
         "WHO25-5"
       ],
-      "issues": [
-        "wording not found in cited passage (feel, anxious, low, gett)"
-      ]
+      "issues": []
     },
     {
       "q": "Does ReproAI diagnose infertility?",
@@ -844,7 +852,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "RAI-1"
@@ -867,7 +875,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 5,
       "removed": 0,
       "cites": [
         "RAI-2",
@@ -890,7 +898,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "RAI-3"
@@ -913,7 +921,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "RAI-4"
@@ -935,14 +943,12 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
-      "removed": 1,
+      "shown": 3,
+      "removed": 0,
       "cites": [
         "RAI-5"
       ],
-      "issues": [
-        "wording not found in cited passage (shar, withdraw, consent, whenever)"
-      ]
+      "issues": []
     },
     {
       "q": "Can I enter my own lab results?",
@@ -959,7 +965,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "RAI-6"
@@ -985,7 +991,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 2,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "RAI-8",
@@ -1230,11 +1236,11 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
-        "RAI-9",
-        "THQ-10"
+        "THQ-10",
+        "RAI-9"
       ],
       "issues": []
     },
