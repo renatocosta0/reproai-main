@@ -110,11 +110,11 @@ Sahhatna is Abu Dhabi's patient-facing health app. ReproAI data can be displayed
 
 ## Data Governance & Privacy
 
-All FHIR exports comply with Abu Dhabi data protection regulations:
+FHIR exports are designed toward Abu Dhabi data-protection requirements; conformity has not been assessed:
 
 - **Consent-First:** Observations are only exported for patients who have provided explicit consent (`consentAt` timestamp in User model)
 - **Audit Trail:** Every FHIR export is logged in the AuditLog table
-- **Encryption:** Data is encrypted at rest (AES-256-GCM) and in transit (TLS)
+- **Encryption:** TLS in transit; AES-256-GCM at rest on sensitive text fields (not numeric lab values); see [data-governance.md](data-governance.md).
 - **Minimization:** Only necessary observation data is exported (no raw predictions or clinical notes)
 
 ## Security Considerations

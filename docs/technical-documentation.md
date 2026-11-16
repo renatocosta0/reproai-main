@@ -32,7 +32,7 @@ ReproAI gives individuals and couples an evidence-led, understandable view of ho
 | **R3 Timely, personalised options** | Deterministic pathway rules with IDs and citations (WHO 2025, WHO semen manual, ESHRE, POSEIDON, the Daman Thiqa ART guideline): red flags, referral by time trying and age, ovarian-reserve testing, preservation discussion (including the Thiqa social egg-freezing pathway), semen re-testing, preconception counselling, weight, smoking and sleep. Every option states why and its source, and the intended-use boundary is shown. | Runs in prototype |
 | **R4 Clinician and system usefulness** | Clinician case record (verified labs, intake, triggers, draft review, history, wearables, FHIR R4 export, printable case report), follow-up board, cohort dashboard, cases drill-down, and an evidence dashboard with panel measures by sex and age group. | Runs in prototype; system-level view across clinics proposed |
 | **R5 Privacy, non-discrimination, control** | Per-purpose consent (care-team access, lab results, wearables, partner sharing, anonymous statistics) chosen at activation, changeable at any time, enforced in the API, audited; non-discrimination guarantee shown; clinicians scoped to their own panel; no open patient or clinician sign-up. | Runs in prototype |
-| **R6 Evidence of earlier action** | Live panel measures (time from signal to appointment and closure from audit-logged transitions, signals acted on, referral follow-through, baseline coverage, review turnaround) with Wilson 95% intervals; a simulated cohort reporting false reassurance of the reduced-reserve rule under test variability and calibration against an independent reference curve; a list of what a pilot must still measure. | Runs in prototype (live) · Simulated (cohort) |
+| **R6 Evidence of earlier action** | Live panel measures (time from signal to appointment and closure from audit-logged transitions, signals acted on, referral follow-through, baseline coverage, review turnaround) with Wilson 95% intervals; a simulated cohort reporting false reassurance of the reduced-reserve rule under test variability and a pipeline self-check of calibration against a reference curve that shares assumptions with the model (not an independent validation); a list of what a pilot must still measure. | Runs in prototype (live) · Simulated (cohort) |
 
 ### P1 additions
 
@@ -82,7 +82,7 @@ flowchart LR
 ```
 
 - **Web app:** Next.js 14 App Router, TypeScript (strict), Tailwind 3; API routes in `src/app/api`.
-- **Data:** PostgreSQL (Neon) through Prisma. Models: `User`, `Couple` (care case), `Patient` (profile and self-reported intake), `LabResult` (value, unit, date, **source**, entered by), `Prediction` (result, **status** DRAFT/RELEASED/DISCARDED, completeness, inputs with provenance, reviewer and note), `Observation` (wearables), `Consent` (per purpose), `FollowUp`, `Invitation`, `PairingInvite`, `AuditLog`.
+- **Data:** PostgreSQL (Neon) through Prisma. Models: `User`, `Couple` (care case), `Patient` (profile and self-reported intake), `LabResult` (value, unit, date, **source**, entered by), `Prediction` (result, **status** DRAFT/RELEASED/DISCARDED, completeness, inputs with provenance, reviewer and note), `Observation` (temperature and sleep readings, with **source**, device and external id), `Consent` (per purpose), `FollowUp`, `Invitation`, `PairingInvite`, `AuditLog`.
 - **ML service:** `ml-service/main.py`, FastAPI; deterministic scoring, no LLM.
 - **Assistants:** grounded retrieval-and-verification pipeline in `src/lib/rag/` behind `/api/patient/ask` and `/api/clinician/copilot`; see "Grounded assistants (RAG)". `/api/agent` is a clinician-only tool-calling agent limited to guideline search.
 
@@ -100,6 +100,7 @@ Assessments are only created by a clinician from the record, never typed in by t
 4. **Explain:** exact additive Shapley values per factor; plain-language tier and summary; the assistant can explain in conversation.
 5. **Clinician review:** the result is saved as a **DRAFT** with its inputs, provenance, completeness and evidence status. The clinician reads it and either releases it with a note to the patient (minimum length enforced) or discards it.
 6. **Release:** only released assessments are visible to the patient; until then the patient sees that a result is with their clinician.
+6b. **Readings in:** typed or pasted by the patient (`MANUAL`), a standard Bluetooth health thermometer read in the browser via Web Bluetooth (`BLUETOOTH`, Chrome/Edge on Android or desktop; not iPhone), or posted by a device integration to `POST /api/observations/import` in the `@capgo/capacitor-health` sample shape (`HEALTH_CONNECT`, `HEALTHKIT`, `ULTRAHUMAN`; the native wrapper and vendor adapter are proposed, not built). Only basal temperature and nightly sleep are accepted; re-imports skip duplicates. Every path runs the same longitudinal analysis on the person's most recent 60 readings.
 7. **Follow-up and audit:** every step (lab entry, run, release, discard, consent change, case view) is written to the audit log; wearable anomalies and low joint estimates raise follow-up alerts.
 
 ## 5. The scoring model
@@ -108,11 +109,13 @@ Assessments are only created by a clinician from the record, never typed in by t
 
 - Additive log-odds model with smooth curves for age, AMH, sperm concentration, BMI, PCOS history, months trying and previous cycles, derived from published sources (HFEA 2022, CDC ART 2022, WHO semen manual 2021, ESHRE 2020–2023, POSEIDON, Bhattacharya et al. 2021).
 - Exact Shapley decomposition (for an additive model, φᵢ = fᵢ(xᵢ) − E[fᵢ(X)]).
-- 95% interval by the delta method on the log-odds scale, widened for missing optional inputs, age ≥ 40 and ≥ 3 previous cycles.
-- For individual women, an AMH-for-age percentile against an exponential age-median curve.
+- 95% interval from a **fixed, assumed** log-odds standard error (0.082), widened for missing optional inputs, age ≥ 40 and ≥ 3 previous cycles. It is not estimated from data and is not a validated prediction interval.
+- For individual women, an AMH-for-age figure: 50 × (AMH ÷ an approximate typical AMH for age, from an exponential curve whose source is still to be confirmed). 50 = typical; it is **a ratio, not a population percentile**. Patients see it as words and "about N% of a typical value for your age".
+- Paternal age uses its own deliberately mild curve (flat to 40, small decline after), because its effect is much smaller than maternal age (v2.2; earlier versions wrongly reused the female curve).
+- Semen reference limits are the WHO 2010 (5th edition) values used by the Daman Thiqa guideline (concentration 15 M/mL); the 2021 6th edition gives 16 M/mL.
 - **Not fitted to or validated on patient data. No discrimination or calibration statistic is claimed.** Earlier versions of this repository reported "ROC-AUC 0.792, calibrated via isotonic scaling"; that claim was unsupported and has been removed.
 
-**How the estimate is shown:** individuals see their markers, a plain-language tier and percentile, not a probability. The probability appears for couples who are trying, after clinician review, always with its interval and limitations.
+**How the estimate is shown:** individuals see their markers, a plain-language tier and their AMH compared with a typical value for age, not a probability. The probability appears for couples who are trying, after clinician review, always with its interval and limitations.
 
 ## 6. Pathway rules
 
@@ -125,7 +128,7 @@ Assessments are only created by a clinician from the record, never typed in by t
 | REF-12M / REF-6M-35 / REF-40 | Trying ≥ 12 months; > 35 and ≥ 6 months; ≥ 40 and trying | Specialist referral |
 | RES-LOW | AMH < 1.1 ng/mL or AFC < 5 | Specialist discussion |
 | TEST-AMH | Woman ≥ 30 (or family history of early menopause) with no AMH | Discuss ovarian-reserve testing |
-| PRES-DISCUSS | Not trying, 25–38, and interest, low reserve, lower-quartile percentile or chemotherapy | Preservation discussion; Thiqa social egg freezing: 2 cycles lifetime, 5-year storage, psychological assessment |
+| PRES-DISCUSS | Not trying, 25–38, and interest, low reserve, AMH below half the typical value for age, or chemotherapy | Preservation discussion; Thiqa social egg freezing: 2 cycles lifetime, 5-year storage, psychological assessment |
 | SEM-LOW | Any semen parameter below reference (concentration 15 M/mL, total motility 40%, progressive 32%, morphology 4%, volume 1.5 mL) | Repeat analysis; andrology/urology |
 | TEST-SEMEN | Man trying, paired or with risk history, no semen analysis | Offer analysis |
 | BBT-MONO | No sustained temperature rise | Ask about ovulation confirmation |
@@ -141,7 +144,7 @@ Assessments are only created by a clinician from the record, never typed in by t
 - **Non-discrimination:** shown to every patient: reproductive information is never used for employment, insurance or decisions unrelated to care.
 - **Provenance:** every lab result and assessment input carries its source (clinician verified, self-reported, imported) and date.
 - **Audit:** logins, registrations, consent changes, lab entries, assessment runs, releases, discards, case views and follow-up transitions.
-- **Encryption at rest:** AES-256-GCM encryption with key rotation support (`ENCRYPTION_KEY`) hooked directly into the Prisma ORM layer (`src/lib/db.ts`), automatically encrypting patient names, medical history flags, clinician notes, assessment inputs/factors, follow-up notes, and chat transcripts before saving.
+- **Encryption at rest:** AES-256-GCM field encryption (one key from `ENCRYPTION_KEY`; no key rotation or managed key vault yet) hooked into the Prisma ORM layer (`src/lib/db.ts`), automatically encrypting patient names, medical history flags, clinician notes, assessment inputs/factors, follow-up notes, and chat transcripts before saving.
 - **Interoperability:** FHIR R4 export of `Patient`, `Observation` and `RiskAssessment` resources for a case or a person.
 
 ## 8. Assumptions
@@ -165,7 +168,7 @@ Assessments are only created by a clinician from the record, never typed in by t
 - **Arabic:** a prototype translation covering navigation, trajectory, options and consent; it needs review by a native-speaking clinician, and the intake, Today and tracking pages are still English-only.
 - **Wearables:** readings are logged or pasted; there is no certified device integration. Basal temperature is a weak, retrospective ovulation signal.
 - **Assistants:** depend on an external LLM provider and may be unavailable (they then show source passages as written). The corpus is small (about 40 passages) and English-only, so Arabic questions are usually refused (the evaluation measures this with 10 Arabic questions, reported separately on the Evidence page); the WHO 2025 passages come from WHO's announcement rather than the full guideline. Verification is automatic: the number, wording and quotation checks catch fabricated figures and off-source wording, but a sentence can reuse the source's words and still mislead, and the LLM judge can be wrong. The evaluation questions were written by the team and the thresholds were tuned on them, so its figures are optimistic.
-- **Data protection:** sensitive fields are encrypted at rest with AES-256-GCM via the Prisma ORM layer; production would also need ADHICS-aligned hosting in the UAE.
+- **Data protection:** sensitive text fields are encrypted at rest with AES-256-GCM via the Prisma ORM layer; lab values (numeric) and email addresses are not, rows written before this change stay plaintext until rewritten, and without `ENCRYPTION_KEY` the app stores plaintext with only a development warning; production would also need ADHICS-aligned hosting in the UAE.
 - **Notifications:** invitation and pairing links are shown to copy; no email or SMS is sent.
 
 ## 10. Path to pilot (proposed for production)

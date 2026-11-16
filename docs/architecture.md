@@ -1,137 +1,65 @@
 # ReproAI architecture
 
+The diagram for the submission is `docs/reproai-architecture.html` (exported to `docs/images/reproai-architecture.png`). Full detail is in [technical-documentation.md](technical-documentation.md). This page replaces an earlier plan (SQLite, a scikit-learn model trained on a dataset) that was never used by the app.
+
 ```mermaid
 flowchart LR
-  subgraph Monorepo [Next.js monorepo]
-    FE[Patient + Clinician UI]
-    API[API routes]
+  subgraph Entry [Governed entry]
+    INV[Clinician prescription or partner pairing token]
+    PROG[Premarital / IFHAS programme invitation - proposed]
   end
-  FE --> API
-  API --> DB[(Prisma / SQLite)]
-  API --> ML[Python ML service / FastAPI]
-  API --> FHIR[FHIR Patient/Observation]
+  subgraph App [Next.js 14 app]
+    PAT[Patient portal EN/AR]
+    CLIN[Clinician portal]
+    PUB[Public: tour, model card, coverage, guidance-only Q&A]
+    API[API routes: auth, consent, scope, audit]
+  end
+  subgraph Logic [Deterministic logic]
+    RULES[Pathway rules engine - cited Thiqa/WHO/ESHRE thresholds]
+    AGENT[Governed agent action - observe, propose, clinician approves]
+    EVAL[Evidence: live panel metrics + labelled synthetic cohort]
+  end
+  ML[Scoring service FastAPI - literature-derived, missing-data gates]
+  RAG[Assistants: retrieve first, cite every sentence, abstain, verify]
+  LLM[LLM for wording only: Azure OpenAI UAE North, Groq fallback]
+  DB[(PostgreSQL via Prisma)]
+  FHIR[FHIR R4 export]
+  INV --> PAT
+  PROG -.-> PAT
+  PAT --> API
+  CLIN --> API
+  API --> DB
+  API --> RULES
+  API --> AGENT
+  API --> ML
+  API --> RAG
+  RAG --> LLM
+  API --> EVAL
+  API --> FHIR
 ```
 
-## Decisions
+## The gated pipeline
 
-- **Monorepo with Next.js API routes** for a single deployable unit (Vercel-ready).
-- **Python ML service kept separate** so the scikit-learn model can scale and be
-  retrained independently.
-- **No mocked/synthetic data.** The model trains on a real anonymized dataset; the
-  application DB starts empty.
-- **FHIR-aligned** observations and patients for interoperability (Sahhatna/Malafi concepts).
-.
-reproai/
-├── README.md
-├── package.json
-├── next.config.js
-├── tsconfig.json
-├── tailwind.config.ts
-├── postcss.config.js
-├── .env.example                      # variáveis: DB_URL, ENCRYPTION_KEY, ML_API_URL, AUTH_SECRET
-├── .gitignore
-├── .eslintrc.json
-│
-├── prisma/                           # camada de persistência (SQLite -> Postgres)
-│   ├── schema.prisma                 # modelos: User, Couple, Patient, Prediction, Observation, AuditLog, FollowUp
-│   └── seed.ts                       # dados de demonstração para o pitch
-│
-├── public/
-│   ├── logo.svg
-│   └── locales/                      # i18n: pt, en, ar (Abu Dhabi)
-│       ├── pt.json
-│       ├── en.json
-│       └── ar.json
-│
-├── src/
-│   ├── app/                          # Next.js App Router (telas + API)
-│   │   ├── layout.tsx                # layout raiz + providers (auth, i18n, theme)
-│   │   ├── page.tsx                  # landing / escolha de perfil
-│   │   ├── globals.css
-│   │   │
-│   │   ├── (auth)/                    # TELAS DE AUTENTICAÇÃO
-│   │   │   ├── login/page.tsx
-│   │   │   ├── register/page.tsx
-│   │   │   └── consent/page.tsx       # consentimento informado + data governance
-│   │   │
-│   │   ├── patient/                   # APP DO PACIENTE (casal)
-│   │   │   ├── layout.tsx
-│   │   │   ├── onboarding/page.tsx    # recolha inicial + consentimento
-│   │   │   ├── dashboard/page.tsx     # visão geral do casal
-│   │   │   ├── assistant/page.tsx     # assistente conversacional (empático)
-│   │   │   ├── fertility-window/page.tsx  # janela de fertilidade
-│   │   │   ├── lifestyle/page.tsx     # sugestões OMS (sono, IMC, hábitos)
-│   │   │   ├── data-entry/page.tsx    # entrada manual + mock Apple/Google Health
-│   │   │   └── reports/page.tsx       # histórico de previsões
-│   │   │
-│   │   ├── clinician/                 # DASHBOARD DO MÉDICO
-│   │   │   ├── layout.tsx
-│   │   │   ├── dashboard/page.tsx     # lista de casais + nível de risco
-│   │   │   ├── patient/[id]/page.tsx  # detalhe: prob. sucesso + fatores (SHAP)
-│   │   │   ├── protocols/page.tsx     # protocolos clínicos sugeridos
-│   │   │   ├── follow-up/page.tsx     # CLOSED-LOOP: alerta→consulta→acompanhado→encerrado
-│   │   │   └── reports/[id]/page.tsx  # relatório PDF gerado pela IA
-│   │   │
-│   │   └── api/                       # BACKEND (Next.js API routes)
-│   │       ├── auth/[...]/route.ts    # autenticação (paciente vs médico)
-│   │       ├── predict/route.ts       # chama o serviço ML, devolve prob + fatores
-│   │       ├── patients/route.ts      # CRUD pacientes/casais
-│   │       ├── patients/[id]/route.ts
-│   │       ├── observations/route.ts  # dados de wearables / entrada manual (FHIR)
-│   │       ├── follow-up/route.ts     # estados do closed-loop
-│   │       ├── reports/route.ts       # geração de PDF
-│   │       ├── fhir/
-│   │       │   ├── Patient/route.ts   # recurso FHIR Patient
-│   │       │   └── Observation/route.ts
-│   │       └── health/route.ts        # healthcheck
-│   │
-│   ├── components/                    # componentes reutilizáveis (UI)
-│   │   ├── ui/                        # botões, cards, inputs (Tailwind)
-│   │   ├── charts/
-│   │   │   ├── SuccessProbabilityChart.tsx
-│   │   │   └── FeatureImportanceChart.tsx
-│   │   ├── assistant/
-│   │   │   └── ChatWindow.tsx
-│   │   ├── patient/
-│   │   │   └── FertilityWindowCard.tsx
-│   │   ├── clinician/
-│   │   │   ├── PatientRiskTable.tsx
-│   │   │   └── FollowUpTracker.tsx
-│   │   └── layout/
-│   │       ├── Navbar.tsx
-│   │       └── Sidebar.tsx
-│   │
-│   ├── lib/                           # lógica partilhada / utilitários
-│   │   ├── db.ts                      # cliente Prisma
-│   │   ├── auth.ts                    # sessão + perfis (RBAC)
-│   │   ├── encryption.ts              # encriptação de dados sensíveis (at rest)
-│   │   ├── audit.ts                   # audit log de acessos clínicos
-│   │   ├── fhir.ts                    # mapeamento modelos <-> FHIR
-│   │   ├── ml-client.ts               # chamadas ao serviço ML (FastAPI)
-│   │   ├── pdf.ts                     # geração de relatórios PDF
-│   │   └── guidelines.ts             # regras de estilo de vida (OMS)
-│   │
-│   └── types/
-│       └── index.ts                   # tipos TS partilhados (Patient, Prediction, etc.)
-│
-├── ml/                                # SERVIÇO DE MACHINE LEARNING (Python)
-│   ├── requirements.txt               # scikit-learn, pandas, numpy, fastapi, uvicorn, shap, joblib
-│   ├── generate_synthetic_data.py     # gera dataset sintético realista
-│   ├── train.py                       # pipeline de treino (GradientBoosting/LogReg)
-│   ├── evaluate.py                    # métricas: ROC/AUC, matriz confusão, calibração
-│   ├── serve.py                       # FastAPI: endpoint /predict com SHAP + disclaimer
-│   ├── schema.py                      # Pydantic: variáveis de entrada/saída
-│   ├── data/
-│   │   └── synthetic_fertility.csv    # gerado
-│   ├── models/
-│   │   └── model.joblib               # artefacto serializado
-│   └── notebooks/
-│       └── model_report.ipynb         # relatório de métricas
-│
-├── docs/                              # documentação para o pitch
-│   ├── architecture.md                # diagrama mermaid + decisões
-│   ├── evaluation-mapping.md          # mapeia os 6 critérios do júri
-│   ├── data-governance.md             # privacidade, consentimento, FHIR, Sahhatna/Malafi
-│   └── demo-checklist.md              # roteiro da demonstração
-│
-└── .gitlab-ci.yml                     # CI: lint, test, build, (deploy Vercel)
+consent → data completeness → deterministic scoring → explanation → clinician review and note → release to patient → follow-up → audit.
+
+A failed gate stops what follows: a missing required input returns `insufficient_data` with no estimate; withdrawn consent hides the record and blocks assessment; a draft never reaches the patient.
+
+## Design decisions
+
+- **Numbers come only from deterministic, versioned code.** The scoring service and the rules engine compute; the LLM only phrases answers from retrieved, cited passages and is never in the action path.
+- **The agent action is deterministic.** It reads the record and the triggered rules, proposes one follow-up with its rationale and a draft note, and writes nothing until the clinician approves. Proposal, approval and dismissal are audit-logged.
+- **Separate scoring service** so the model can be versioned, replaced or recalibrated without touching the app.
+- **Provenance on every value** (clinician verified, imported, self-reported, recorded earlier).
+- **Synthetic data only** in the prototype: demo personas and a fixed-seed simulated cohort.
+
+## Deployment
+
+| | Prototype | Production (proposed) |
+| --- | --- | --- |
+| App | Vercel | Azure App Service or Container Apps, UAE North |
+| Database | Neon PostgreSQL (AWS us-east-2); AES-256-GCM on sensitive text fields | Azure Database for PostgreSQL, UAE North; managed keys; lab values encrypted too |
+| Scoring service | FastAPI container | Same, UAE region |
+| LLM | Azure OpenAI gpt-5-mini in UAE North; Groq (US) fallback | Azure OpenAI UAE North only; remove the Groq fallback |
+| Integration | FHIR export | Malaffi lab import, TAMM entry point |
+
+See [azure-integration.md](azure-integration.md) and [data-governance.md](data-governance.md).

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f5f5f5;
+      font-family: 'Liberation Sans', 'DejaVu Sans', 'Noto Sans', sans-serif;
+      padding: 0;
+      margin: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#4f5d75"/>
+      </marker>
+      <marker id="arr-coral" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#bf4520"/>
+      </marker>
+      <marker id="arr-muted" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#5a6580"/>
+      </marker>
+    </defs>
+
+    <!-- Calm Neutral Paper Canvas -->
+    <rect width="1920" height="1080" fill="#f5f5f5"/>
+
+    <!-- ================= TOP HEADER ================= -->
+    <g transform="translate(60, 44)">
+      <text x="0" y="0" fill="#2d3142" font-family="'Liberation Mono', monospace" font-size="13" font-weight="700" letter-spacing="0.16em">SYSTEM ARCHITECTURE · CLINICAL GOVERNANCE &amp; HONEST LIMITS</text>
+      
+      <!-- Legend right -->
+      <circle cx="1220" cy="-4" r="4.5" fill="#2d3142"/>
+      <text x="1232" y="0" fill="#4f5d75" font-family="'Liberation Mono', monospace" font-size="12" letter-spacing="0.04em">runs end-to-end</text>
+
+      <circle cx="1370" cy="-4" r="4.5" fill="#a8641a"/>
+      <text x="1382" y="0" fill="#a8641a" font-family="'Liberation Mono', monospace" font-size="12" font-weight="600" letter-spacing="0.04em">runs, with a limit</text>
+    </g>
+
+
+    <!-- ================= MAIN SPINE CONNECTORS ================= -->
+    <!-- 1 to 2 -->
+    <path d="M 720 156 L 720 184" stroke="#4f5d75" stroke-width="1.8" marker-end="url(#arr)"/>
+    
+    <!-- 2 to 3 -->
+    <path d="M 720 250 L 720 282" stroke="#4f5d75" stroke-width="1.8" marker-end="url(#arr)"/>
+    
+    <!-- 3 to 4 (Fan out) -->
+    <!-- Center drop from bottom of Stage 3 (Y=358) to Y=390 -->
+    <path d="M 720 358 L 720 390" stroke="#4f5d75" stroke-width="1.6"/>
+    <!-- Horizontal distributor bar at Y=390 -->
+    <path d="M 208 390 L 1175 390" stroke="#4f5d75" stroke-width="1.6"/>
+    <!-- Drops into 4 Stage 4 cards -->
+    <path d="M 208 390 L 208 408" stroke="#4f5d75" stroke-width="1.6" marker-end="url(#arr)"/>
+    <path d="M 528 390 L 528 408" stroke="#4f5d75" stroke-width="1.6" marker-end="url(#arr)"/>
+    <path d="M 848 390 L 848 408" stroke="#4f5d75" stroke-width="1.6" marker-end="url(#arr)"/>
+    <path d="M 1175 390 L 1175 408" stroke="#4f5d75" stroke-width="1.6" marker-end="url(#arr)"/>
+
+    <!-- 4 to 5 (Recombine from ML & RAG engines) -->
+    <path d="M 208 496 L 208 512" stroke="rgba(45,49,66,0.40)" stroke-width="1.5"/>
+    <path d="M 528 496 L 528 512" stroke="rgba(45,49,66,0.40)" stroke-width="1.5"/>
+    <path d="M 848 496 L 848 512" stroke="rgba(45,49,66,0.40)" stroke-width="1.5"/>
+    <path d="M 1175 496 L 1175 512" stroke="rgba(45,49,66,0.40)" stroke-width="1.5"/>
+    <!-- Horizontal recombine bar at Y=512 -->
+    <path d="M 208 512 L 1175 512" stroke="rgba(45,49,66,0.40)" stroke-width="1.5"/>
+    <!-- Center drop into Stage 5 box at Y=544 -->
+    <path d="M 720 512 L 720 544" stroke="#4f5d75" stroke-width="1.8" marker-end="url(#arr)"/>
+
+
+    <!-- ================= LLM / AZURE FOUNDRY FLOW CONNECTORS (CLEAN & DIRECT) ================= -->
+    <!-- Forward: Node 4D (Guideline RAG) -> Azure AI Foundry LLM Synthesis -->
+    <path d="M 1330 435 L 1480 435" stroke="#4f5d75" stroke-width="1.8" marker-end="url(#arr)"/>
+    <text x="1405" y="425" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="9" font-weight="700" text-anchor="middle" letter-spacing="0.05em">PASSAGES + RECORD FACTS</text>
+
+    <!-- Return: Azure AI Foundry -> Node 4D (Grounded Citations) -->
+    <path d="M 1480 470 L 1330 470" stroke="#bf4520" stroke-width="1.8" marker-end="url(#arr-coral)"/>
+    <text x="1405" y="488" fill="#bf4520" font-family="'Liberation Mono', monospace" font-size="9" font-weight="700" text-anchor="middle" letter-spacing="0.05em">CITED ANSWER</text>
+
+
+    <!-- ================= LONGITUDINAL FEEDBACK LOOP (R1 REQUIREMENT) ================= -->
+    <!-- Connects encrypted historical record (Stage 7A) back to clinical intake (Stage 1A) for next visit -->
+    <path d="M 60 875 H 34 A 8 8 0 0 1 26 867 V 127 A 8 8 0 0 1 34 119 H 58" stroke="#5a6580" stroke-width="1.5" stroke-dasharray="5 3.5" fill="none" marker-end="url(#arr-muted)"/>
+    <text transform="translate(17, 497) rotate(-90)" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="9" font-weight="700" letter-spacing="0.12em" text-anchor="middle">LONGITUDINAL TRACKING · NEXT VISIT COMPARED TO BASELINE</text>
+
+
+    <!-- 5 to Human Gate Pill to 6 -->
+    <path d="M 720 622 L 720 646" stroke="#bf4520" stroke-width="2" marker-end="url(#arr-coral)"/>
+    <path d="M 720 680 L 720 704" stroke="#bf4520" stroke-width="2" marker-end="url(#arr-coral)"/>
+
+    <!-- 6 to 7 (Fan out) -->
+    <!-- Center drop from bottom of Stage 6 (Y=784) to Y=818 -->
+    <path d="M 720 784 L 720 818" stroke="#4f5d75" stroke-width="1.6"/>
+    <!-- Horizontal distributor bar at Y=818 -->
+    <path d="M 270 818 L 1195 818" stroke="#4f5d75" stroke-width="1.6"/>
+    <!-- Drops into 3 Stage 7 cards -->
+    <path d="M 270 818 L 270 834" stroke="#4f5d75" stroke-width="1.6" marker-end="url(#arr)"/>
+    <path d="M 720 818 L 720 834" stroke="#4f5d75" stroke-width="1.6" marker-end="url(#arr)"/>
+    <path d="M 1195 818 L 1195 834" stroke="#4f5d75" stroke-width="1.6" marker-end="url(#arr)"/>
+
+
+    <!-- ================= STAGE 1: WHAT GOES IN ================= -->
+    <text x="60" y="72" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11" font-weight="600" letter-spacing="0.14em">1 · WHAT GOES IN (CLINICAL INTAKE)</text>
+
+    <!-- Node 1A: Person & Partner -->
+    <g transform="translate(60, 82)">
+      <rect width="425" height="74" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="24" cy="24" r="4.5" fill="#2d3142"/>
+      <text x="38" y="29" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="16" font-weight="700">Person &amp; partner</text>
+      <text x="38" y="52" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11.5">Self-reported intake · Menstrual history · Partner pairing</text>
+    </g>
+
+    <!-- Node 1B: Certified Clinician -->
+    <g transform="translate(507, 82)">
+      <rect width="425" height="74" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="24" cy="24" r="4.5" fill="#2d3142"/>
+      <text x="38" y="29" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="16" font-weight="700">Certified clinician</text>
+      <text x="38" y="52" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11.5">Assigned cases only · Scope isolation · Lab verification</text>
+    </g>
+
+    <!-- Node 1C: Diagnostic Labs -->
+    <g transform="translate(954, 82)">
+      <rect width="486" height="74" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="24" cy="24" r="4.5" fill="#2d3142"/>
+      <text x="38" y="29" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="16" font-weight="700">The record: diagnostic labs</text>
+      <text x="38" y="52" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11.5">AMH, AFC, Semen, Ultrasound · Dated with clinical source</text>
+    </g>
+
+
+    <!-- ================= STAGE 2: CONSENT GATE ================= -->
+    <text x="60" y="174" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11" font-weight="600" letter-spacing="0.14em">2 · BEFORE ANYTHING IS READ (PRIVACY GATE)</text>
+
+    <g transform="translate(350, 184)">
+      <rect width="740" height="66" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="26" cy="22" r="4.5" fill="#2d3142"/>
+      <text x="42" y="28" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="16" font-weight="700">Consent gate (5 granular purposes)</text>
+      <text x="42" y="50" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11.5">Care team · Lab results · Wearables · Partner · Anonymous statistics · Revocable anytime</text>
+    </g>
+
+
+    <!-- ================= STAGE 3: THE PIPELINE (DARK) ================= -->
+    <text x="60" y="272" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11" font-weight="600" letter-spacing="0.14em">3 · THE PIPELINE — WHERE AN ESTIMATE IS FORMED</text>
+
+    <g transform="translate(250, 282)">
+      <rect width="940" height="76" rx="6" fill="#2d3142" stroke="#2d3142" stroke-width="1"/>
+      <circle cx="28" cy="26" r="4.5" fill="#f5f5f5"/>
+      <text x="46" y="32" fill="#f5f5f5" font-family="'Liberation Sans', sans-serif" font-size="17" font-weight="700">The assessment pipeline &amp; missing-data gate</text>
+      <text x="46" y="56" fill="rgba(245,245,245,0.72)" font-family="'Liberation Mono', monospace" font-size="12">
+        Checks completeness · Rejects with 'insufficient_data' if key biomarkers missing · Zero silent imputation
+      </text>
+    </g>
+
+
+    <!-- ================= STAGE 4: THE FOUR ENGINES ================= -->
+    <text x="60" y="372" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11" font-weight="600" letter-spacing="0.14em">4 · THE COMPONENTS (EXPLAINABLE ML + GROUNDED RAG)</text>
+
+    <!-- Node 4A: Deterministic Scorer (No LLM) -->
+    <g transform="translate(60, 408)">
+      <rect width="295" height="88" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="22" cy="22" r="4" fill="#2d3142"/>
+      <text x="34" y="26" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="15" font-weight="700">Deterministic scorer</text>
+      <text x="34" y="48" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11">Literature-spline v2.2 (FastAPI)</text>
+      <text x="34" y="67" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="11">Hand-set weights · Not validated · No LLM</text>
+    </g>
+
+    <!-- Node 4B: Explainer (Shapley) -->
+    <g transform="translate(380, 408)">
+      <rect width="295" height="88" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="22" cy="22" r="4" fill="#a8641a"/>
+      <text x="34" y="26" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="15" font-weight="700">Explainer (Shapley)</text>
+      <text x="34" y="48" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11">Per-factor contribution vs reference</text>
+      <text x="34" y="67" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="11">Model-based 95% interval · not validated</text>
+    </g>
+
+    <!-- Node 4C: Pathway Rules -->
+    <g transform="translate(700, 408)">
+      <rect width="295" height="88" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="22" cy="22" r="4" fill="#2d3142"/>
+      <text x="34" y="26" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="15" font-weight="700">Pathway rules</text>
+      <text x="34" y="48" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11">Thiqa · WHO · ESHRE · POSEIDON</text>
+      <text x="34" y="67" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="11">Deterministic · every option has a rule ID</text>
+    </g>
+
+    <!-- Node 4D: Guideline RAG (Retrieval) -->
+    <g transform="translate(1020, 408)">
+      <rect width="310" height="88" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="22" cy="22" r="4" fill="#a8641a"/>
+      <text x="34" y="26" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="15" font-weight="700">Guidance retrieval (RAG)</text>
+      <text x="34" y="48" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11">Local BM25 · Azure AI Search optional</text>
+      <text x="34" y="67" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="11">Daman Thiqa v3.6 · WHO · ESHRE</text>
+    </g>
+
+
+    <!-- ================= STAGE 5: WHAT COMES OUT AS DRAFT ================= -->
+    <text x="60" y="530" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11" font-weight="600" letter-spacing="0.14em">5 · WHAT COMES OUT — DRAFT STATUS ONLY</text>
+
+    <!-- Source-Linked Draft (Clean white card matching original draw.io styling) -->
+    <g transform="translate(330, 544)">
+      <rect width="780" height="78" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="26" cy="25" r="4.5" fill="#2d3142"/>
+      <text x="42" y="30" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="16.5" font-weight="700">Draft assessment (status: DRAFT)</text>
+      <text x="42" y="50" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11.5">
+        Model estimate + factors + cited options · deterministic draft note (no LLM)
+      </text>
+      <text x="42" y="68" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="11">
+        Stored with exact inputs and model version · invisible to patient until signed
+      </text>
+    </g>
+
+
+    <!-- ================= HUMAN APPROVAL GATE PILL ================= -->
+    <g transform="translate(620, 646)">
+      <rect width="200" height="34" rx="17" fill="#bf4520"/>
+      <text x="100" y="21.5" fill="#ffffff" font-family="'Liberation Mono', monospace" font-size="11.5" font-weight="700" text-anchor="middle" letter-spacing="0.16em">HUMAN APPROVAL GATE</text>
+    </g>
+
+
+    <!-- ================= STAGE 6: THE CLINICAL DECISION (DARK) ================= -->
+    <text x="60" y="694" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11" font-weight="600" letter-spacing="0.14em">6 · THE CLINICAL DECISION</text>
+
+    <g transform="translate(230, 704)">
+      <rect width="980" height="80" rx="6" fill="#2d3142" stroke="#2d3142" stroke-width="1"/>
+      <circle cx="28" cy="26" r="4.5" fill="#bf4520"/>
+      <text x="46" y="32" fill="#f5f5f5" font-family="'Liberation Sans', sans-serif" font-size="17" font-weight="700">Clinician reviews &amp; decides</text>
+      <text x="46" y="56" fill="rgba(245,245,245,0.72)" font-family="'Liberation Mono', monospace" font-size="12">
+        Reads the draft · Checks inputs and provenance · Writes mandatory clinical note · Releases, or discards with reason
+      </text>
+    </g>
+
+
+    <!-- ================= STAGE 7: RELEASED OUTPUTS ================= -->
+    <text x="60" y="802" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11" font-weight="600" letter-spacing="0.14em">7 · WHAT A PERSON CAN SEE &amp; INTEROPERABILITY</text>
+
+    <!-- Node 7A: Record store -->
+    <g transform="translate(60, 834)">
+      <rect width="425" height="82" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="24" cy="24" r="4.5" fill="#a8641a"/>
+      <text x="38" y="29" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="16" font-weight="700">Draft store &amp; record</text>
+      <text x="38" y="49" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11.5">PostgreSQL · Prisma · provenance on every value</text>
+      <text x="38" y="67" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="11.5">AES-256-GCM on sensitive text fields · labs not yet</text>
+    </g>
+
+    <!-- Node 7B: Patient Portal & AI Assistant -->
+    <g transform="translate(507, 834)">
+      <rect width="425" height="82" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="24" cy="24" r="4.5" fill="#2d3142"/>
+      <text x="38" y="29" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="16" font-weight="700">Patient portal &amp; AI assistant</text>
+      <text x="38" y="49" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11.5">Bilingual EN / AR (RTL) · Grounded Q&amp;A</text>
+      <text x="38" y="67" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="11.5">Answers from released record + cited guidance · abstains when unsure</text>
+    </g>
+
+    <!-- Node 7C: FHIR R4 -->
+    <g transform="translate(954, 834)">
+      <rect width="486" height="82" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.35)" stroke-width="1"/>
+      <circle cx="24" cy="24" r="4.5" fill="#a8641a"/>
+      <text x="38" y="29" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="16" font-weight="700">HL7 FHIR R4 interoperability</text>
+      <text x="38" y="49" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="11.5">FHIR R4 export runs · Malaffi import proposed</text>
+      <text x="38" y="67" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="11.5">Patient · Observation · RiskAssessment</text>
+    </g>
+
+
+    <!-- ================= RIGHT COLUMN: SOVEREIGN AI & LLM FOUNDRY (CLEAN & INTEGRATED) ================= -->
+
+    <g transform="translate(1480, 82)">
+      <!-- Main Container with subtle dashed border -->
+      <rect width="380" height="426" rx="6" fill="#ffffff" stroke="rgba(168,100,26,0.45)" stroke-width="1" stroke-dasharray="4 3"/>
+      
+      <!-- Section A: Sovereign AI & Jurisdiction -->
+      <text x="24" y="32" fill="#a8641a" font-family="'Liberation Mono', monospace" font-size="11.5" font-weight="700" letter-spacing="0.14em">HOSTING &amp; DATA RESIDENCY</text>
+
+      <g transform="translate(24, 60)">
+        <text x="0" y="0" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="14.5" font-weight="700">Prototype today (synthetic data only)</text>
+        <text x="0" y="20" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">App on Vercel · Postgres on Neon (US)</text>
+        <text x="0" y="38" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">LLM: Azure OpenAI gpt-5-mini, UAE North · Groq (US) fallback</text>
+      </g>
+
+      <g transform="translate(24, 136)">
+        <text x="0" y="0" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="14" font-weight="700">Production: UAE residency (proposed)</text>
+        <text x="0" y="20" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">Move app, DB and scoring to Azure UAE North</text>
+        <text x="0" y="38" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">No non-UAE fallback · DoH Standard 3.1.4.5.1</text>
+      </g>
+
+      <g transform="translate(24, 212)">
+        <text x="0" y="0" fill="#2d3142" font-family="'Liberation Sans', sans-serif" font-size="14" font-weight="700">Before any real patient data</text>
+        <text x="0" y="20" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">Managed keys · MFA · ADHICS · DoH review</text>
+      </g>
+
+      <!-- Divider -->
+      <line x1="24" y1="280" x2="356" y2="280" stroke="rgba(168,100,26,0.22)" stroke-width="0.8"/>
+
+      <!-- Section B: LLM Reasoning & Synthesis Loop (Aligned with Stage 4) -->
+      <g transform="translate(24, 308)">
+        <text x="0" y="0" fill="#a8641a" font-family="'Liberation Mono', monospace" font-size="11" font-weight="700" letter-spacing="0.10em">WHAT THE LLM DOES (AND DOES NOT)</text>
+        <text x="0" y="22" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">Words answers from retrieved, cited passages only</text>
+        <text x="0" y="42" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">Every sentence cited, verified, or dropped</text>
+        <text x="0" y="64" fill="#bf4520" font-family="'Liberation Sans', sans-serif" font-size="12.5" font-weight="700">Never computes a number or takes an action</text>
+      </g>
+    </g>
+
+
+    <!-- ================= BOTTOM ALL LAYERS BANNER (DARK #2d3142) ================= -->
+    <g transform="translate(60, 936)">
+      <rect width="1800" height="62" rx="4" fill="#2d3142"/>
+      <circle cx="28" cy="31" r="4.5" fill="#f5f5f5"/>
+      <text x="46" y="25" fill="#f5f5f5" font-family="'Liberation Mono', monospace" font-size="12" font-weight="600" letter-spacing="0.16em">ALL LAYERS</text>
+      <text x="46" y="46" fill="rgba(245,245,245,0.74)" font-family="'Liberation Sans', sans-serif" font-size="13">
+        Consent checked per purpose · Every access written to audit log · AES-256-GCM on sensitive fields · Zero silent imputation · Synthetic data only
+      </text>
+      <text x="1760" y="36" fill="rgba(245,245,245,0.60)" font-family="'Liberation Mono', monospace" font-size="11.5" text-anchor="end" letter-spacing="0.1em">APPLIES TO EVERY STAGE ABOVE</text>
+    </g>
+
+    <!-- Reading guide footer text -->
+    <g transform="translate(60, 1020)">
+      <text x="0" y="0" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="10.5" font-weight="600" letter-spacing="0.14em">READ TOP TO BOTTOM</text>
+      <text x="0" y="18" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">One spine. Each row is a stage; each box is a role inside it.</text>
+
+      <text x="640" y="0" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="10.5" font-weight="600" letter-spacing="0.14em">DARK = WHERE WORK HAPPENS</text>
+      <text x="640" y="18" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">Only the pipeline and the clinician's decision make a claim.</text>
+
+      <text x="1280" y="0" fill="#5a6580" font-family="'Liberation Mono', monospace" font-size="10.5" font-weight="600" letter-spacing="0.14em">CORAL = THE ONE GATE</text>
+      <text x="1280" y="18" fill="#4f5d75" font-family="'Liberation Sans', sans-serif" font-size="12">No result changes hands without a named clinician's note.</text>
+    </g>
+
+    <!-- Disclaimer bottom line -->
+    <g transform="translate(60, 1060)">
+      <text x="0" y="0" fill="#a8641a" font-family="'Liberation Mono', monospace" font-size="10" font-weight="600" letter-spacing="0.12em">PROTOTYPE · CODE EXISTS FOR EVERY DOT ABOVE · UNIT TESTS FOR ENCRYPTION ONLY · NOT CLINICALLY VALIDATED · NOT A DIAGNOSTIC DEVICE</text>
+    </g>
+
+  </svg>
+</body>
+</html>

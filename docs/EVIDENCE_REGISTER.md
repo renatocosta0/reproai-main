@@ -1,79 +1,74 @@
-# ReproAI Clinical Evidence Register & Governance Framework
+# Evidence register
 
-> **Challenge Track:** Future Health Digital Innovation Challenge (Abu Dhabi: DoH / ADPHC / Inception / MBZUAI)  
-> **Official Track:** `[Fertility] Reproductive Potential` (Challenge 02)  
-> **Architecture Paradigm:** Individual-First with Collaborative Couple Pairing (Individual-First, Couple-Ready)  
-> **Governance Standard:** Zero Assumptions, Evidence-First Architecture, Explicit Limitations, Granular Consent  
+Challenge: Future Health Digital Innovation Challenge (DoH, ADPHC, Inception, MBZUAI), Fertility track, Challenge 02 "Reproductive Potential".
 
----
+This register lists every external source ReproAI relies on, what it is used for, and how far the prototype's use of it has been checked. It replaces an earlier version that over-stated calibration and encryption.
 
-## 1. Executive Summary & Strategic Positioning
+Status labels: **Runs in prototype** · **Simulated** · **Proposed for production** · **To verify** (cited but not yet checked against the primary text).
 
-ReproAI delivers a longitudinal, evidence-informed platform for reproductive potential designed in direct alignment with Abu Dhabi's Department of Health (DoH) and ADPHC life-course prevention vision.
+## 1. What ReproAI claims, and what it does not
 
-### Key Shift: From Infertility Treatment to Life-Course Reproductive Autonomy
-Traditional fertility platforms only engage couples who are already struggling to conceive in private IVF clinics. ReproAI transforms this paradigm:
-1. **The Individual is the Unit of Autonomy & Prevention:** Single individuals, young adults, and citizens entering adulthood can monitor ovarian reserve, andrological parameters, circadian health, and explore proactive **fertility preservation (oocyte/sperm vitrification)** years before conception.
-2. **The Couple is the Collaborative Unit of Conception:** When two individuals decide to plan pregnancy, they voluntarily pair via cryptographically secure tokens (`POST /api/pairing/invite` & `POST /api/pairing/accept`) to unlock joint bivariate conception prognostics.
-3. **Pillar 5 Compliance (Granular, Revocable Consent):** Either individual can revoke pairing at any time (`POST /api/pairing/revoke`). Individual longitudinal observations and health records remain completely intact and private under their own `userId`.
+- ReproAI does **not** produce a fertility score. It shows markers over time against reference limits, a plain-language tier, cited options and, for clinicians reviewing couples who are trying, a model estimate with a model-based interval.
+- The scoring model is **literature-derived and hand-set**. It is not trained, calibrated or validated on patient data, and no accuracy, discrimination or calibration figure is claimed.
+- Calibration and false-reassurance results on the Evidence page come from a **synthetic cohort**. The calibration panel is a pipeline self-check: the simulated outcomes share assumptions with the model.
+- All data in the prototype is **synthetic**. There has been no user testing.
 
-ReproAI **does not generate deterministic "fertility scores"**. Instead, it computes calibrated, probabilistic trajectories, separating **modifiable lifestyle/metabolic factors** from **non-modifiable physiological baselines**, while establishing explicit clinical boundaries.
+## 2. Sources used by the rules engine and the assistants
 
----
+These are the sources in the retrieval corpus (`src/lib/rag/corpus.ts`), quoted by section and page.
 
-## 2. Core Clinical Guidelines & Reference Standards
+| ID | Source | Used for | Status |
+| --- | --- | --- | --- |
+| THIQA | Daman, *Thiqa Coverage for Assisted Reproductive Treatment & Services*, adjudication guideline v3.6 (2025) | Reduced ovarian reserve (AMH < 1.1 ng/mL or AFC < 5–7); earlier-assessment red flags; semen lower limits; BMI 19–40 and dietitian advice for BMI 35–40; social egg freezing (2 cycles, 5-year storage, psychological assessment) | Runs in prototype; passages cite section and page |
+| WHO25 | WHO, first global guideline on infertility (news release, 28 Nov 2025) | Referral after 12 months trying (6 months over 35); prevention and primary care; male-factor assessment | Runs in prototype. Cited from the news release; **to verify** against the full guideline text |
+| ESHRE_FFP | ESHRE guideline: female fertility preservation (2020) | Preservation discussion timing; AMH interpretation | Runs in prototype |
+| WHO_SEMEN | WHO semen laboratory manual, 6th ed. (2021), via a published review | Semen interpretation; repeat testing | Runs in prototype. The limits applied are the WHO 2010 values used by Thiqa (15 M/mL); 6th edition values (16 M/mL) shown for comparison |
+| REPROAI | ReproAI's own documentation | How the product works (internal, not clinical evidence) | Runs in prototype |
 
-Every parameter, threshold, and clinical recommendation implemented in the ReproAI backend is cited directly from peer-reviewed literature and international reproductive society standards:
+Rule-by-rule sources are in `src/lib/pathways.ts` and [technical-documentation.md](technical-documentation.md). One rule (OPT-SLEEP, aim for 7+ hours of sleep) has **no guideline citation yet** and is labelled as general health advice.
 
-| Reference ID | Clinical Standard / Guideline | Issuing Body | Implementation in ReproAI |
-| :--- | :--- | :--- | :--- |
-| **REF-WHO-2023** | *WHO manual for the standardized investigation and diagnosis of the infertile couple* (2023) | World Health Organization (WHO) | Underpins longitudinal couple triage, infertility duration thresholds (> 12 months under 35, > 6 months over 35), and ovulatory monitoring guidelines. |
-| **REF-WHO-SEMEN6** | *WHO laboratory manual for the examination and processing of human semen* (6th ed., 2021) | World Health Organization (WHO) | Defines reference lower limits for normozoospermia: sperm concentration $\ge 15 \times 10^6$ spermatozoa/mL. Triggers male-factor subfertility screening when concentration $< 15\text{ M/mL}$. |
-| **REF-ESHRE-PRESERV** | *ESHRE Guideline: Female fertility preservation* (2020) | European Society of Human Reproduction and Embryology (ESHRE) | Calibrates individual oocyte vitrification advice: age $< 35$ identified as optimal window yielding $\sim 75-80\%$ cumulative live-birth rate per $15-20$ cryopreserved oocytes. |
-| **REF-ASRM-CRYOPRE** | *ASRM Practice Committee: Cryopreservation of Gametes* (2021) | American Society for Reproductive Medicine (ASRM) | Evidence base for individual sperm and oocyte cryopreservation recommendations. |
-| **REF-ESHRE-2020** | *ESHRE Guideline: Ovarian Stimulation for IVF/ICSI* (2020) | European Society of Human Reproduction and Embryology (ESHRE) | Calibrates oocyte yield expectations based on maternal age and antral follicular response (AFC). |
-| **REF-POSEIDON** | *The POSEIDON criteria for low ovarian response* (Alviggi et al., 2016; Humaidan et al., 2019) | POSEIDON Group | AMH threshold $< 1.1\text{ ng/mL}$ used to classify diminished ovarian reserve and adjust confidence intervals for expected stimulation yield. |
-| **REF-ASRM-PCOS** | *Recommendations from the international evidence-based guideline for the assessment and management of polycystic ovary syndrome* (Teede et al., 2023) | ASRM / Monash / ESHRE | Guides feature weighting for PCOS history, metabolic BMI considerations, and elevated risk of ovarian hyperstimulation syndrome (OHSS). |
-| **REF-ADPHC-PREMARITAL** | *Abu Dhabi Premarital Screening Program Guidelines* | Abu Dhabi Public Health Center (ADPHC) | Grounds individual screening across reproductive age groups into public health pathways. |
-| **REF-FHIR-R4** | *HL7 Fast Healthcare Interoperability Resources (R4)* | HL7 International | Governs JSON schema exports (`Patient`, `Observation`, and `RiskAssessment` resources) for Abu Dhabi national exchanges (**Malafi** and **Sahhatna**). |
+## 3. Sources that shaped the scoring model
 
----
+The model's curve shapes are informed by the sources below; the coefficients were set by the team, with no documented derivation from each table. See `GET /model-info` and `/model-card`.
 
-## 3. Longitudinal Wearable & Biomarker Criteria
+| Source | Shapes | Status |
+| --- | --- | --- |
+| HFEA, *Fertility treatment: trends and figures* (2022) | Female age curve | To verify: no table-to-coefficient mapping |
+| CDC, ART National Summary (2022) | Female age curve | To verify |
+| ESHRE ovarian stimulation and preservation guidelines (2020–2023); POSEIDON criteria | AMH curve; reduced-reserve threshold | Threshold runs in prototype; curve to verify |
+| WHO semen reference values | Sperm concentration curve | Runs in prototype (WHO 2010 limits) |
+| Bhattacharya et al. (2021) | Relative weight of predictors | To verify |
 
-### A. Basal Body Temperature (BBT) — LOINC `8310-5`
-* **Evidence:** In a physiological ovulatory cycle, progesterone secretion from the corpus luteum elevates core body temperature by $0.30^\circ\text{C} - 0.50^\circ\text{C}$ throughout the luteal phase (Roetzer Coverline Rule / WHO 2023).
-* **Clinical Boundary in ReproAI:** A monophasic curve with shift $< 0.30^\circ\text{C}$ across $\ge 3$ consecutive cycles triggers a clinician-side triage alert (`ALERT_RAISED`) for suspected anovulation or luteal phase defect.
+Known model limitations (also on the model card):
 
-### B. Sleep Duration & Circadian Regularity — LOINC `93832-4`
-* **Evidence:** Chronic sleep deprivation ($< 5.0\text{ hours/night}$) or circadian fragmentation ($\sigma > 1.75\text{h}$) disrupts the hypothalamic-pituitary-gonadal (HPG) axis, elevating baseline cortisol and altering pulsatile GnRH secretion (Lateef & Akintubosun, *Sleep & Infertility*, 2020).
-* **Clinical Boundary in ReproAI:** Sustained mean sleep $< 5.0\text{h}$ prompts automated clinical follow-up recommendations.
+- The 95% interval uses a fixed, assumed standard error; it is not a validated prediction interval.
+- The AMH-for-age figure is a ratio to an approximate typical AMH for age (50 = typical), not a population percentile. The typical-for-age curve needs a cited source.
+- Paternal age uses a deliberately mild curve; its true effect is small and uncertain.
+- Curves come mostly from UK, European and US data; transferability to the UAE population is unknown.
 
----
+## 4. Wearable signals
 
-## 4. Individual vs. Couple Scope Separation
+| Signal | Rule in the prototype | Status |
+| --- | --- | --- |
+| Basal body temperature (LOINC 8310-5) | A sustained rise of about 0.3 °C after ovulation is the usual biphasic pattern; no such rise across the readings raises a clinician-side follow-up, worded as "not a diagnosis". | Runs in prototype. Threshold to verify against a primary source |
+| Sleep duration (LOINC 93832-4) | Mean under 5 h or high night-to-night variation (≥ 3 nights) raises a clinician-side follow-up; under 7 h triggers general sleep advice. | Runs in prototype. Thresholds are team choices, not guideline values |
 
-ReproAI segregates outputs depending on whether the assessment is requested by an individual or a paired couple:
+Wearable data is shown as trends and is **not** an input to the scoring model.
 
-### Individual Scope (`scope: "INDIVIDUAL"`)
-- **Focus:** Ovarian reserve trajectory, andrological baseline, lifestyle modifiability, and gamete cryopreservation readiness.
-- **Tiers:** `OPTIMAL`, `AGE_APPROPRIATE`, `REDUCED_RESERVE`, `CLINICAL_ATTENTION_NEEDED`.
-- **Preservation Guidance:** Specific clinical time horizons based on ESHRE 2020 / ASRM 2021.
-- **Actionable Options:** Metabolic optimization, baseline hormonal workup, elective gamete vitrification consultation.
+## 5. Abu Dhabi context (for the pitch, not the product logic)
 
-### Couple Scope (`scope: "COUPLE"`)
-- **Focus:** Bivariate live-birth success probability across natural and assisted reproduction pathways (IUI/IVF).
-- **Attribution:** Exact Shapley value decomposition ($\phi_i(x) = f_i(x_i) - \mathbb{E}[f_i(X)]$) explicitly decoupling maternal vs. paternal contributors.
-- **Triage:** Automatic closed-loop referral generation if estimated live-birth rate is $< 25\%$.
+| Fact | Source | Status |
+| --- | --- | --- |
+| UAE total fertility rate about 1.2–1.35 (2024–25); Emirati births down about 11% (2015–2022) | Khaleej Times; The National (see [challenge-02-benchmark.md](challenge-02-benchmark.md)) | Secondary sources; prefer an official statistic in the deck |
+| Premarital screening expanded to 570 genetic conditions | DoH news release | Primary |
+| Thiqa covers social egg freezing for eligible single members since Oct 2025 | Daman Thiqa guideline v3.6 | Primary |
+| DoH Responsible AI Standard (Oct 2025) | DoH/ST/DDGO/RAI/V1/2025 (in `docs/`) | Primary; self-assessment in [doh-responsible-ai-mapping.md](doh-responsible-ai-mapping.md) |
+| Malaffi Patient Risk Profile as precedent | DoH and Malaffi news release | Primary |
 
----
+## 6. Interoperability standards
 
-## 5. Formal System Limitations & Ethical AI Boundaries
-
-In compliance with the Responsible AI framework of the Microsoft Foundry & MBZUAI competition:
-
-1. **Screening vs. Diagnostic Separation:** ReproAI is a risk-stratification and clinical decision-support engine, **not a diagnostic medical device**. It does not diagnose tubal occlusions, uterine malformations, or genetic translocation syndromes.
-2. **Uncertainty Calibration:** When laboratory tests (e.g., serum AMH or semen analysis) are missing, ReproAI dynamically widens its prediction intervals rather than hallucinating default medians.
-3. **No Patient Alarmism:** Urgent alerts or low-probability notifications ($< 25\%$) are routed silently to the clinician dashboard (`FollowUp` queue) to enable physician-led outreach.
-4. **Data Protection:** All health data at rest is encrypted with **AES-256-GCM**, access is protected by HTTP-only JWTs, and every clinical query is logged to an append-only `AuditLog` table.
-5. **Granular Consent:** Data sharing between partners is 100% voluntary and revocable. Revoking a partnership does not purge or compromise either individual's longitudinal health observations.
+| Standard | Use | Status |
+| --- | --- | --- |
+| HL7 FHIR R4 | Export of Patient, Observation, RiskAssessment | Runs in prototype |
+| LOINC | Codes for AMH, FSH, sperm concentration, BBT, sleep | Runs in prototype |
+| Malaffi lab import; TAMM entry point | Production integration | Proposed for production |

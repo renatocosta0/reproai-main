@@ -3,284 +3,374 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReproAI system architecture</title>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>ReproAI · System Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --color-paper:   #f5f5f5;
-      --color-ink:     #2d3142;
-      --color-muted:   #4f5d75;
-      --color-soft:    #5a6580;
-      --color-accent:  #bf4520;
-      --color-link:    #2e5aa8;
-      --color-work:    #2f7d4f;
-      --color-partial: #a8641a;
-      --font-sans:     'Geist', system-ui, sans-serif;
-      --font-serif:    'Instrument Serif', serif;
-      --font-mono:     'Geist Mono', ui-monospace, monospace;
+      --paper: #f5f5f5; --ink: #2d3142; --muted: #4f5d75; --soft: #5a6580;
+      --accent: #bf4520; --rule: rgba(45,49,66,0.12); --warn: #a8641a;
+      --green: #059669; --green-soft: rgba(5,150,105,0.08);
+      --sans: 'Geist', system-ui, sans-serif;
+      --serif: 'Instrument Serif', serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
     }
-    body {
-      font-family: var(--font-sans);
-      background: var(--color-paper);
-      color: var(--color-ink);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem 2rem;
-    }
-    .frame { max-width: 1280px; width: 100%; }
-    .eyebrow {
-      font-family: var(--font-mono);
-      font-size: 0.66rem;
-      font-weight: 500;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--color-muted);
-      margin-bottom: 0.5rem;
-    }
-    h1 {
-      font-family: var(--font-serif);
-      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2.4rem);
-      font-weight: 400;
-      letter-spacing: -0.02em;
-      line-height: 1.1;
-      color: var(--color-ink);
-      margin-bottom: 0.5rem;
-    }
-    .standfirst {
-      font-size: 0.9rem;
-      line-height: 1.5;
-      color: var(--color-muted);
-      max-width: 66ch;
-      margin-bottom: 1.5rem;
-    }
-    .diagram-container { width: 100%; overflow-x: auto; }
-    svg { width: 100%; min-width: 1280px; display: block; }
-    .cards { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 1.25rem; margin-top: 2rem; }
-    .card { background: #ffffff; border: 1px solid rgba(45,49,66,0.12); border-radius: 6px; padding: 1rem 1.125rem 1.125rem; }
-    .card .eyebrow { font-size: 0.58rem; margin-bottom: 0.625rem; }
+    body { font-family: var(--sans); background: var(--paper); color: var(--ink);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2.5rem 1.5rem; }
+    .frame { max-width: 1320px; width: 100%; position: relative; }
+    .eyebrow { font-family: var(--mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 10px; }
+    .eyebrow .uae-tag { background: #fffaf3; color: #a8641a; border: 1px solid rgba(168,100,26,0.3);
+      padding: 1px 7px; border-radius: 4px; font-weight: 600; }
+    h1 { font-family: var(--serif); font-size: clamp(1.8rem, 2.6vw + 0.8rem, 2.6rem); font-weight: 400;
+      letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 0.5rem; }
+    .standfirst { font-size: 0.92rem; line-height: 1.55; color: var(--muted); max-width: 82ch; margin-bottom: 1.5rem; }
+    .diagram-container { width: 100%; overflow-x: auto; background: #fff; border: 1px solid var(--rule); border-radius: 8px; padding: 1.5rem 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+    svg { width: 100%; min-width: 1260px; display: block; }
+    .cards { display: grid; grid-template-columns: 1.1fr 1fr 0.95fr; gap: 1.25rem; margin-top: 1.8rem; }
+    .card { background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 1.1rem 1.25rem; }
+    .card .eyebrow { font-size: 0.58rem; margin-bottom: 0.5rem; }
     .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-    .card-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
-    .card-dot.coral { background: var(--color-accent); }
-    .card-dot.work { background: var(--color-work); }
-    .card-dot.partial { background: var(--color-partial); }
-    .card h3 { font-size: 0.82rem; font-weight: 600; letter-spacing: -0.01em; }
-    .card p, .card li { font-size: 0.76rem; line-height: 1.5; color: var(--color-muted); }
-    .card ul { list-style: none; }
-    .card li { display: flex; gap: 0.4rem; margin-bottom: 0.2rem; }
-    .card li::before { content: "—"; color: var(--color-ink); flex: none; }
-    .card strong { color: var(--color-ink); font-weight: 600; }
-    .metric { display: flex; justify-content: space-between; gap: 0.75rem; border-top: 1px solid rgba(45,49,66,0.10); padding-top: 0.3rem; margin-top: 0.3rem; }
-    .metric span:first-child { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-soft); }
-    .metric span:last-child { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; color: var(--color-ink); }
-    .footer {
-      display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem;
-      padding-top: 0.75rem; border-top: 1px solid rgba(45,49,66,0.12);
-      font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.06em;
-      color: var(--color-muted); text-transform: uppercase;
-    }
-    @media print {
-      .diagram-container { overflow-x: visible; }
-      svg { min-width: 0; }
-    }
+    .card-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .card-dot.coral { background: var(--accent); }
+    .card-dot.green { background: var(--green); }
+    .card-dot.soft { background: var(--soft); }
+    .card h3 { font-size: 0.86rem; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+    .card p, .card li { font-size: 0.76rem; line-height: 1.5; color: var(--muted); }
+    .card ul { list-style: none; margin-top: 0.3rem; }
+    .card li { display: flex; gap: 0.4rem; margin-bottom: 0.25rem; }
+    .card li::before { content: "—"; color: var(--ink); flex: none; }
+    .card strong { color: var(--ink); font-weight: 600; }
+    .footer { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem;
+      padding-top: 0.75rem; border-top: 1px solid var(--rule); font-family: var(--mono);
+      font-size: 0.6rem; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+    
+    .btn-export { position: absolute; top: 0; right: 0; background: #0284c7; color: #fff; border: none;
+      padding: 7px 14px; border-radius: 6px; font-family: var(--sans); font-size: 0.75rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .btn-export:hover { background: #0369a1; }
+    @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
   </style>
 </head>
 <body>
   <div class="frame">
-    <p class="eyebrow">Architecture · Runs in prototype · Not clinically validated</p>
-    <h1>One record, one gate, every answer cited</h1>
-    <p class="standfirst">People and clinicians meet one consent barrier. A deterministic model scores assessments and attributes each factor; a retrieval layer answers only from passages it can point to. Nothing reaches a patient until a clinician releases it.</p>
+    <button class="btn-export" onclick="exportSVG()">📥 Download SVG for Slides / draw.io</button>
+
+    <p class="eyebrow">
+      Architecture · System View · Runs in Prototype · Not Clinically Validated
+      <span class="uae-tag">Synthetic data only · UAE hosting proposed</span>
+    </p>
+    <h1>The clinician sits inside the pipeline, not beside it.</h1>
+    <p class="standfirst">
+      Seven stages along one clinical spine. Data enters through a 5-purpose consent gate; a deterministic, literature-derived scoring engine (hand-set, not validated) computes per-factor contributions and a model-based interval, or refuses when required inputs are missing; outputs stay in draft until a clinician writes a note and signs off; released results reach the patient portal and can be exported as HL7 FHIR R4. Malaffi import and UAE hosting are proposed for production.
+    </p>
 
     <div class="diagram-container">
-      <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="arch-title arch-desc">
-        <title id="arch-title">ReproAI system architecture</title>
-        <desc id="arch-desc">Three tiers. Patient and clinician pass a consent and audit barrier into a Next.js app on Vercel holding an assessment pipeline and a grounded answer pipeline. The assessment pipeline calls a deterministic ML service and writes a draft record to an encrypted PostgreSQL database through a human approval gate. The grounded answer retrieves from a guideline corpus and exchanges passages and cited answers with Azure OpenAI in UAE North. Status dots mark working and partial elements.</desc>
+      <svg id="archSvg" viewBox="0 0 1280 750" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="arch-title arch-desc">
+        <title id="arch-title">ReproAI System Architecture: Seven Stages, One Human Gate, Honest limits</title>
+        <desc id="arch-desc">Detailed architecture showing 7 stages: inputs, consent gate, assessment pipeline with missing-data gate, explainable scoring components, source-linked draft, clinician approval gate, and encrypted storage with FHIR R4 export.</desc>
         <defs>
-          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
-          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="arrow" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 7 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="arrow-coral" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 7 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="arrow-green" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 7 3, 0 6" fill="#059669"/></marker>
         </defs>
 
-        <rect width="100%" height="100%" fill="#f5f5f5"/>
+        <rect width="100%" height="100%" fill="#ffffff"/>
+        
+        <!-- Header labels -->
+        <text x="40" y="32" fill="#2d3142" font-size="7.5" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.16em">SYSTEM ARCHITECTURE · CLINICAL GOVERNANCE &amp; HONEST LIMITS</text>
+        <circle cx="1020" cy="29" r="3" fill="#2d3142"/>
+        <text x="1030" y="32" fill="#4f5d75" font-size="6.5" font-family="'Geist Mono', monospace">runs end-to-end</text>
+        <circle cx="1120" cy="29" r="3" fill="#a8641a"/>
+        <text x="1130" y="32" fill="#a8641a" font-size="6.5" font-family="'Geist Mono', monospace" font-weight="600">runs, with a limit</text>
 
-        <!-- ── Bands ───────────────────────────────────────────────────── -->
-        <rect x="156" y="96" width="488" height="112" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
-        <rect x="376" y="100" width="48" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="400" y="109" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">PEOPLE</text>
+        <!-- THE SPINE CONNECTORS -->
+        <path d="M490,106 V122" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+        <path d="M490,168 V184" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
+        
+        <!-- Fan out to Components -->
+        <path d="M490,238 V250" fill="none" stroke="#4f5d75" stroke-width="1.2"/>
+        <path d="M147,250 H831" fill="none" stroke="#4f5d75" stroke-width="1.2"/>
+        <path d="M147,250 V260" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M375,250 V260" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M603,250 V260" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M831,250 V260" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
 
-        <rect x="156" y="240" width="728" height="208" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
-        <rect x="424" y="244" width="192" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="520" y="253" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">REPROAI APP · VERCEL · NEXT.JS 14</text>
+        <!-- Recombine to Draft -->
+        <path d="M147,318 V330" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="1.2"/>
+        <path d="M375,318 V330" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="1.2"/>
+        <path d="M603,318 V330" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="1.2"/>
+        <path d="M831,318 V330" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="1.2"/>
+        <path d="M147,330 H831" fill="none" stroke="rgba(45,49,66,0.35)" stroke-width="1.2"/>
+        <path d="M490,330 V344" fill="none" stroke="#4f5d75" stroke-width="1.3" marker-end="url(#arrow)"/>
 
-        <rect x="156" y="480" width="968" height="120" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
-        <rect x="580" y="484" width="120" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="640" y="493" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">DATA &amp; MODELS</text>
+        <!-- Draft to Human Gate -->
+        <path d="M490,392 V420" fill="none" stroke="#bf4520" stroke-width="1.5" marker-end="url(#arrow-coral)"/>
 
-        <!-- ── Consent barrier (a plate, not a box in the flow) ────────── -->
-        <rect x="180" y="272" width="680" height="40" rx="6" fill="rgba(191,69,32,0.05)" stroke="rgba(191,69,32,0.50)" stroke-width="1" stroke-dasharray="4,4"/>
-        <rect x="188" y="278" width="34" height="12" rx="2" fill="transparent" stroke="rgba(191,69,32,0.50)" stroke-width="0.8"/>
-        <text x="205" y="287" fill="#bf4520" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">GATE</text>
-        <text x="540" y="296" fill="#bf4520" font-size="9.5" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.04em">CONSENT + AUDIT — every access scoped to a grant, logged, revocable</text>
+        <!-- Human Gate to Outputs -->
+        <path d="M490,474 V488" fill="none" stroke="#059669" stroke-width="1.4"/>
+        <path d="M185,488 H793" fill="none" stroke="#059669" stroke-width="1.4"/>
+        <path d="M185,488 V498" fill="none" stroke="#059669" stroke-width="1.4" marker-end="url(#arrow-green)"/>
+        <path d="M489,488 V498" fill="none" stroke="#059669" stroke-width="1.4" marker-end="url(#arrow-green)"/>
+        <path d="M793,488 V498" fill="none" stroke="#059669" stroke-width="1.4" marker-end="url(#arrow-green)"/>
 
-        <!-- ── Arrows ──────────────────────────────────────────────────── -->
-        <line x1="280" y1="184" x2="280" y2="272" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="520" y1="184" x2="520" y2="272" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="280" y1="312" x2="280" y2="348" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="760" y1="312" x2="760" y2="348" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="280" y1="412" x2="280" y2="504" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <line x1="380" y1="384" x2="452" y2="384" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
-        <line x1="520" y1="395" x2="520" y2="504" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
-        <line x1="760" y1="412" x2="760" y2="504" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
 
-        <!-- Answer ⇄ Azure: out along the bottom, back into the right edge -->
-        <path d="M 800,412 V 460 H 960 V 504" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
-        <path d="M 1020,504 V 384 H 860" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+        <!-- ================= STAGE 1: WHAT GOES IN ================= -->
+        <text x="40" y="52" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">1 · WHAT GOES IN (CLINICAL INTAKE)</text>
+        
+        <!-- Person & Partner -->
+        <rect x="40" y="58" width="290" height="48" rx="5" fill="#fdfdfd" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+        <circle cx="53" cy="74" r="2.6" fill="#2d3142"/>
+        <text x="64" y="77" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Person &amp; Partner</text>
+        <text x="64" y="92" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace">Self-reported intake · Menstrual history · Partner pairing</text>
 
-        <!-- ── Arrow labels ────────────────────────────────────────────── -->
-        <rect x="238" y="226" width="84" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="280" y="235" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CONSENT-SCOPED</text>
-        <rect x="478" y="226" width="84" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="520" y="235" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">OWN PANEL ONLY</text>
+        <!-- Clinician -->
+        <rect x="344" y="58" width="290" height="48" rx="5" fill="#fdfdfd" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+        <circle cx="357" cy="74" r="2.6" fill="#2d3142"/>
+        <text x="368" y="77" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Certified Clinician</text>
+        <text x="368" y="92" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace">Assigned cases only · Scope isolation · Lab verification</text>
 
-        <rect x="230" y="454" width="100" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="280" y="463" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">SCORE REQUEST</text>
+        <!-- The Record -->
+        <rect x="648" y="58" width="290" height="48" rx="5" fill="#fdfdfd" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+        <circle cx="661" cy="74" r="2.6" fill="#059669"/>
+        <text x="672" y="77" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Diagnostic Labs &amp; Observations</text>
+        <text x="672" y="92" fill="#059669" font-size="6.2" font-family="'Geist Mono', monospace">AMH, AFC, Semen, Ultrasound · Dated with source</text>
 
-        <rect x="384" y="372" width="56" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="412" y="381" fill="#bf4520" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">DRAFT</text>
 
-        <rect x="470" y="444" width="100" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="520" y="453" fill="#bf4520" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RELEASED</text>
+        <!-- ================= STAGE 2: CONSENT GATE ================= -->
+        <text x="40" y="118" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">2 · BEFORE ANYTHING IS READ (PRIVACY GATE)</text>
+        
+        <rect x="250" y="124" width="480" height="44" rx="5" fill="#f8fafc" stroke="#059669" stroke-width="1.3"/>
+        <circle cx="265" cy="140" r="2.8" fill="#059669"/>
+        <text x="276" y="143" fill="#0f172a" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">5-Tier Granular Patient Consent Gate</text>
+        <text x="276" y="157" fill="#475569" font-size="6.2" font-family="'Geist Mono', monospace">Care team · Labs · Wearables · Partner · Anonymous stats · Revocable</text>
 
-        <rect x="714" y="454" width="92" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="760" y="463" fill="#5a6580" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RETRIEVE TOP 4</text>
 
-        <rect x="836" y="448" width="88" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="880" y="457" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">PASSAGES ONLY</text>
-        <rect x="953" y="434" width="134" height="12" rx="2" fill="#f5f5f5"/>
-        <text x="1020" y="443" fill="#2e5aa8" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">ANSWER + CITATIONS</text>
+        <!-- ================= STAGE 3: THE PIPELINE ================= -->
+        <text x="40" y="180" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">3 · THE PIPELINE — WHERE AN ESTIMATE IS FORMED</text>
+        
+        <rect x="180" y="186" width="620" height="52" rx="5" fill="#2d3142" stroke="#2d3142" stroke-width="1"/>
+        <circle cx="196" cy="204" r="3" fill="#f5f5f5"/>
+        <text x="208" y="208" fill="#f5f5f5" font-size="10.5" font-weight="600" font-family="'Geist', sans-serif">The Assessment Pipeline &amp; Missing-Data Gate</text>
+        <text x="208" y="224" fill="rgba(245,245,245,0.7)" font-size="6.4" font-family="'Geist Mono', monospace">
+          Checks completeness · Rejects with 'insufficient_data' if key biomarkers missing · Zero silent imputation
+        </text>
 
-        <!-- ── Human approval gate ─────────────────────────────────────── -->
-        <rect x="452" y="373" width="136" height="22" rx="11" fill="#2d3142"/>
-        <text x="520" y="387.5" fill="#f5f5f5" font-size="7.5" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.10em">HUMAN APPROVAL GATE</text>
 
-        <!-- ── Band 1 · People ─────────────────────────────────────────── -->
-        <rect x="180" y="120" width="200" height="64" rx="6" fill="#f5f5f5"/>
-        <rect x="180" y="120" width="200" height="64" rx="6" fill="rgba(79,93,117,0.10)" stroke="#5a6580" stroke-width="1"/>
-        <rect x="188" y="126" width="30" height="12" rx="2" fill="transparent" stroke="rgba(90,101,128,0.40)" stroke-width="0.8"/>
-        <text x="203" y="135" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">USER</text>
-        <circle cx="364" cy="132" r="3" fill="#2f7d4f"/>
-        <text x="280" y="156" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Patient</text>
-        <text x="280" y="172" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">portal · EN / AR</text>
+        <!-- ================= STAGE 4: THE COMPONENTS ================= -->
+        <text x="40" y="250" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">4 · THE FOUR ENGINES (EXPLAINABLE ML + GROUNDED RAG)</text>
+        
+        <!-- Scorer -->
+        <rect x="40" y="260" width="214" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+        <circle cx="53" cy="278" r="2.6" fill="#2d3142"/>
+        <text x="64" y="281" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Literature-spline v2.2</text>
+        <text x="64" y="296" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace">FastAPI · Non-linear age/AMH</text>
+        <text x="64" y="307" fill="#4f5d75" font-size="6.0" font-family="'Geist', sans-serif">Shaped on HFEA/CDC/WHO · not validated</text>
 
-        <rect x="420" y="120" width="200" height="64" rx="6" fill="#f5f5f5"/>
-        <rect x="420" y="120" width="200" height="64" rx="6" fill="rgba(79,93,117,0.10)" stroke="#5a6580" stroke-width="1"/>
-        <rect x="428" y="126" width="30" height="12" rx="2" fill="transparent" stroke="rgba(90,101,128,0.40)" stroke-width="0.8"/>
-        <text x="443" y="135" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">USER</text>
-        <circle cx="604" cy="132" r="3" fill="#2f7d4f"/>
-        <text x="520" y="156" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Clinician</text>
-        <text x="520" y="172" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">own care panel</text>
+        <!-- Explainer -->
+        <rect x="268" y="260" width="214" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+        <circle cx="281" cy="278" r="2.6" fill="#2d3142"/>
+        <text x="292" y="281" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Additive Shapley Values</text>
+        <text x="292" y="296" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace">Per-factor contribution</text>
+        <text x="292" y="307" fill="#4f5d75" font-size="6.0" font-family="'Geist', sans-serif">Model-based 95% interval · not validated</text>
 
-        <!-- ── Band 2 · App ────────────────────────────────────────────── -->
-        <rect x="180" y="348" width="200" height="64" rx="6" fill="#f5f5f5"/>
-        <rect x="180" y="348" width="200" height="64" rx="6" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1.2"/>
-        <rect x="188" y="354" width="32" height="12" rx="2" fill="transparent" stroke="rgba(191,69,32,0.50)" stroke-width="0.8"/>
-        <text x="204" y="363" fill="#bf4520" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">PIPE</text>
-        <circle cx="364" cy="360" r="3" fill="#2f7d4f"/>
-        <text x="280" y="384" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Assessment pipeline</text>
-        <text x="280" y="400" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">score · Shapley factors</text>
+        <!-- Pathway Rules -->
+        <rect x="496" y="260" width="214" height="58" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+        <circle cx="509" cy="278" r="2.6" fill="#2d3142"/>
+        <text x="520" y="281" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Clinical Pathway Rules</text>
+        <text x="520" y="296" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace">Thiqa · WHO · ESHRE · POSEIDON</text>
+        <text x="520" y="307" fill="#4f5d75" font-size="6.0" font-family="'Geist', sans-serif">Deterministic · rule ID on every option</text>
 
-        <rect x="660" y="348" width="200" height="64" rx="6" fill="#f5f5f5"/>
-        <rect x="660" y="348" width="200" height="64" rx="6" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1.2"/>
-        <rect x="668" y="354" width="28" height="12" rx="2" fill="transparent" stroke="rgba(191,69,32,0.50)" stroke-width="0.8"/>
-        <text x="682" y="363" fill="#bf4520" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">RAG</text>
-        <circle cx="844" cy="360" r="3" fill="#2f7d4f"/>
-        <text x="760" y="384" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Grounded answer</text>
-        <text x="760" y="400" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">retrieve · verify · cite</text>
+        <!-- Guidance Retrieval (RAG) -->
+        <rect x="724" y="260" width="214" height="58" rx="5" fill="#ffffff" stroke="#059669" stroke-width="1.2"/>
+        <circle cx="737" cy="278" r="2.6" fill="#059669"/>
+        <text x="748" y="281" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Guideline Grounded RAG</text>
+        <text x="748" y="296" fill="#059669" font-size="6.2" font-family="'Geist Mono', monospace">Daman Thiqa ART v3.6 (UAE)</text>
+        <text x="748" y="307" fill="#4f5d75" font-size="6.0" font-family="'Geist', sans-serif">WHO 6th Ed &amp; ESHRE guidelines</text>
 
-        <!-- ── Band 3 · Data and models ────────────────────────────────── -->
-        <rect x="180" y="504" width="200" height="64" rx="6" fill="#f5f5f5"/>
-        <rect x="180" y="504" width="200" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
-        <rect x="188" y="510" width="26" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
-        <text x="201" y="519" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">ML</text>
-        <circle cx="364" cy="516" r="3" fill="#2f7d4f"/>
-        <text x="280" y="540" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">ML service</text>
-        <text x="280" y="556" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">FastAPI · score + attribution</text>
 
-        <rect x="420" y="504" width="200" height="64" rx="6" fill="#f5f5f5"/>
-        <rect x="420" y="504" width="200" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
-        <rect x="428" y="510" width="26" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.50)" stroke-width="0.8"/>
-        <text x="441" y="519" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">DB</text>
-        <circle cx="604" cy="516" r="3" fill="#2f7d4f"/>
-        <text x="520" y="540" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">PostgreSQL</text>
-        <text x="520" y="556" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Neon · AES-256-GCM</text>
+        <!-- ================= STAGE 5: WHAT COMES OUT AS DRAFT ================= -->
+        <text x="40" y="338" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">5 · WHAT COMES OUT — DRAFT STATUS ONLY</text>
+        
+        <rect x="230" y="344" width="520" height="48" rx="5" fill="#fefce8" stroke="#f59e0b" stroke-width="1.2"/>
+        <circle cx="245" cy="360" r="2.8" fill="#f59e0b"/>
+        <text x="256" y="363" fill="#0f172a" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Source-Linked Clinical Draft (Status: DRAFT)</text>
+        <text x="256" y="378" fill="#78350f" font-size="6.2" font-family="'Geist Mono', monospace">
+          Holds Shapley drivers + model-based interval · Completely invisible to patient until signed
+        </text>
 
-        <rect x="660" y="504" width="200" height="64" rx="6" fill="#f5f5f5"/>
-        <rect x="660" y="504" width="200" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
-        <rect x="668" y="510" width="34" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.50)" stroke-width="0.8"/>
-        <text x="685" y="519" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">EVID</text>
-        <circle cx="844" cy="516" r="3" fill="#a8641a"/>
-        <text x="760" y="540" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Guideline corpus</text>
-        <text x="760" y="556" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Thiqa · WHO · ESHRE</text>
 
-        <rect x="900" y="504" width="200" height="64" rx="6" fill="#f5f5f5"/>
-        <rect x="900" y="504" width="200" height="64" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1" stroke-dasharray="4,3"/>
-        <rect x="908" y="510" width="30" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.22)" stroke-width="0.8"/>
-        <text x="923" y="519" fill="#5a6580" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">LLM</text>
-        <circle cx="1084" cy="516" r="3" fill="#a8641a"/>
-        <text x="1000" y="540" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Azure OpenAI</text>
-        <text x="1000" y="556" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">gpt-5-mini · UAE North</text>
+        <!-- ================= HUMAN APPROVAL GATE PILL ================= -->
+        <rect x="405" y="405" width="170" height="18" rx="9" fill="#bf4520"/>
+        <text x="490" y="417" fill="#f5f5f5" font-size="6.8" font-family="'Geist Mono', monospace" font-weight="700" text-anchor="middle" letter-spacing="0.14em">HUMAN APPROVAL GATE</text>
 
-        <!-- ── Status legend ───────────────────────────────────────────── -->
-        <line x1="156" y1="624" x2="1124" y2="624" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
-        <text x="156" y="646" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">STATUS</text>
 
-        <circle cx="216" cy="643" r="3.5" fill="#2f7d4f"/>
-        <text x="226" y="646" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Working · exercised end to end</text>
+        <!-- ================= STAGE 6: THE DECISION ================= -->
+        <text x="40" y="420" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">6 · THE CLINICAL DECISION</text>
+        
+        <rect x="200" y="426" width="580" height="52" rx="5" fill="#2d3142" stroke="#bf4520" stroke-width="1.6"/>
+        <circle cx="216" cy="444" r="3" fill="#bf4520"/>
+        <text x="228" y="447" fill="#f5f5f5" font-size="10.5" font-weight="600" font-family="'Geist', sans-serif">Clinician Review, Override &amp; Mandatory Sign-Off</text>
+        <text x="228" y="463" fill="rgba(245,245,245,0.7)" font-size="6.4" font-family="'Geist Mono', monospace">
+          Reviews draft · Checks inputs and provenance · Writes mandatory note (10+ chars) · Releases or Discards with reason
+        </text>
 
-        <circle cx="420" cy="643" r="3.5" fill="#a8641a"/>
-        <text x="430" y="646" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Partial · documented gap</text>
 
-        <rect x="600" y="639" width="14" height="10" rx="2" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1"/>
-        <text x="622" y="646" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">Product core</text>
+        <!-- ================= STAGE 7: WHAT A PERSON CAN SEE ================= -->
+        <text x="40" y="492" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">7 · RELEASED OUTPUTS &amp; INTEROPERABILITY</text>
+        
+        <!-- Draft store -->
+        <rect x="40" y="498" width="290" height="54" rx="5" fill="#ffffff" stroke="#a8641a" stroke-width="1.2"/>
+        <circle cx="53" cy="516" r="2.6" fill="#a8641a"/>
+        <text x="64" y="519" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Record store (PostgreSQL)</text>
+        <text x="64" y="534" fill="#a8641a" font-size="6.2" font-family="'Geist Mono', monospace">AES-256-GCM on sensitive text fields · labs not yet</text>
+        <text x="64" y="544" fill="#64748b" font-size="5.8" font-family="'Geist Mono', monospace">Provenance and model version on every record</text>
 
-        <!-- ── Cross-cutting strip ─────────────────────────────────────── -->
-        <rect x="156" y="660" width="968" height="30" rx="4" fill="rgba(45,49,66,0.05)"/>
-        <text x="172" y="679" fill="#2d3142" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.08em">EVERY LAYER</text>
-        <text x="252" y="679" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif">encryption at rest (AES-256-GCM) · audit trail on access · no model training on patient data · deterministic gate before any release</text>
+        <!-- Patient View -->
+        <rect x="344" y="498" width="290" height="54" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+        <circle cx="357" cy="516" r="2.6" fill="#2d3142"/>
+        <text x="368" y="519" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">Patient Portal (EN / AR RTL)</text>
+        <text x="368" y="534" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace">Tier · markers over time · clinician note · sources</text>
+        <text x="368" y="544" fill="#64748b" font-size="5.8" font-family="'Geist Mono', monospace">Released assessments only · never a probability</text>
+
+        <!-- FHIR R4 Interop -->
+        <rect x="648" y="498" width="290" height="54" rx="5" fill="#ffffff" stroke="#0284c7" stroke-width="1.2"/>
+        <circle cx="661" cy="516" r="2.6" fill="#0284c7"/>
+        <text x="672" y="519" fill="#2d3142" font-size="9.5" font-weight="600" font-family="'Geist', sans-serif">HL7 FHIR R4 Export API</text>
+        <text x="672" y="534" fill="#0284c7" font-size="6.2" font-family="'Geist Mono', monospace">FHIR R4 export runs · Malaffi import proposed</text>
+        <text x="672" y="544" fill="#64748b" font-size="5.8" font-family="'Geist Mono', monospace">Patient · Observation · RiskAssessment</text>
+
+
+        <!-- ================= RIGHT COLUMN: HOSTING & MEASURED METRICS ================= -->
+        
+        <!-- Box 1: Hosting and data residency -->
+        <rect x="960" y="58" width="280" height="210" rx="6" fill="#fffaf3" stroke="#a8641a" stroke-width="1.2"/>
+        <text x="976" y="80" fill="#a8641a" font-size="6.8" font-family="'Geist Mono', monospace" font-weight="700" letter-spacing="0.12em">HOSTING &amp; DATA RESIDENCY</text>
+        
+        <text x="976" y="104" fill="#0f172a" font-size="8" font-weight="600" font-family="'Geist', sans-serif">Prototype today (synthetic data)</text>
+        <text x="976" y="118" fill="#475569" font-size="6.8" font-family="'Geist', sans-serif">App: Vercel · Postgres: Neon (US).</text>
+        <text x="976" y="130" fill="#475569" font-size="6.8" font-family="'Geist', sans-serif">LLM: Azure OpenAI gpt-5-mini, UAE North · Groq (US) fallback.</text>
+
+        <text x="976" y="154" fill="#0f172a" font-size="8" font-weight="600" font-family="'Geist', sans-serif">Production: UAE residency (proposed)</text>
+        <text x="976" y="168" fill="#475569" font-size="6.8" font-family="'Geist', sans-serif">Move app, DB and scoring to Azure UAE North.</text>
+        <text x="976" y="180" fill="#475569" font-size="6.8" font-family="'Geist', sans-serif">No non-UAE fallback (DoH Standard 3.1.4.5.1).</text>
+
+        <text x="976" y="204" fill="#0f172a" font-size="8" font-weight="600" font-family="'Geist', sans-serif">No training on patient data</text>
+        <text x="976" y="218" fill="#475569" font-size="6.8" font-family="'Geist', sans-serif">The model is hand-set; the LLM is not fine-tuned.</text>
+
+        <!-- Box 2: Measured Verification Metrics -->
+        <rect x="960" y="280" width="280" height="200" rx="6" fill="#ffffff" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+        <text x="976" y="302" fill="#5a6580" font-size="6.4" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">ASSISTANT EVALUATION (TEAM-WRITTEN QUESTIONS)</text>
+        
+        <text x="976" y="328" fill="#4f5d75" font-size="7.2" font-family="'Geist', sans-serif">Retrieval Hit@4</text>
+        <text x="1224" y="328" fill="#059669" font-size="7.2" font-family="'Geist Mono', monospace" font-weight="600" text-anchor="end">100% · 36/36</text>
+
+        <text x="976" y="352" fill="#4f5d75" font-size="7.2" font-family="'Geist', sans-serif">Citation Validity</text>
+        <text x="1224" y="352" fill="#059669" font-size="7.2" font-family="'Geist Mono', monospace" font-weight="600" text-anchor="end">100% · 80/80</text>
+
+        <text x="976" y="376" fill="#4f5d75" font-size="7.2" font-family="'Geist', sans-serif">Sentences Grounded</text>
+        <text x="1224" y="376" fill="#2d3142" font-size="7.2" font-family="'Geist Mono', monospace" font-weight="600" text-anchor="end">90% · 72/80</text>
+
+        <text x="976" y="400" fill="#4f5d75" font-size="7.2" font-family="'Geist', sans-serif">Correct abstention (end to end)</text>
+        <text x="1224" y="400" fill="#059669" font-size="7.2" font-family="'Geist Mono', monospace" font-weight="600" text-anchor="end">100% · 12/12</text>
+
+        <line x1="976" y1="412" x2="1224" y2="412" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+        
+        <text x="976" y="432" fill="#a8641a" font-size="6.8" font-family="'Geist', sans-serif">Corpus is English; Arabic retrieval 8/8 (current run)</text>
+        <text x="976" y="445" fill="#4f5d75" font-size="6.4" font-family="'Geist', sans-serif">End-to-end figures: Azure gpt-5-mini run, 14 Nov 2026</text>
+        <text x="976" y="457" fill="#4f5d75" font-size="6.4" font-family="'Geist', sans-serif">per DoH algorithmic transparency requirements.</text>
+
+
+        <!-- ================= ALL LAYERS BANNER ================= -->
+        <rect x="40" y="570" width="1200" height="42" rx="4" fill="#2d3142"/>
+        <circle cx="60" cy="591" r="2.8" fill="#f5f5f5"/>
+        <text x="71" y="587" fill="#f5f5f5" font-size="6.6" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.16em">GOVERNANCE CONTROLS ACROSS ALL LAYERS</text>
+        <text x="71" y="601" fill="rgba(245,245,245,0.75)" font-size="7.2" font-family="'Geist', sans-serif">
+          Granular 5-Purpose Consent · Audit Log of Clinical Actions · AES-256-GCM on Sensitive Fields · Zero Silent Imputation · Synthetic Data Only
+        </text>
+        <text x="1220" y="587" fill="#34d399" font-size="6.4" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.1em">DOH RESPONSIBLE AI: SELF-ASSESSED</text>
+
+
+        <!-- ================= READING GUIDE FOOTER ================= -->
+        <line x1="40" y1="626" x2="1240" y2="626" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+        <text x="40" y="648" fill="#5a6580" font-size="6.4" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">1 · THE SPINE</text>
+        <text x="40" y="666" fill="#4f5d75" font-size="8" font-family="'Geist', sans-serif">Single unidirectional vertical spine.</text>
+        <text x="40" y="679" fill="#4f5d75" font-size="8" font-family="'Geist', sans-serif">Raw data cannot reach patients unreviewed.</text>
+
+        <text x="460" y="648" fill="#5a6580" font-size="6.4" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">2 · DARK BOXES = ACTIVE COMPUTATION</text>
+        <text x="460" y="666" fill="#4f5d75" font-size="8" font-family="'Geist', sans-serif">Stage 3 (ML Scorer) and Stage 6 (Physician Review)</text>
+        <text x="460" y="679" fill="#4f5d75" font-size="8" font-family="'Geist', sans-serif">are the only stages where claims are made.</text>
+
+        <text x="880" y="648" fill="#5a6580" font-size="6.4" font-family="'Geist Mono', monospace" font-weight="600" letter-spacing="0.14em">3 · CORAL PILL = HUMAN-IN-THE-LOOP</text>
+        <text x="880" y="666" fill="#4f5d75" font-size="8" font-family="'Geist', sans-serif">Code-level enforcement: AI cannot publish.</text>
+        <text x="880" y="679" fill="#4f5d75" font-size="8" font-family="'Geist', sans-serif">Every release requires a named clinician signature.</text>
+
+        <text x="40" y="715" fill="#a8641a" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">
+          PROTOTYPE · FULL CODE ATTACHED · UNIT TESTS FOR ENCRYPTION ONLY · NOT A MEDICAL DEVICE
+        </text>
       </svg>
     </div>
 
+    <!-- 3 Editorial Summary Cards -->
     <div class="cards">
       <div class="card">
-        <p class="eyebrow">THE HEADLINE</p>
-        <div class="card-header"><span class="card-dot coral"></span><h3>Nothing is generated without a source</h3></div>
-        <p>Retrieval runs before the model. If the best passage scores too low, no answer is written and the person is told so. Every sentence shown carries the passage it came from.</p>
+        <p class="eyebrow">CLINICAL GOVERNANCE ON THE SPINE</p>
+        <div class="card-header"><span class="card-dot coral"></span><h3>The Gate is a Step, Not a Policy</h3></div>
+        <p>
+          Stage six is the only route from a draft to a patient. In code, the assessment pipeline has no function to set a prediction status to <code>RELEASED</code>. The release endpoint strictly requires an authenticated clinician session, a verified patient link, and a rationale note of at least 10 characters.
+        </p>
       </div>
+
       <div class="card">
-        <p class="eyebrow">MEASURED, NOT ASSERTED</p>
-        <div class="card-header"><span class="card-dot work"></span><h3>Arabic and English, evaluated</h3></div>
-        <div class="metric"><span>Retrieval hit@4</span><span>100% · 36/36</span></div>
-        <div class="metric"><span>Correct abstention</span><span>100% · 12/12</span></div>
-        <div class="metric"><span>Citation validity</span><span>100% · 80/80</span></div>
-        <div class="metric"><span>Supported sentences</span><span>90% · 72/80</span></div>
-      </div>
-      <div class="card">
-        <p class="eyebrow">WHAT IS STILL OPEN</p>
-        <div class="card-header"><span class="card-dot partial"></span><h3>Stated, not hidden</h3></div>
+        <p class="eyebrow">MATHEMATICAL EXPLAINABILITY</p>
+        <div class="card-header"><span class="card-dot soft"></span><h3>Two Engines, Strictly Kept Apart</h3></div>
+        <p>
+          ReproAI strictly separates mathematical prediction from natural language copilot:
+        </p>
         <ul>
-          <li>Arabic retrieval is 13% — corpus is English-only</li>
-          <li>Prompts may be processed outside the UAE (DoH §3.1.4.5.1)</li>
-          <li>No clinical validation; not a diagnosis</li>
+          <li><strong>Literature-spline v2.2</strong>: Deterministic, hand-set scoring shaped on published curves (not trained or validated), with per-factor contributions and a model-based 95% interval. If a required biomarker is missing, it refuses to guess.</li>
+          <li><strong>Azure OpenAI gpt-5-mini (UAE North)</strong>: Language model copilot grounded in Daman Thiqa ART v3.6, WHO, and ESHRE guidelines. It cannot alter or generate risk scores.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <p class="eyebrow">HOSTING &amp; DATA SECURITY</p>
+        <div class="card-header"><span class="card-dot soft"></span><h3>What runs today, and what production needs</h3></div>
+        <p>
+          Prototype on synthetic data; production steps toward DoH data-governance requirements:
+        </p>
+        <ul>
+          <li><strong>UAE residency (proposed)</strong>: the LLM already runs on Azure OpenAI in UAE North; production moves the app, database and scoring service there too and removes the Groq (US) fallback. Today the database is in the US.</li>
+          <li><strong>AES-256-GCM at rest</strong>: a Prisma extension encrypts names, medical history, clinician notes, assessment inputs and factors, and chat before writing to PostgreSQL (unit-tested). Numeric lab values and emails are not yet encrypted; the key is not yet in a managed vault.</li>
+          <li><strong>HL7 FHIR R4</strong>: export of Patient, Observation and RiskAssessment runs today; Malaffi import is proposed.</li>
         </ul>
       </div>
     </div>
 
     <div class="footer">
-      <span>reproai · system architecture · prototype</span>
-      <span>azure openai gpt-5-mini · uae north</span>
+      <span>ReproAI · System Architecture · Abu Dhabi Future Health Digital Innovation Challenge</span>
+      <span>Challenge 02: Reproductive Potential · November 2026</span>
     </div>
   </div>
+
+  <script>
+    function exportSVG() {
+      const svg = document.getElementById('archSvg');
+      const serializer = new XMLSerializer();
+      let source = serializer.serializeToString(svg);
+      if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'reproai-system-architecture.svg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  </script>
 </body>
 </html>

@@ -1,12 +1,18 @@
-> **Superseded.** See [`technical-documentation.md`](technical-documentation.md) (section 2) and [`challenge-02-benchmark.md`](challenge-02-benchmark.md) for the current mapping to the brief and the six criteria.
+# Mapping to the six judging criteria
 
-# Mapping to the 6 judging criteria
+Every row is something a judge can open. Status labels: **Runs in prototype**, **Simulated**, **Proposed for production**. The slide-by-slide submission content is in [submission-pack.md](submission-pack.md).
 
-| Criterion | How ReproAI addresses it |
-|---|---|
-| Health Impact & Clinical Relevance | Predicts fertility treatment success; earlier PCOS and male-factor detection; closed-loop follow-up prevents patients from being lost in the system. |
-| Technical Depth & Architecture | scikit-learn model + explainability, FHIR R4 interoperability (Observation resources), typed monorepo, Azure AI Foundry integration ready. |
-| Working Solution & Demo Quality | Functional patient + clinician flows with interactive follow-up status updates, wearable data entry, live ML predictions (no mocks). |
-| Responsible AI & Safety | Clinical disclaimer, feature-importance explainability, encryption at rest (AES-256-GCM), audit log, consent-first design, empathetic system prompt. |
-| Scalability & Deployment Readiness | SQLite to Postgres, Vercel deploy, isolated ML service, FHIR export for national platform integration (Malafi/Sahhatna). |
-| Commercial Viability & Path to Pilot | Economic impact dashboard showing estimated healthcare savings by identifying low-response cases early; reduces unnecessary IVF cycle costs; integrates with Abu Dhabi national health platforms. |
+| Criterion | What ReproAI shows | Where to see it | Status |
+| --- | --- | --- | --- |
+| Health impact and clinical relevance | Earlier, governed entry (programme or clinician invitation) for people not yet trying; cited pathway options tied to Daman Thiqa and WHO thresholds; men included through semen analysis prompts. | `/tour` steps 1–3, `/patient/overview`, `/patient/assessment` | Runs in prototype (clinician prescription). Premarital and IFHAS invitations: Proposed |
+| Technical depth and architecture | Gated pipeline (consent → completeness → deterministic scoring → explanation → clinician review → release → audit); literature-derived additive model with per-factor contributions; deterministic rules engine; retrieve-first cited RAG with abstention; governed agent action with no LLM in the action path; FHIR R4. | [technical-documentation.md](technical-documentation.md), [architecture.md](architecture.md) | Runs in prototype |
+| Working solution and demo quality | Nine-step guided tour with fictional personas, including a missing-data case and a withdrawn-consent case; English and Arabic (RTL). | `/tour` | Runs in prototype |
+| Responsible AI, safety and governance | No imputation of required inputs; clinician sign-off before release; provenance; five revocable consents; model card with limitations; DoH Responsible AI Standard mapping; risk register; evidence labels. | `/model-card`, [doh-responsible-ai-mapping.md](doh-responsible-ai-mapping.md), [risk-register.md](risk-register.md) | Runs in prototype, including AES-256-GCM on sensitive text fields. Managed keys, UAE hosting for the database, MFA: Proposed |
+| Scalability and deployment readiness | Stateless Next.js app, separate scoring service, Postgres; FHIR export; Azure deployment path in a UAE region. | [azure-integration.md](azure-integration.md), [fhir-interoperability.md](fhir-interoperability.md) | Prototype on Vercel + Neon. UAE hosting and Malaffi import: Proposed |
+| Commercial viability and path to pilot | Buyer is the health system (ADPHC/DoH programmes, provider groups); individuals never pay; six-month pilot with one primary-care cluster and one fertility centre; primary outcome: days from risk signal to counselling. | [submission-pack.md](submission-pack.md) slide 11 | Designed, not started. No cost-saving figures are claimed. |
+
+## Claims we do not make
+
+- No accuracy, discrimination or calibration figure. The model is not trained or validated on patient data.
+- No cost savings or ROI figures.
+- No user testing or customer validation. All data is synthetic.
