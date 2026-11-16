@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { hasConsent } from "@/lib/consent";
 import { canAccessCase, canAccessUser } from "@/lib/clinician-scope";
+import { normaliseObservation } from "@/lib/observation-analysis";
 
 // FHIR-aligned observations (wearables or manually entered vitals).
 // Patients only ever see their own records (individual-first privacy, even when
@@ -53,23 +54,25 @@ export async function POST(req: NextRequest) {
     if (!body) {
       return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
     }
-    const { code, value, unit } = body;
+    const checked = normaliseObservation(body.code, body.value);
+    if (!checked.ok) {
+      return NextResponse.json({ error: checked.error }, { status: 400 });
+    }
     // Patients always write into their own record; only clinicians may target a couple.
     const coupleId = session.role === "CLINICIAN" ? body.coupleId ?? null : session.coupleId ?? null;
-
-    if (!code || typeof value !== "number") {
-      return NextResponse.json(
-        { error: "code and numeric value are required" },
-        { status: 400 }
-      );
+    // Clinicians may write only into cases in their scope (prescribed or assigned).
+    if (session.role === "CLINICIAN" && (!coupleId || !(await canAccessCase(session.userId, String(coupleId))))) {
+      return NextResponse.json({ error: "Forbidden: this case is not in your scope" }, { status: 403 });
     }
+
     const observation = await prisma.observation.create({
       data: {
         coupleId,
         userId: session.userId,
-        code,
-        value,
-        unit
+        code: checked.code,
+        value: checked.value,
+        unit: checked.unit,
+        source: "MANUAL"
       }
     });
     return NextResponse.json({ observation }, { status: 201 });

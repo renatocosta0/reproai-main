@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, ArrowRight, Bell, ChevronRight, Search, Sparkles, TrendingUp, UserPlus, Users } from "lucide-react";
+import { Activity, ArrowRight, Bell, ChevronRight, ClipboardCheck, Search, Sparkles, UserPlus, Users } from "lucide-react";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
-import { band, caseInitials, shortReason, usd } from "@/lib/format";
+import { band, caseInitials, shortReason } from "@/lib/format";
 import { longDateL } from "@/lib/i18n-clinician";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
 import { CaseTable, type CaseTab } from "@/components/clinician/CaseTable";
@@ -84,12 +84,12 @@ export default function ClinicianDashboard() {
         <Metric label={L.mAssessed} value={dir ? String(assessed.length) : "–"} detail={dir ? L.mAssessedDetail(all.length - assessed.length) : ""} icon={<Activity size={19} />} tone="blue" href="/clinician/cases?filter=assessed" />
         <Metric label={L.mAlerts} value={dir ? String(alerts.length) : "–"} detail={L.mAlertsDetail} icon={<Bell size={19} />} tone="coral" href="/clinician/follow-up" />
         <Metric
-          label={L.mSavings}
-          value={dir ? usd(dir.impactMetrics.estimatedSavingsUSD) : "–"}
-          detail={dir ? L.mSavingsDetail(dir.impactMetrics.lowResponseCases, usd(dir.impactMetrics.ivfCycleCost)) : ""}
-          icon={<TrendingUp size={19} />}
+          label={L.mReview}
+          value={dir ? String(dir.awaitingReview) : "–"}
+          detail={L.mReviewDetail}
+          icon={<ClipboardCheck size={19} />}
           tone="gold"
-          href="/clinician/evidence"
+          href="/clinician/cases"
         />
       </section>
 

@@ -6,8 +6,8 @@
 //     released assessments, baseline coverage), with Wilson 95% intervals.
 //  2. A simulated cohort (fixed seed) that checks the *pipeline and reporting*:
 //     false reassurance of the reduced-reserve rule under AMH test variability,
-//     and calibration of the model against an independent, age-based reference
-//     curve. It is labelled synthetic everywhere and makes no clinical claim.
+//     and a pipeline self-check of the model against an age-based reference curve
+//     that shares some of its assumptions (not an independent validation). It is labelled synthetic everywhere and makes no clinical claim.
 
 import { prisma } from "@/lib/db";
 import { predictBatch } from "@/lib/ml-client";
@@ -185,7 +185,9 @@ function normal(rand: () => number): number {
 }
 
 /**
- * Independent reference curve (not the ReproAI model): approximate live-birth
+ * Reference curve for a PIPELINE SELF-CHECK, not an independent validation:
+ * the simulated AMH below reuses the model's typical-AMH-for-age formula, so
+ * agreement with the model would be partly circular. Approximate live-birth
  * rate per IVF cycle by age band, in the shape of published national registry
  * summaries, with a modest adjustment for very low ovarian reserve.
  */

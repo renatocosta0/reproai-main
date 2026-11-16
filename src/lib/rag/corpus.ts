@@ -13,7 +13,7 @@
 // Facts that could not be verified against a source this cycle are left out on
 // purpose (for example the WHO 2021 semen manual's numeric limits, and age cut-offs
 // from the ESHRE 2020 preservation guideline). The previous hand-written snippets
-// in src/lib/guidelines-local/ are unverified and are no longer retrieved.
+// once kept in src/lib/guidelines-local/ were unverified and have been removed.
 
 export type PassageStatus = "primary" | "summary" | "scope" | "internal";
 export type Audience = "both" | "clinician";
@@ -262,7 +262,7 @@ export const PASSAGES: Passage[] = [
   {
     id: "RAI-2", doc: "REPROAI", section: "Model card", status: "internal", audience: "both",
     title: "How the estimate is made",
-    text: "The estimate comes from a scoring model built from published literature, not trained or validated on patient records. It is shown with a 95 percent interval, a plain-language tier and the factors that raised or lowered it. ReproAI makes no claim about its accuracy.",
+    text: "The estimate comes from a scoring model built from published literature, not trained or validated on patient records. It is shown with a 95 percent interval calculated under the model's own assumptions, not a validated range, plus a plain-language tier and the factors that raised or lowered it. ReproAI makes no claim about its accuracy.",
     terms: ["score", "probability", "percentage", "how calculated", "model", "accuracy", "chance", "confidence interval", "range", "tier", "factors"]
   },
   {

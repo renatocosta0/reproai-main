@@ -13,7 +13,7 @@ import { useClinicianText } from "@/components/clinician/useClinicianText";
 
 type Scope = "INDIVIDUAL" | "COUPLE";
 
-/** Clinician prescription: creates a single-use activation link for an individual or a couple. */
+/** Clinician prescription: creates a single-use activation link for an individual or a couple, and emails it when email is configured. */
 export function PrescribeModal({ onClose }: { onClose: () => void }) {
   const { bump } = useClinician();
   const { L } = useClinicianText();
@@ -70,7 +70,14 @@ export function PrescribeModal({ onClose }: { onClose: () => void }) {
           <div style={{ width: "100%", marginTop: 6 }}>
             <CopyLink path={result.inviteUrl} />
           </div>
-          <p style={{ fontSize: 12 }}>{L.noAutoEmail}</p>
+          {result.emailDelivery?.configured ? (
+            <>
+              {result.emailDelivery.sent.length > 0 && <p style={{ fontSize: 12 }}>{L.emailSent(result.emailDelivery.sent.join(` ${L.and} `))}</p>}
+              {result.emailDelivery.failed.length > 0 && <FormError>{L.emailFailed(result.emailDelivery.failed.join(` ${L.and} `))}</FormError>}
+            </>
+          ) : (
+            <p style={{ fontSize: 12 }}>{L.noAutoEmail}</p>
+          )}
           <button className="primary" onClick={onClose}>{L.done}</button>
         </div>
       </Modal>

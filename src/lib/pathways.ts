@@ -167,7 +167,7 @@ export function evaluatePathways(c: PathwayContext): PathwayOption[] {
       priority: lowReserve || (age >= 35) ? 1 : 2,
       title: "Talk through egg freezing, if it matters to you",
       patientText:
-        "Egg freezing tends to work better at younger ages. In Abu Dhabi, Thiqa covers social egg freezing for eligible single members: up to two cycles in a lifetime, storage for five years, and a psychological assessment beforehand. A specialist can tell you whether it suits your situation.",
+        "Egg freezing tends to work better at younger ages. If you are a Thiqa member, Thiqa covers social egg freezing for eligible single members: up to two cycles in a lifetime, storage for five years, and a psychological assessment beforehand. Other insurance plans differ. A specialist can tell you whether it suits your situation.",
       clinicianText: "Preservation discussion indicated (intent, reserve or age). Thiqa social egg freezing: max 2 cycles lifetime, 5-year storage, mandatory psychological assessment.",
       reason: c.preservationIntent ? "You said you are considering it." : lowReserve ? "Reserve is below the reference range." : "Reserve is in the lower part of the range for your age.",
       source: `${ESHRE}; ${THIQA}: social egg freezing`
@@ -290,7 +290,7 @@ export function evaluatePathways(c: PathwayContext): PathwayOption[] {
       patientText: "Regular, sufficient sleep supports the hormones involved in fertility.",
       clinicianText: `Mean sleep ${c.meanSleepHours.toFixed(1)} h.`,
       reason: `Your average sleep is ${c.meanSleepHours.toFixed(1)} hours.`,
-      source: "Reproductive health and sleep evidence review (ASRM 2023)"
+      source: "General health advice; no guideline citation yet (to be sourced)"
     });
   }
   if (out.length === 0) {

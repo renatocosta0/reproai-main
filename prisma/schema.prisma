@@ -91,6 +91,14 @@ model Observation {
   value     Float
   unit      String?
   effectiveAt DateTime @default(now())
+  /// Provenance: MANUAL | BLUETOOTH | HEALTH_CONNECT | HEALTHKIT | ULTRAHUMAN. Null = recorded before provenance was tracked.
+  source     String?
+  /// Device or app that produced the reading, e.g. "Easy@Home BBT" or "Oura (via Health Connect)"
+  device     String?
+  /// Stable id from the source (HealthKit UUID, Health Connect id, device+timestamp) used to skip duplicates on re-import
+  externalId String?
+
+  @@unique([userId, source, externalId])
 }
 
 model Prediction {

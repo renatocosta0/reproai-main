@@ -86,6 +86,9 @@ export interface ObservationRecord {
   value: number;
   unit: string | null;
   effectiveAt: string;
+  /** MANUAL | BLUETOOTH | HEALTH_CONNECT | HEALTHKIT | ULTRAHUMAN; null for older rows */
+  source?: string | null;
+  device?: string | null;
 }
 
 export interface BulkObservationResponse {

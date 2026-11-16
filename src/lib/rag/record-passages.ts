@@ -1,7 +1,7 @@
 // Turns a person's record (or a clinician's case facts) into citable passages,
 // so answers about "my results" are grounded in the record the same way answers
 // about guidance are grounded in the corpus. Patients get released information
-// only, and no probability (the patient UI shows tier and percentile, not a %).
+// only, and no probability (the patient UI shows tier and an AMH-for-age comparison, not a %).
 
 import type { CaseFacts } from "@/lib/copilot";
 import type { PersonRecord } from "@/lib/person-record";
@@ -67,7 +67,7 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
       text:
         `Your latest assessment was released by your clinician on ${day(a.reviewedAt ?? a.createdAt)} (${a.scope === "COUPLE" ? "joint, with your partner" : "individual"}). ` +
         `${a.tier ? `Its tier is ${a.tier.toLowerCase()}. ` : ""}` +
-        `${a.percentile !== null ? `Your AMH is at about the ${Math.round(a.percentile)}th percentile for your age. ` : ""}` +
+        `${a.percentile !== null ? `Your AMH is about ${Math.round(a.percentile * 2)}% of a typical value for your age. ` : ""}` +
         `${factors.length ? `Factors: ${factors.join("; ")}. ` : ""}` +
         `${a.missingOptional.length ? `Not available for it: ${a.missingOptional.join(", ")}. ` : ""}` +
         `${a.clinicianNote ? `Your clinician's note: ${a.clinicianNote}` : ""}`
@@ -141,7 +141,7 @@ export function casePassages(facts: CaseFacts): RecordPassage[] {
         `${i === 0 ? "Most recent assessment. " : "Earlier assessment. "}${a.scope} assessment dated ${a.date}, status ${a.status}. Model estimate (prototype, not clinically validated) ${a.estimatePercent}% with 95% interval ${a.interval95[0] ?? "?"}–${a.interval95[1] ?? "?"}%. ` +
         `Tier ${a.tier ?? "none"}. Completeness ${a.completeness !== null ? Math.round(a.completeness * 100) + "%" : "not recorded"}. ` +
         `${a.missingOptional.length ? `Missing optional inputs: ${a.missingOptional.join(", ")}. ` : ""}` +
-        `${a.amhPercentile !== null ? `AMH percentile for age ${Math.round(a.amhPercentile)}. ` : ""}` +
+        `${a.amhPercentOfTypicalForAge !== null ? `AMH about ${a.amhPercentOfTypicalForAge}% of a typical value for age (a ratio, not a population percentile). ` : ""}` +
         `Factors: ${a.factors.map((f) => `${f.factor} ${(f.shapleyValue ?? 0) >= 0 ? "raised" : "lowered"} the estimate`).join("; ")}. ` +
         `${a.clinicianNote ? `Clinician note: ${a.clinicianNote}` : "No clinician note yet."}`
     });

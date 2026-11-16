@@ -64,4 +64,4 @@ export function featureLabel(feature: string): string {
   return map[feature] ?? feature;
 }
 
-export const WHO_SPERM_LOWER_LIMIT = 15; // million/mL, WHO 6th ed. (2021)
+export const WHO_SPERM_LOWER_LIMIT = 15; // million/mL, WHO 5th ed. (2010) lower reference limit, as used by the Daman Thiqa guideline (6th ed. 2021 gives 16)

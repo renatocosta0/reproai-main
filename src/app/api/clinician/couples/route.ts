@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { calculateImpactMetrics } from "@/lib/impact-metrics";
 import { clinicianCaseIds } from "@/lib/clinician-scope";
 
 // GET /api/clinician/couples
@@ -56,7 +55,8 @@ export async function GET(req: NextRequest) {
     });
 
     const predictionsList = containers.map((c) => c.predictions[0] ?? null);
-    const metrics = calculateImpactMetrics(predictionsList);
+    // Latest assessment per case still waiting for clinician review and release.
+    const awaitingReview = predictionsList.filter((p) => p?.status === "DRAFT").length;
 
     const individuals: any[] = [];
     const couples: any[] = [];
@@ -140,7 +140,7 @@ export async function GET(req: NextRequest) {
         items: individuals,
         count: individuals.length,
         activeAlertsCount: individuals.filter((i) => i.activeAlert !== null).length,
-        impactMetrics: metrics
+        awaitingReview
       });
     }
 
@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
         items: couples,
         count: couples.length,
         activeAlertsCount: couples.filter((c) => c.activeAlert !== null).length,
-        impactMetrics: metrics
+        awaitingReview
       });
     }
 
@@ -164,7 +164,7 @@ export async function GET(req: NextRequest) {
         couples: couples.length,
         activeAlerts: activeAlertsCount
       },
-      impactMetrics: metrics
+      awaitingReview
     });
   } catch (error: any) {
     console.error("[GET /api/clinician/couples] error:", error);

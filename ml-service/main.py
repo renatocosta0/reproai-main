@@ -5,9 +5,10 @@ A FastAPI service that turns clinician-verified inputs into an explainable
 estimate with exact additive (Shapley) attributions and an uncertainty interval.
 
 Honest status (shown to users and judges):
-  - The scoring curves are derived from published sources (HFEA 2022, CDC ART
-    2022, WHO semen manual 6th ed. 2021, ESHRE 2020-2023, POSEIDON, Bhattacharya
-    et al. 2021). They are NOT fitted to, or validated on, a patient dataset.
+  - The curve shapes are informed by published sources (HFEA 2022, CDC ART 2022,
+    WHO semen reference values, ESHRE 2020-2023, POSEIDON, Bhattacharya et al.
+    2021), but the coefficients are hand-set by the team, not fitted to or
+    validated on a patient dataset. There is no table-to-coefficient derivation.
   - No discrimination or calibration statistic is claimed. Calibration and
     false-reassurance checks on a labelled simulated cohort are reported by the
     app's evidence dashboard, not asserted here.
@@ -24,13 +25,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 import math
 
-MODEL_VERSION = "literature-spline-shapley-2.1"
+MODEL_VERSION = "literature-spline-shapley-2.2"
 EVIDENCE_STATUS = "Literature-derived scoring. Runs in prototype. Not clinically validated."
 
 app = FastAPI(
     title="ReproAI ML Service",
     description="Explainable reproductive-potential scoring with missing-data gates",
-    version="2.1.0"
+    version="2.2.0"
 )
 
 app.add_middleware(
@@ -104,7 +105,7 @@ class PredictionOutput(BaseModel):
 # the Shapley baseline; a missing optional input is set to its baseline).
 BASELINE_EXPECTATIONS = {
     "Female age": -0.22,
-    "Male age": -0.22,
+    "Male age": 0.05,
     "AMH (ovarian reserve)": 0.05,
     "Sperm concentration": 0.12,
     "BMI": 0.04,
@@ -171,6 +172,20 @@ def score_age_continuous(age: float) -> float:
         return -2.00 - min(1.2, (age - 43.0) * 0.35)
 
 
+def score_male_age_continuous(age: float) -> float:
+    """
+    Paternal age. Its effect on fertility is much smaller and less consistent than
+    maternal age, so this curve is deliberately flat until 40 with a mild decline
+    after. The shape is a team judgement, not fitted to data.
+    """
+    if age <= 40.0:
+        return 0.10
+    elif age <= 50.0:
+        return 0.10 - ((age - 40.0) / 10.0) * 0.25
+    else:
+        return -0.15 - min(0.15, (age - 50.0) * 0.03)
+
+
 def score_amh_continuous(amh: float) -> float:
     """
     Continuous logarithmic model for follicular reserve (POSEIDON criteria).
@@ -191,8 +206,10 @@ def score_amh_continuous(amh: float) -> float:
 
 def score_sperm_continuous(sperm_count: float) -> float:
     """
-    Sperm concentration log-odds contribution (WHO 6th Ed. reference standard).
-    Threshold of 15-16 M/mL marks normozoospermia transition.
+    Sperm concentration log-odds contribution. 15 M/mL is the lower reference
+    limit used by the Daman Thiqa guideline (WHO 2010, 5th edition; the 2021
+    6th edition gives 16 M/mL). WHO notes these limits are not thresholds for
+    subfertility.
     """
     if sperm_count <= 0.0:
         return -1.05  # Azoospermia
@@ -281,7 +298,7 @@ def predict_internal(inp: PredictionInput) -> PredictionOutput:
         intercept = -0.20
         sperm = inp.sperm_count
         raw_scores = {
-            "Male age": score_age_continuous(inp.age),
+            "Male age": score_male_age_continuous(inp.age),
             "Sperm concentration": score_sperm_continuous(sperm),
             "BMI": opt("bmi", "BMI", score_bmi_continuous),
         }
@@ -296,8 +313,9 @@ def predict_internal(inp: PredictionInput) -> PredictionOutput:
         )
         percentile = None
         disclaimer = (
-            "Individual estimate from age, semen concentration and BMI against WHO 6th-edition reference "
-            "values. A single semen analysis varies; WHO recommends confirming abnormal results with a repeat test."
+            "Individual estimate from age, semen concentration and BMI against the reference limits used by "
+            "the Thiqa guideline (WHO 2010). A single semen analysis varies; WHO recommends confirming abnormal "
+            "results with a repeat test."
         )
 
     elif scope == "INDIVIDUAL":
@@ -333,6 +351,10 @@ def predict_internal(inp: PredictionInput) -> PredictionOutput:
                 "Egg quality declines more quickly after 38; a timely specialist discussion is advised "
                 "if future pregnancy matters to you (ESHRE/ASRM)."
             )
+        # NOT a population percentile: 50 x (AMH / an approximate typical AMH for
+        # age), so 50 = typical, 25 = half, 99 = about double or more. The
+        # typical-for-age curve is a team approximation (source to confirm).
+        # Patients see it only as words and "about N% of a typical value".
         expected_median = max(0.4, 3.2 * math.exp(-0.075 * max(0.0, inp.age - 25)))
         percentile = round(min(99.0, max(1.0, 50.0 * (amh / expected_median))), 1)
         disclaimer = (
@@ -438,7 +460,7 @@ def model_info():
         "evidence_sources": [
             "HFEA Fertility Treatment: Trends and Figures 2022",
             "CDC ART National Summary 2022",
-            "WHO Laboratory Manual for the Examination of Human Semen, 6th ed. (2021)",
+            "WHO semen reference values (5th ed. 2010 as used by the Daman Thiqa guideline; 6th ed. 2021 for comparison)",
             "ESHRE ovarian stimulation and preservation guidelines (2020-2023); POSEIDON criteria",
             "Bhattacharya et al. (2021) meta-analysis of live-birth predictors",
             "Daman Thiqa ART Adjudication Guideline v3.6 (2025) for local clinical pathways and reserve thresholds",
@@ -488,6 +510,10 @@ def model_info():
             "Curves come mostly from UK, European and US registries and studies; transferability to the UAE population is unknown.",
             "A single AMH or semen result varies between tests and laboratories; repeat abnormal results.",
             "Self-reported inputs (BMI, PCOS history, time trying) are not verified.",
+            "Coefficients are hand-set from the shape of published curves; there is no documented derivation from each source table.",
+            "The 95% interval uses a fixed, assumed standard error. It is not estimated from data and is not a validated prediction interval.",
+            "The AMH-for-age figure is a ratio to an approximate typical value for age (50 = typical), not a population percentile.",
+            "Paternal age uses a deliberately mild curve; its true effect is small and uncertain.",
             "The reference expectations used for Shapley values are literature-based, not measured in a local population.",
         ],
         "next_steps": "Recalibrate and externally validate on Abu Dhabi outcomes before any clinical use.",
@@ -537,6 +563,10 @@ def model_info():
                 "تأتي المنحنيات غالبًا من سجلات ودراسات في المملكة المتحدة وأوروبا والولايات المتحدة، ومدى انطباقها على سكان الإمارات غير معروف.",
                 "تتفاوت نتيجة AMH أو تحليل السائل المنوي الواحدة بين الفحوص والمختبرات، لذا تُعاد النتائج غير الطبيعية.",
                 "المُدخلات التي يُدخلها المريض بنفسه (مؤشر كتلة الجسم، وتاريخ تكيّس المبايض، ومدة المحاولة) غير مُتحقَّق منها.",
+                "المعاملات مضبوطة يدويًا استنادًا إلى شكل منحنيات منشورة، دون اشتقاق موثق من جداول كل مصدر.",
+                "يستخدم نطاق 95% خطأً معياريًا ثابتًا مفترضًا، غير مقدَّر من البيانات، وليس نطاق تنبؤ مُتحقَّقًا منه.",
+                "رقم AMH حسب العمر نسبة إلى قيمة معتادة تقريبية للعمر (50 = معتاد)، وليس مئينًا سكانيًا.",
+                "يستخدم عمر الأب منحنى معتدلًا عن قصد، فأثره الحقيقي صغير وغير مؤكد.",
                 "القيم المتوقعة المرجعية المستخدمة لقيم شابلي مستندة إلى الأدبيات، وليست مقيسة في مجتمع محلي.",
             ],
             "next_steps": "إعادة المعايرة والتحقق الخارجي على نتائج من أبوظبي قبل أي استخدام سريري.",

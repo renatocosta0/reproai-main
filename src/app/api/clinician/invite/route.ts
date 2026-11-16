@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { randomBytes } from "node:crypto";
+import { buildInvitationEmail, getEmailConfig, sendEmail } from "@/lib/email";
 
 // Unified Clinician Digital Prescription / Invitation Endpoint
 // Supports prescribing access for:
@@ -85,15 +86,39 @@ export async function POST(req: NextRequest) {
     const action = scope === "INDIVIDUAL" ? "individual_prescribed" : "couple_prescribed";
     await audit(session.userId, action, `invitation:${invitation.id}:couple:${couple.id}`);
 
+    // Email the activation link when email is configured. A failed send never
+    // fails the prescription: the clinician still gets the link to share by hand.
+    // Audit entries name the role (primary/partner), never the address.
+    const inviteUrl = `/register?token=${token}`;
+    const emailDelivery: { configured: boolean; sent: string[]; failed: string[] } = { configured: false, sent: [], failed: [] };
+    if (getEmailConfig()) {
+      emailDelivery.configured = true;
+      const base = (process.env.APP_URL?.trim() || req.nextUrl.origin).replace(/\/$/, "");
+      const content = buildInvitationEmail(`${base}${inviteUrl}`);
+      const recipients = [{ role: "primary", to: primaryEmail }, ...(partnerEmail ? [{ role: "partner", to: partnerEmail }] : [])];
+      for (const r of recipients) {
+        const sent = await sendEmail({ ...content, to: r.to, idempotencyKey: `invitation-email/${invitation.id}-${r.role}` });
+        if (sent.ok) {
+          emailDelivery.sent.push(r.to);
+          await audit(session.userId, "invitation_email_sent", `invitation:${invitation.id}:${r.role}`);
+        } else {
+          emailDelivery.failed.push(r.to);
+          console.error(`[invite] email to ${r.role} failed: ${sent.error}`);
+          await audit(session.userId, "invitation_email_failed", `invitation:${invitation.id}:${r.role}`);
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         ok: true,
         scope,
         invitationToken: token,
         invitationId: invitation.id,
-        inviteUrl: `/register?token=${token}`,
+        inviteUrl,
         recipientEmail: primaryEmail,
         partnerEmail,
+        emailDelivery,
         message: `${scope === "INDIVIDUAL" ? "Individual" : "Couple"} prescription invitation successfully created under clinical supervision.`
       },
       { status: 201 }

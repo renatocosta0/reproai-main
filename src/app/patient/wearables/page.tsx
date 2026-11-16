@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Activity, Check, FileUp, MoonStar, Plus, Sparkles, Thermometer, X } from "lucide-react";
+import { Activity, Bluetooth, Check, FileUp, MoonStar, Plus, Sparkles, Thermometer, X } from "lucide-react";
+import { BluetoothThermometer } from "@/components/patient/BluetoothThermometer";
+import { SOURCE_LABELS } from "@/lib/device-import";
 import { usePatient } from "@/components/patient/PatientContext";
 import { useObservations } from "@/components/patient/useObservations";
 import { TemperatureChart } from "@/components/charts/TemperatureChart";
@@ -46,6 +48,8 @@ const S = {
     title: "Your health patterns",
     subtitle: "Daily signals become meaningful when viewed together over time.",
     importReadings: "Import readings",
+    bluetoothBtn: "Bluetooth thermometer",
+    sources: (list: string) => `From: ${list}`,
     logMeasurementBtn: "Log measurement",
     dismiss: "Dismiss",
     logTitle: "Log a measurement",
@@ -100,6 +104,8 @@ const S = {
     title: "أنماطك الصحية",
     subtitle: "تصبح الإشارات اليومية ذات معنى عند النظر إليها معًا عبر الزمن.",
     importReadings: "استيراد قراءات",
+    bluetoothBtn: "ميزان حرارة بلوتوث",
+    sources: (list: string) => `المصدر: ${list}`,
     logMeasurementBtn: "تسجيل قياس",
     dismiss: "إغلاق",
     logTitle: "تسجيل قياس",
@@ -157,7 +163,7 @@ export default function WearablesPage() {
   const kindLabel = (k: Kind) => (k === "temperature" ? L.temperature : L.sleep);
   const kindUnit = (k: Kind) => (k === "temperature" ? "°C" : L.hours);
   const dateL = (d: string | Date) => (ar ? new Date(d).toLocaleDateString("ar-AE-u-nu-latn", { day: "numeric", month: "short" }) : shortDate(d));
-  const [mode, setMode] = useState<"none" | "single" | "bulk">("none");
+  const [mode, setMode] = useState<"none" | "single" | "bulk" | "bluetooth">("none");
   const [kind, setKind] = useState<Kind>(sex === "male" ? "sleep" : "temperature");
   // One draft per kind, so switching between temperature and sleep never carries a value across.
   const [values, setValues] = useState<Record<Kind, string>>({ temperature: "", sleep: "" });
@@ -247,7 +253,12 @@ export default function WearablesPage() {
           <h1>{L.title}</h1>
           <span>{L.subtitle}</span>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {sex !== "male" && (
+            <button className="secondary" onClick={() => { setMode(mode === "bluetooth" ? "none" : "bluetooth"); setError(""); }}>
+              <Bluetooth size={16} /> {L.bluetoothBtn}
+            </button>
+          )}
           <button className="secondary" onClick={() => { setMode(mode === "bulk" ? "none" : "bulk"); setError(""); if (sex === "male") setKind("sleep"); }}>
             <FileUp size={16} /> {L.importReadings}
           </button>
@@ -266,7 +277,15 @@ export default function WearablesPage() {
         </div>
       )}
 
-      {mode !== "none" && (
+      {mode === "bluetooth" && (
+        <BluetoothThermometer
+          locale={ar ? "ar" : "en"}
+          onClose={() => setMode("none")}
+          onSaved={(msg) => { setToast(msg); setMode("none"); void refresh(); }}
+        />
+      )}
+
+      {(mode === "single" || mode === "bulk") && (
         <form className="panel assessment-form" onSubmit={mode === "single" ? submitSingle : submitBulk}>
           <div className="panel-head">
             <div>
@@ -417,6 +436,19 @@ export default function WearablesPage() {
           <span>{L.onRecord}</span>
           <strong>{observations.length}</strong>
           <small>{L.counts(temps.length, series(observations, isSleep).length)}</small>
+          {observations.length > 0 && (
+            <small style={{ display: "block" }}>
+              {L.sources(
+                Object.entries(
+                  observations.reduce<Record<string, number>>((acc, o) => {
+                    const k = SOURCE_LABELS[o.source ?? "MANUAL"] ?? o.source ?? "";
+                    acc[k] = (acc[k] ?? 0) + 1;
+                    return acc;
+                  }, {})
+                ).map(([k, n]) => `${k} (${n})`).join(", ")
+              )}
+            </small>
+          )}
         </article>
       </section>
       <p className="shap-footnote" style={{ marginTop: 14 }}>
