@@ -2,18 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, ArrowRight, Bell, ChevronRight, HeartHandshake, Search, Sparkles, TrendingUp, UserPlus, Users, UserRound } from "lucide-react";
+import { Activity, ArrowRight, Bell, ChevronRight, Search, Sparkles, TrendingUp, UserPlus, Users } from "lucide-react";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import { band, caseInitials, shortReason, usd } from "@/lib/format";
-import { tierCopy } from "@/lib/tiers";
-import { TIER_AR } from "@/lib/i18n";
-import { longDateL, type ClinicianStrings } from "@/lib/i18n-clinician";
+import { longDateL } from "@/lib/i18n-clinician";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
-import type { CaseItem, DirectoryResponse, FollowUpItem } from "@/types/clinician";
+import { CaseTable, type CaseTab } from "@/components/clinician/CaseTable";
+import type { DirectoryResponse, FollowUpItem } from "@/types/clinician";
 
-type Tab = "COUPLE" | "INDIVIDUAL";
+type Tab = CaseTab;
 
 export default function ClinicianDashboard() {
   const { version, openPrescribe } = useClinician();
@@ -81,15 +80,16 @@ export default function ClinicianDashboard() {
       </div>
 
       <section className="metrics-grid">
-        <Metric label={L.mPeople} value={dir ? String(dir.counts.total) : "–"} detail={dir ? L.mPeopleDetail(dir.counts.couples, dir.counts.individuals) : ""} icon={<Users size={19} />} tone="teal" />
-        <Metric label={L.mAssessed} value={dir ? String(assessed.length) : "–"} detail={dir ? L.mAssessedDetail(all.length - assessed.length) : ""} icon={<Activity size={19} />} tone="blue" />
-        <Metric label={L.mAlerts} value={dir ? String(alerts.length) : "–"} detail={L.mAlertsDetail} icon={<Bell size={19} />} tone="coral" />
+        <Metric label={L.mPeople} value={dir ? String(dir.counts.total) : "–"} detail={dir ? L.mPeopleDetail(dir.counts.couples, dir.counts.individuals) : ""} icon={<Users size={19} />} tone="teal" href="/clinician/cases" />
+        <Metric label={L.mAssessed} value={dir ? String(assessed.length) : "–"} detail={dir ? L.mAssessedDetail(all.length - assessed.length) : ""} icon={<Activity size={19} />} tone="blue" href="/clinician/cases?filter=assessed" />
+        <Metric label={L.mAlerts} value={dir ? String(alerts.length) : "–"} detail={L.mAlertsDetail} icon={<Bell size={19} />} tone="coral" href="/clinician/follow-up" />
         <Metric
           label={L.mSavings}
           value={dir ? usd(dir.impactMetrics.estimatedSavingsUSD) : "–"}
           detail={dir ? L.mSavingsDetail(dir.impactMetrics.lowResponseCases, usd(dir.impactMetrics.ivfCycleCost)) : ""}
           icon={<TrendingUp size={19} />}
           tone="gold"
+          href="/clinician/evidence"
         />
       </section>
 
@@ -122,9 +122,9 @@ export default function ClinicianDashboard() {
                 </div>
               </div>
               <div className="legend-list">
-                <Legend tone="mint" title={L.higherEstimate} range="60–100%" n={bands.high} pct={share(bands.high)} />
-                <Legend tone="amber" title={L.moderateEstimate} range="35–59%" n={bands.moderate} pct={share(bands.moderate)} />
-                <Legend tone="coral" title={L.lowerEstimate} range={L.below35} n={bands.low} pct={share(bands.low)} />
+                <Legend tone="mint" title={L.higherEstimate} range="60–100%" n={bands.high} pct={share(bands.high)} href="/clinician/cases?filter=high" />
+                <Legend tone="amber" title={L.moderateEstimate} range="35–59%" n={bands.moderate} pct={share(bands.moderate)} href="/clinician/cases?filter=moderate" />
+                <Legend tone="coral" title={L.lowerEstimate} range={L.below35} n={bands.low} pct={share(bands.low)} href="/clinician/cases?filter=low" />
               </div>
             </div>
           )}
@@ -205,94 +205,25 @@ export default function ClinicianDashboard() {
   );
 }
 
-function CaseTable({ rows, tab, L, ago, ar }: { rows: CaseItem[]; tab: Tab; L: ClinicianStrings; ago: (d: string) => string; ar: boolean }) {
+function Metric({ label, value, detail, icon, tone, href }: { label: string; value: string; detail: string; icon: React.ReactNode; tone: string; href: string }) {
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>{tab === "COUPLE" ? L.thCouple : L.thPatient}</th>
-            <th>{tab === "COUPLE" ? L.thAges : L.thAgeSex}</th>
-            <th>{L.thLatest}</th>
-            <th>{L.thReadings}</th>
-            <th>{L.thStatus}</th>
-            <th aria-label={L.thOpen} />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((c) => {
-            const p = c.latestPrediction;
-            const lastActivity = p?.createdAt ?? c.createdAt;
-            const status = c.activeAlert
-              ? { tone: "rose", label: L.stAlertOpen }
-              : c.users.length === 0
-                ? { tone: "amber", label: L.stInvited }
-                : !p
-                  ? { tone: "amber", label: L.stNotAssessed }
-                  : { tone: "mint", label: L.stMonitoring };
-            return (
-              <tr key={c.id}>
-                <td>
-                  <Link href={`/clinician/patient/${c.id}`} className="person-cell">
-                    <div className={`avatar ${c.activeAlert ? "peach" : ""}`} aria-hidden>{caseInitials(c.displayName)}</div>
-                    <span>
-                      <strong>{c.displayName}</strong>
-                      <small>{L.updated(ago(lastActivity))}</small>
-                    </span>
-                  </Link>
-                </td>
-                <td>
-                  {c.patients.length === 0
-                    ? "–"
-                    : tab === "COUPLE"
-                      ? c.patients.map((pt) => (pt.age ? `${pt.age}${ar && pt.sex ? " " : ""}${pt.sex === "female" ? L.sexF : pt.sex === "male" ? L.sexM : ""}` : "–")).join(" · ")
-                      : `${c.patients[0].age ?? "–"} · ${c.patients[0].sex ? L.sexWord(c.patients[0].sex) : "–"}`}
-                </td>
-                <td>
-                  {p ? (
-                    <div className="score-cell">
-                      <strong>{p.probability.toFixed(0)}%</strong>
-                      <span className={band(p.probability) === "low" ? "negative" : ""}>
-                        {p.confidenceLow != null && p.confidenceHigh != null ? `${Math.round(p.confidenceLow)}–${Math.round(p.confidenceHigh)}` : ar ? TIER_AR[p.tier ?? ""]?.label ?? tierCopy(p.tier).label : tierCopy(p.tier).label}
-                      </span>
-                      <div><i style={{ width: `${p.probability}%` }} /></div>
-                    </div>
-                  ) : (
-                    <span style={{ color: "var(--text-faint)" }}>{L.stNotAssessed}</span>
-                  )}
-                </td>
-                <td>{c.recentObservationsCount ? L.recentReadings(c.recentObservationsCount) : L.none}</td>
-                <td>
-                  <span className={`status-pill ${status.tone}`}><i />{status.label}</span>
-                </td>
-                <td>
-                  <Link href={`/clinician/patient/${c.id}`} className="plain-icon" aria-label={L.openName(c.displayName)}>
-                    {c.scope === "COUPLE" ? <HeartHandshake size={17} /> : <UserRound size={17} />}
-                  </Link>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function Metric({ label, value, detail, icon, tone }: { label: string; value: string; detail: string; icon: React.ReactNode; tone: string }) {
-  return (
-    <article className="metric-card">
+    <Link href={href} className="metric-card">
       <div className={`metric-icon ${tone}`}>{icon}</div>
-      <div className="metric-label">{label}</div>
+      <div className="metric-label">
+        <span className="metric-title">
+          {label}
+          <ChevronRight size={15} className="chev flip-rtl" aria-hidden />
+        </span>
+      </div>
       <strong>{value}</strong>
       <div className="metric-detail">{detail}</div>
-    </article>
+    </Link>
   );
 }
 
-function Legend({ tone, title, range, n, pct }: { tone: string; title: string; range: string; n: number; pct: number }) {
+function Legend({ tone, title, range, n, pct, href }: { tone: string; title: string; range: string; n: number; pct: number; href: string }) {
   return (
-    <div>
+    <Link href={href} className="legend-row">
       <i className={tone} />
       <span>
         <strong>{title}</strong>
@@ -300,6 +231,6 @@ function Legend({ tone, title, range, n, pct }: { tone: string; title: string; r
       </span>
       <b>{n}</b>
       <em>{pct}%</em>
-    </div>
+    </Link>
   );
 }
