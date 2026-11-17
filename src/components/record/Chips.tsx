@@ -1,12 +1,13 @@
 "use client";
 
-import { BadgeCheck, FlaskConical, Info, PenLine, Smartphone } from "lucide-react";
+import { BadgeCheck, Building2, FlaskConical, Info, PenLine, Smartphone } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { SOURCE_LABELS, type LabSource } from "@/lib/labs";
 
 /** Where a value came from: clinician verified, self-reported, imported or undocumented. */
 const SOURCE_AR: Record<string, string> = {
   CLINICIAN_VERIFIED: "تحقّق منه الطبيب",
+  EHR_MALAFFI: "موثّق من ملفي (HIE)",
   IMPORTED: "سجل مستورد",
   SELF_REPORTED: "أدخلته بنفسك",
   PROFILE: "مسجّل سابقًا (المصدر غير موثّق)"
@@ -18,7 +19,7 @@ export function SourceChip({ source, audience = "patient" }: { source: string; a
   const { locale } = useLocale();
   const arLabels = audience === "clinician" ? SOURCE_AR_CLINICIAN : SOURCE_AR;
   const s = source as LabSource;
-  const Icon = s === "CLINICIAN_VERIFIED" ? BadgeCheck : s === "SELF_REPORTED" ? PenLine : s === "IMPORTED" ? Smartphone : Info;
+  const Icon = s === "EHR_MALAFFI" ? Building2 : s === "CLINICIAN_VERIFIED" ? BadgeCheck : s === "SELF_REPORTED" ? PenLine : s === "IMPORTED" ? Smartphone : Info;
   return (
     <span className={`chip src-${s.toLowerCase()}`}>
       <Icon size={12} aria-hidden /> {locale === "ar" ? arLabels[s] ?? source : SOURCE_LABELS[s] ?? source}
