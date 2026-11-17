@@ -70,17 +70,17 @@ The model is **B2B2C and physician-led**: a clinician prescribes access, the pat
 
 - **Individual-first, couple-ready.** Each person owns a private record. Two people can pair to unlock a joint estimate, and either can remove the link at any time without losing their own data.
 - **Prescription-gated access.** There is no open patient sign-up. Patients register only with a clinic invitation or a partner pairing link, tied to the invited email.
-- **A trajectory, not a score.** Patients see each marker over time against its reference limit and their own first result, a plain-language tier and percentile, and the clinician's note. A probability (with its 95% interval) appears only for couples who are trying, after clinician review.
+- **A trajectory, not a score.** Patients see each marker over time against its reference limit and their own first result, a plain-language tier, their AMH compared with a typical value for their age, and the clinician's note. A probability (with a model-based 95% interval that is not a validated prediction interval) appears only for couples who are trying, after clinician review.
 - **Gated, clinician-reviewed assessments.** Missing required inputs stop the assessment and name what is missing; nothing is imputed. Results are drafts until a clinician approves and releases them with a note. Every value shows its source (clinician verified, self-reported, imported).
 - **Cited options, not prescriptions.** A deterministic rules engine turns the record into options (testing, referral, preservation discussion, counselling, health optimisation), each with its reason and source, using WHO 2025, ESHRE and the Daman Thiqa ART guideline.
-- **Evidence of earlier action.** An evidence dashboard reports live panel measures with Wilson intervals and a clearly labelled simulated check of false reassurance and calibration.
+- **Evidence of earlier action.** An evidence dashboard reports live panel measures with Wilson intervals and a clearly labelled simulated check of false reassurance and a pipeline self-check of calibration on synthetic outcomes (not evidence of accuracy).
 - **Population insight.** Groups who would benefit from earlier advice, from the same cited rules: named for the clinician's own panel, anonymous and opt-in (small groups suppressed) across the service.
 - **Clinical copilot that explains, never invents.** Answers only from one case's record and the cited guidance library; each sentence is checked against what it cites and flagged if unsupported. A labelled scripted summary appears if the AI is unavailable.
 - **Arabic.** Right-to-left patient experience for the trajectory, options and consent screens (prototype translation, pending clinical review).
 - **Guided demo.** A twelve-step tour at `/tour`, including a missing-data case and a no-consent case.
 - **Longitudinal wearable tracking.** Basal body temperature (LOINC 8310-5) with Roetzer coverline detection of a biphasic shift (≥ 0.30 °C), and sleep duration (LOINC 93832-4) with variability analysis.
 - **Closed-loop follow-up.** Wearable anomalies and low estimates raise clinician alerts, which move through *alert raised → appointment scheduled → in follow-up → closed* on a board.
-- **Sex-adaptive interface.** Female views focus on ovarian reserve, AFC and temperature; male views on semen parameters against WHO 6th-edition reference values; paired views on the joint estimate.
+- **Sex-adaptive interface.** Female views focus on ovarian reserve, AFC and temperature; male views on semen parameters against the WHO 2010 reference limits used by the Daman Thiqa guideline; paired views on the joint estimate.
 - **Grounded assistant with citations.** Ask ReproAI retrieves from a cited library (Thiqa ART guideline v3.6 with page numbers, WHO 2025 infertility guideline, ReproAI's own rules) and the patient's released record before answering, cites a source for every sentence, removes any sentence it cannot verify, and says "not in the guidance" rather than guess. It has no tools and cannot compute a score. Azure OpenAI is preferred, Groq is the fallback. Measured with `npm run rag:eval`; results are on the Evidence page.
 - **Interoperability.** One-click FHIR R4 export (`Patient`, `Observation`, `RiskAssessment`) designed for Abu Dhabi's Malafi and Sahhatna exchanges.
 
@@ -190,13 +190,14 @@ Check everything is up with `curl http://localhost:8000/health` and `curl http:/
 | `ML_API_URL` | Yes | Base URL of the ML service, `http://localhost:8000` locally |
 | `ENCRYPTION_KEY` | Yes | 32-byte base64 key for AES-256-GCM field encryption at rest |
 | `SESSION_COOKIE` | No | Session cookie name, default `reproai_session` |
-| `IVF_CYCLE_COST` | No | Cost per IVF cycle in USD for the savings estimate, default `12000` |
 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION` | No | Preferred assistant provider |
 | `GROQ_API_KEY`, `GROQ_MODEL` | No | Fallback assistant provider. `GROQ_MODEL` must be a tool-calling model your key can access |
 | `AZURE_SEARCH_ENDPOINT`, `AZURE_SEARCH_API_KEY`, `AZURE_SEARCH_INDEX` | No | Guideline retrieval. Without it the built-in WHO guideline library is used |
 | `MCP_SERVER_URL`, `MCP_SERVER_TOKEN` | No | External MCP server exposing extra agent tools |
 | `REPROAI_PARTNER_API_KEY` | No | Key for the B2B partner prediction API (`/api/v1/external/predict`) |
 | `ALLOW_CLINICIAN_SIGNUP` | No | `true` allows creating a clinician through `/api/auth/register`; for bootstrapping only |
+| `RESEND_API_KEY`, `EMAIL_FROM` | No | Email clinician invitations through Resend. `EMAIL_FROM` needs a verified domain; without it only the Resend account owner receives mail. Turn off open and click tracking for the domain in Resend. Unset: the link is shared by hand |
+| `APP_URL` | No | Public base URL used in emailed links (defaults to the request origin) |
 | `DEMO_LOGIN_ENABLED` | No | `true` shows one-click demo sign-in on the login page (see [Demo access](#demo-access)) |
 | `DEMO_CLINICIAN_EMAIL`, `DEMO_FEMALE_EMAIL`, `DEMO_MALE_EMAIL`, `DEMO_COUPLE_EMAIL` | No | Accounts used by demo sign-in (defaults match `npm run demo:setup`) |
 
@@ -292,11 +293,12 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 | `/api/clinician/copilot` | POST | Clinician | Case copilot on the grounded pipeline: cited sentences, unsupported ones flagged, scripted fallback |
 | `/api/patient/ask` | POST | Patient | Grounded assistant: corpus + released record, per-sentence verification, abstention |
 | `/api/patient/what-if` | POST | Patient | Illustrative BMI what-if; nothing is saved |
-| `/api/observations`, `/api/observations/bulk` | GET / POST | Patient | Own readings; bulk ingest with pattern analysis |
+| `/api/observations`, `/api/observations/bulk` | GET / POST | Patient | Own readings; manual entry (single or pasted), source `MANUAL`, with pattern analysis |
+| `/api/observations/import` | POST | Patient | Device import: `{ source: BLUETOOTH \| HEALTH_CONNECT \| HEALTHKIT \| ULTRAHUMAN, device?, samples }`, samples in the `@capgo/capacitor-health` HealthSample shape; basal temperature and nightly sleep only; duplicates skipped |
 | `/api/pairing/invite`, `accept`, `revoke`, `status` | POST / GET | Patient | Partner pairing with revocable consent |
 | `/api/agent` | POST | Clinician | Tool-calling agent, guideline search only |
 | `/api/clinician/invite` | POST / GET | Clinician | Prescribe access; list issued prescriptions |
-| `/api/clinician/couples` | GET | Clinician | Cohort directory (own panel only) with impact metrics |
+| `/api/clinician/couples` | GET | Clinician | Cohort directory (own panel only) with the count awaiting review |
 | `/api/clinician/cases/:id` | GET | Clinician | Full longitudinal record for one case |
 | `/api/follow-up` | GET / POST / PATCH | Clinician | Closed-loop follow-up queue |
 | `/api/fhir/export` | GET | Clinician or own record | FHIR R4 bundle |
@@ -313,7 +315,7 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 
 See the [open issues](https://github.com/renatocosta0/reproai-main/issues) for the full list. Known next steps:
 
-- Send invitation and pairing emails / SMS via UAE Pass instead of copy-and-share links
+- Pairing emails, SMS and UAE Pass delivery (clinician invitations are already emailed through Resend when configured); move email to a UAE-hosted sender before real patient data
 - Malaffi live API ingestion (FHIR R4); screening-programme invitations (premarital, IFHAS) and a TAMM entry point
 - Real-world calibration and external validation before any probability is shown outside clinician review
 - Replace the SQLite-era migration history with a PostgreSQL baseline migration

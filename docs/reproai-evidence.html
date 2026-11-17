@@ -111,7 +111,7 @@
       </tr>
       <tr>
         <td><span class="layer">Language models</span></td>
-        <td><span class="dot partial"></span>Azure OpenAI gpt-5-mini, UAE North; schema-checked, citation-verified</td>
+        <td><span class="dot partial"></span>Azure OpenAI gpt-5-mini in UAE North, Groq (US) fallback; schema-checked, citation-verified</td>
         <td>Approved in-region endpoint; regional inference; DLP on prompts</td>
       </tr>
       <tr>
@@ -131,7 +131,7 @@
       </tr>
       <tr>
         <td><span class="layer">Operations</span></td>
-        <td><span class="dot work"></span>Neon Postgres, AES-256-GCM at rest; consent enforced in the API</td>
+        <td><span class="dot partial"></span>Neon Postgres (US), synthetic data only; AES-256-GCM on sensitive text fields; consent enforced in the API</td>
         <td>Agreed hosting and data residency; monitoring, retention, rollback</td>
       </tr>
     </tbody>
@@ -168,7 +168,7 @@
         <td><span class="layer">Plain language, evidence, missing data</span></td>
         <td>Missing required inputs stop the assessment and name what is missing; per-factor Shapley; provenance on every value</td>
         <td><span class="pill work">Working in demo</span></td>
-        <td class="caveat">Intervals come from synthetic calibration</td>
+        <td class="caveat">Interval uses an assumed, fixed spread; not validated</td>
       </tr>
       <tr>
         <td><span class="num">R3</span></td>

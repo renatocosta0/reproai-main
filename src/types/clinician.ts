@@ -33,13 +33,8 @@ export interface DirectoryResponse {
   individuals: CaseItem[];
   couples: CaseItem[];
   counts: { total: number; individuals: number; couples: number; activeAlerts: number };
-  impactMetrics: {
-    totalCouples: number;
-    lowResponseCases: number;
-    estimatedSavingsUSD: number;
-    cyclesOptimized: number;
-    ivfCycleCost: number;
-  };
+  /** Cases whose latest assessment is a draft waiting for clinician review. */
+  awaitingReview: number;
 }
 
 export interface FollowUpItem {
@@ -96,4 +91,6 @@ export interface InviteResponse {
   inviteUrl: string;
   recipientEmail: string;
   partnerEmail: string | null;
+  /** Whether the activation link was emailed (configured = an email provider is set up). */
+  emailDelivery?: { configured: boolean; sent: string[]; failed: string[] };
 }

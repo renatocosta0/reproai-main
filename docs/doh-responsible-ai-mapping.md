@@ -27,7 +27,7 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 | --- | --- | --- |
 | 3.1 Core foundations | Human oversight (clinician sign-off, override with reason), traceability (inputs and model version per estimate, audit log), role-specific explanations, consent enforced in the API, transparency (model card, labelled evidence status), AES-256-GCM field encryption at rest | No clinical validation; no co-design with clinicians and patients yet; no MFA; no UAE hosting; no automated post-deployment monitoring |
 | 3.2 Data management | Inputs are clinician-verified with source and date; nothing is imputed; no patient data is used to train the model | No training dataset exists, so dataset versioning, datasheets and representativeness audits apply only to the guidance corpus and evaluation set |
-| 3.3 Risk management | Draft risk register with 18 risks, controls, provisional ratings and owner roles | Ratings not yet made with the DoH protocol; owners not named |
+| 3.3 Risk management | Draft risk register with 18 risks, controls and owner roles, rated with the DoH Risk Management Protocol (Annex 1) | Owners not named; not yet reviewed by DoH |
 | 3.4 AI literacy | In-product explanation (guided tour, model card, Evidence page, limitations in every view) | Staff training programmes are the deploying entity's role |
 
 ## 3.1 Core foundations
@@ -73,7 +73,7 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 | 3.1.4.3.1 | Secure code review and automated vulnerability scanning | ❌ | Pull-request review only; no automated scanning (e.g. OWASP/NIST-based) in CI. |
 | 3.1.4.3.2 | Keep systems updated | 🟡 | Dependencies managed with npm and pip; no update policy. |
 | 3.1.4.4.1 | Privacy by design, data minimisation, purpose-specific, consent-aligned | ✅ | Five separate consents (clinician access, lab results, wearables, partner sharing, population analytics), each revocable and enforced in the API (`src/lib/consent.ts`); data used only for care, never for employment or insurance (stated in the consent text). |
-| 3.1.4.4.2 | Encryption at rest and in transit, key management; no training on production data | ✅ | In transit: HTTPS and TLS to the database. **At rest: AES-256-GCM applied** via Prisma client query extension in `src/lib/db.ts` across sensitive health/PII fields (patient names, medical history flags, clinician notes, model inputs/factors, follow-up notes, and chat turns). Key managed via `ENCRYPTION_KEY`. The model is not trained on any data, so production data is never used for training. |
+| 3.1.4.4.2 | Encryption at rest and in transit, key management; no training on production data | 🟡 | In transit: HTTPS and TLS to the database. **At rest: AES-256-GCM applied** via Prisma client query extension in `src/lib/db.ts` across sensitive health/PII fields (patient names, medical history flags, clinician notes, model inputs/factors, follow-up notes, and chat turns). Key managed via `ENCRYPTION_KEY`. The model is not trained on any data, so production data is never used for training. |
 | 3.1.4.4.3 | Anonymisation, differential privacy, secure computation, federated learning | 🟡 | Population insight is anonymous counts with cells under 5 suppressed (`src/lib/insights.ts`). No differential privacy, secure computation or federated learning. |
 | 3.1.4.5.1 | Compute and storage in the UAE, remote access from the UAE | ❌ 🏢 | Prototype uses a cloud database and LLM providers outside the UAE. Production needs UAE hosting (technical documentation, roadmap). |
 | 3.1.4.5.2–3 | Segmented networks, intrusion detection, centralised logging | 🏢 | Hosting responsibility. Application audit log exists. |
@@ -92,12 +92,12 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 | Clause | Requirement (paraphrase) | Status | ReproAI evidence |
 | --- | --- | --- | --- |
 | 3.1.6.1.1 | Tell patients and clinicians when AI contributes, its function and limits | ✅ | Every assessment shows its evidence status; patient views explain that a clinician reviewed the result; landing page and model card *(PR #10)* describe what the model does and does not do. |
-| 3.1.6.1.2 | Plain-language summaries for diverse audiences | ✅ | Patient views in plain English and Arabic with tiers and percentiles; clinician views with the estimate and its 95% interval. |
+| 3.1.6.1.2 | Plain-language summaries for diverse audiences | ✅ | Patient views in plain English and Arabic with tiers and an AMH-for-age comparison; clinician views with the estimate and its model-based 95% interval. |
 | 3.1.6.1.3 | Right to opt out; clear consent | 🟡 | Consents are separate and revocable at any time; a patient can withdraw care-team access, which blocks assessments. There is no single explicit "opt out of AI" switch. |
 | 3.1.6.2.1 | Document data sources, provenance, preprocessing, limitations | ✅ | Every lab value carries its source and date (`LabResult.source`); model card lists evidence sources and limitations *(PR #10)*; guidance corpus cites document, section and page (`src/lib/rag/corpus.ts`). |
 | 3.1.6.2.2 | Record model architecture, logic and decision criteria | ✅ | `ml-service/main.py` docstring and `/model-info`; technical documentation; model card *(PR #10)*. |
 | 3.1.6.2.3 | End-to-end traceability of inputs, outputs and versions | ✅ | Each estimate is stored with its exact inputs and model version (`Prediction.inputs`, `modelVersion`); reviewer and review time stored; audit log; changes in git. |
-| 3.1.6.3.1 | Role-specific explanations | ✅ | Clinician: estimate, 95% interval, exact Shapley factors, completeness. Patient: tier, age percentile, plain-language factors, clinician note. |
+| 3.1.6.3.1 | Role-specific explanations | ✅ | Clinician: estimate, model-based 95% interval (assumed standard error, not validated), per-factor contributions, completeness. Patient: tier, AMH compared with a typical value for age, plain-language factors, clinician note. |
 | 3.1.6.3.2 | Clinician view: rationale, confidence, next steps | ✅ | Factors with direction and size, 95% interval, cited options with rule IDs and sources. |
 | 3.1.6.3.3 | Patient view: plain language, health-literacy aligned | 🟡 | Plain language in English and Arabic; not formally tested against a health-literacy standard. |
 
@@ -125,7 +125,7 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 | Clause | Requirement (paraphrase) | Status | ReproAI evidence |
 | --- | --- | --- | --- |
 | 3.2.1.1 | Data from authenticated sources with provenance | ✅ | Lab values entered or verified by clinicians, with source and date; patients cannot write lab values. |
-| 3.2.1.2 | Privacy safeguards: encryption, role-based access, consent, auditable logs | 🟡 | Access, consent and audit in place; encryption at rest missing (see 3.1.4.4.2). |
+| 3.2.1.2 | Privacy safeguards: encryption, role-based access, consent, auditable logs | 🟡 | Access, consent and audit in place; AES-256-GCM field encryption on sensitive text fields; numeric lab values not encrypted; key not yet in a managed vault (see 3.1.4.4.2). |
 | 3.2.1.3 | Every dataset tied to a defined AI task; no indefinite-purpose collection | ✅ | Data collected only for the declared care and consent purposes. |
 | 3.2.1.4–6 | Third-party data due diligence; open-data licences; avoid web scraping | 🟡 🏢 | No third-party patient data. The guidance corpus paraphrases published documents with citations (Daman Thiqa, WHO); licence review by a legal office is organisational. No scraping of health data. |
 | 3.2.1.7 | Patient data used only as consented | ✅ | Consent enforced in the API before each use (`src/lib/consent.ts`). |
@@ -142,9 +142,9 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 | Clause | Requirement (paraphrase) | Status | ReproAI evidence |
 | --- | --- | --- | --- |
 | 3.3.1.1.1 | Risk assessment for all AI systems | 🟡 | Draft assessment of 18 risks in [risk-register.md](risk-register.md), built from the documented limitations; provisional ratings, not yet with the DoH protocol. |
-| 3.3.1.1.2 | Track risks in a risk register | 🟡 | Draft register: [risk-register.md](risk-register.md) (v0.1). |
+| 3.3.1.1.2 | Track risks in a risk register | 🟡 | Draft register: [risk-register.md](risk-register.md) (v0.2). |
 | 3.3.1.1.3 | Owner for each risk | 🟡 | Each risk has an owner role; named people not yet assigned. |
-| 3.3.1.2.1–2 | Rate risks, apply controls, determine residual risk and treatment by tier | 🟡 | Provisionally rated (inherent and residual, with controls and further treatment) in the draft register; seven residual risks are high, none very high in the prototype as configured. The tiers (very high: prohibited; high: conformity assessment with DDGO before and after deployment; medium; low) are defined here and the method is in the Risk Management Protocol. ReproAI should be rated with that protocol before any deployment. |
+| 3.3.1.2.1–2 | Rate risks, apply controls, determine residual risk and treatment by tier | 🟡 | Rated with the DoH Risk Management Protocol (asset criticality High, exposure = likelihood × impact, rating from the protocol matrix): 17 residual risks Medium, one Very low, none High or Very high in the prototype as configured. Data residency (R10) becomes Very high, and must be avoided, if real patient data is processed outside the UAE. The tiers (very high: prohibited; high: conformity assessment with DDGO before and after deployment; medium; low) are defined here. |
 | 3.3.1.3.1–2 | Monitor treatment plans and control effectiveness | 🟡 | Review cadence set in the draft register (every release, monthly in a pilot); not yet exercised. |
 | 3.3.1.4.1 | Communicate risk assessments to stakeholders including DoH | 🏢 | On deployment. |
 
@@ -167,10 +167,10 @@ Features marked *(PR #10)* or *(PR #11)* are in open pull requests, not yet on `
 
 ## Priority gaps before any pilot
 
-1. Re-rate the draft [risk register](risk-register.md) with the DoH Responsible AI Risk
-   Management Protocol and name an owner for each risk (3.3.1).
+1. Name an owner and a treatment plan for each Medium risk in the [risk register](risk-register.md),
+   now rated with the DoH Responsible AI Risk Management Protocol, and submit it for DoH review (3.3.1).
 2. Clinical validation and recalibration on local outcomes (3.1.3).
-3. Encryption at rest with managed keys, MFA, and UAE hosting (3.1.4.2, 3.1.4.4.2, 3.1.4.5.1).
+3. Managed keys (Azure Key Vault) with rotation, encryption of lab values, MFA, and UAE hosting for the database (3.1.4.2, 3.1.4.4.2, 3.1.4.5.1).
 4. Clinician and patient co-design sessions (3.1.1.1.1).
 5. Automated post-deployment monitoring and drift alerts (3.1.2.1.4, 3.1.3.1.3, 3.2.3.3).
 6. Vulnerability scanning in CI (3.1.4.3.1).

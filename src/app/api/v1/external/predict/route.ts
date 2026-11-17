@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Compute Real Machine Learning Prediction
+    // 3. Score with the literature-derived model (hand-set, not trained; see /model-info)
     // Inputs are passed exactly as supplied: nothing is imputed. The ML service
     // returns insufficient_data when a required input is missing.
     const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : null);
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       modifiableFactors.push({
         factor: "BMI",
         value: body.bmi,
-        guideline: "WHO Guideline on Infertility (2023) - Weight optimization improves ovulatory responsiveness and sperm quality."
+        guideline: "WHO guideline on infertility (2025) - weight is a modifiable factor to address before and during care."
       });
     }
 
@@ -108,21 +108,21 @@ export async function POST(req: NextRequest) {
       modifiableFactors.push({
         factor: "Sperm Concentration",
         value: body.sperm_count,
-        guideline: "WHO Manual for Semen Examination (6th Ed.) - Sub-15M/mL concentration represents male-factor subfertility."
+        guideline: "Below the 15 M/mL lower reference limit used by the Daman Thiqa guideline (WHO 2010). Reference limits are not thresholds for subfertility; repeat the analysis."
       });
     }
 
     nonModifiableFactors.push({
-      factor: "Maternal Age",
+      factor: body.sex === "male" ? "Age" : "Female age",
       value: body.age,
-      guideline: "ESHRE Bologna/POSEIDON Criteria - Primary non-modifiable determinant of oocyte aneuploidy."
+      guideline: "Female age is the strongest non-modifiable factor for egg quantity and quality (ESHRE)."
     });
 
-    if (body.amh !== undefined) {
+    if (typeof body.amh === "number") {
       nonModifiableFactors.push({
-        factor: "AMH (Ovarian Reserve)",
+        factor: "AMH (ovarian reserve)",
         value: body.amh,
-        guideline: "POSEIDON Stratification - Baseline biomarker for expected gonadotropin response."
+        guideline: "Reduced ovarian reserve: AMH < 1.1 ng/mL or AFC < 5-7 (Daman Thiqa guideline; POSEIDON/Bologna). AMH does not predict natural conception."
       });
     }
 
@@ -161,8 +161,9 @@ export async function POST(req: NextRequest) {
         modifiable_factors: modifiableFactors,
         non_modifiable_factors: nonModifiableFactors,
         limitations: [
-          "Screening Model: Probabilistic estimate calibrated for population-level triage.",
-          "Not a diagnostic confirmation; clinical confirmation by reproductive endocrinologist required."
+          "Prototype: literature-derived, hand-set scoring. Not trained, calibrated or validated on patient outcomes.",
+          "The 95% interval assumes a fixed standard error; it is not a validated prediction interval.",
+          "Not a diagnosis. For review by a licensed clinician; not released to the patient by this API."
         ]
       },
       fhir_resource: fhirRiskAssessment,

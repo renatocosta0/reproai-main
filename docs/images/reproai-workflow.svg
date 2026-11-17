@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="wf-title wf-desc">
+        <title id="wf-title">Swimlane workflow: seven lanes, nine beats, one gate, one loop that keeps going</title>
+        <desc id="wf-desc">A seven-lane swimlane read left to right. Lanes, top to bottom: person and partner, the app, agent and tools, decision model, the record, clinician, over time. Nine numbered beats descend through the lanes: a change appears with dated readings, three separate gates (role, consent, data), grounded answers from 37 cited passages, a deterministic score from verified inputs that no language model can call, a draft stored encrypted and invisible to the person, a clinician who signs or refuses with a note, and the person seeing the record with every source. Each beat carries its failure mode. The final lane holds the monitoring loop: alert raised, appointment set, in follow-up, closed, with lost when no appointment is set within fourteen days. A dark bar records every beat.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="arrow-muted" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 7 3, 0 6" fill="#5a6580"/></marker>
+          <marker id="arrow-warn" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><polygon points="0 0, 7 3, 0 6" fill="#a8641a"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+        <!-- header -->
+        <text x="40" y="20" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.12em">PROBLEM · IDENTIFY CHANGES IN REPRODUCTIVE POTENTIAL EARLIER, AND TURN THEM INTO TIMELY, EVIDENCE-INFORMED, PERSONALIZED CHOICES</text>
+        <text x="40" y="36" fill="#2d3142" font-size="7.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.14em">ONE DECISION, END TO END · NADIA T. + YOUSEF T. · SYNTHETIC CASE</text>
+        <circle cx="1052" cy="33" r="2.8" fill="#2d3142"/>
+        <text x="1061" y="36" fill="#4f5d75" font-size="6.4" font-family="'Geist Mono', monospace" letter-spacing="0.06em">runs end to end</text>
+        <circle cx="1146" cy="33" r="2.8" fill="#a8641a"/>
+        <text x="1155" y="36" fill="#4f5d75" font-size="6.4" font-family="'Geist Mono', monospace" letter-spacing="0.06em">runs, with a limit</text>
+        <text x="40" y="80" fill="#2d3142" font-size="28" font-family="'Instrument Serif', serif" letter-spacing="-0.01em">The machine may draft. A professional decides.</text>
+        
+        <!-- lanes -->
+        <rect x="40" y="96" width="90" height="546" fill="rgba(45,49,66,0.035)"/>
+        <line x1="40" y1="96" x2="1231" y2="96" stroke="rgba(45,49,66,0.14)" stroke-width="1"/>
+        <line x1="40" y1="96" x2="1231" y2="96" stroke="rgba(45,49,66,0.10)" stroke-width="1"/>
+        <text x="52" y="128" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">PERSON &amp; PARTNER</text>
+        <text x="52" y="143" fill="#5a6580" font-size="5.6" font-family="'Geist Mono', monospace" letter-spacing="0.06em">PORTAL · EN / AR</text>
+        <line x1="40" y1="174" x2="1231" y2="174" stroke="rgba(45,49,66,0.10)" stroke-width="1"/>
+        <text x="52" y="206" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">THE APP</text>
+        <text x="52" y="221" fill="#5a6580" font-size="5.6" font-family="'Geist Mono', monospace" letter-spacing="0.06em">API-ENFORCED GATES</text>
+        <line x1="40" y1="252" x2="1231" y2="252" stroke="rgba(45,49,66,0.10)" stroke-width="1"/>
+        <text x="52" y="284" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">AGENT &amp; TOOLS</text>
+        <text x="52" y="299" fill="#5a6580" font-size="5.6" font-family="'Geist Mono', monospace" letter-spacing="0.06em">RAG · LLM · 5 TURNS</text>
+        <line x1="40" y1="330" x2="1231" y2="330" stroke="rgba(45,49,66,0.10)" stroke-width="1"/>
+        <text x="52" y="362" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">DECISION MODEL</text>
+        <text x="52" y="377" fill="#5a6580" font-size="5.6" font-family="'Geist Mono', monospace" letter-spacing="0.06em">NOT AN LLM TOOL</text>
+        <line x1="40" y1="408" x2="1231" y2="408" stroke="rgba(45,49,66,0.10)" stroke-width="1"/>
+        <text x="52" y="440" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">THE RECORD</text>
+        <text x="52" y="455" fill="#5a6580" font-size="5.6" font-family="'Geist Mono', monospace" letter-spacing="0.06em">PG · AES-256 FIELDS</text>
+        <line x1="40" y1="564" x2="1231" y2="564" stroke="rgba(45,49,66,0.10)" stroke-width="1"/>
+        <text x="52" y="518" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">CLINICIAN</text>
+        <text x="52" y="533" fill="#5a6580" font-size="5.6" font-family="'Geist Mono', monospace" letter-spacing="0.06em">CLINICIAN ROLE ONLY</text>
+        <line x1="40" y1="564" x2="1231" y2="564" stroke="rgba(45,49,66,0.10)" stroke-width="1"/>
+        <text x="52" y="596" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">OVER TIME</text>
+        <line x1="40" y1="642" x2="1231" y2="642" stroke="rgba(45,49,66,0.10)" stroke-width="1"/>
+        <line x1="130" y1="96" x2="130" y2="642" stroke="rgba(45,49,66,0.12)" stroke-width="1"/>
+        
+        <!-- the route: right and down, never back -->
+        <path d="M277,135 H276 Q284,135 284,143 V205 Q284,213 292,213 H293" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M438,213 H450" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M597,213 H609" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M754,213 H753 Q761,213 761,221 V283 Q761,291 769,291 H770" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M913,291 H912 Q920,291 920,299 V361 Q920,369 928,369 H929" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M1072,369 H1071 Q1079,369 1079,377 V439 Q1079,447 1087,447 H1088" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+        <path d="M1231,447 H1245 Q1253,447 1253,455 V517 Q1253,525 1245,525 H1090" fill="none" stroke="#bf4520" stroke-width="1.7" marker-end="url(#arrow-accent)"/>
+        <path d="M1215,525 H1090 Q1082,525 1082,517 V143 Q1082,135 1090,135 H1086" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/>
+        
+        <!-- beats -->
+        <!-- 1 · A change appears -->
+        <rect x="134" y="101" width="143" height="68" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.45)" stroke-width="1"/>
+        <text x="145" y="113" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">1</text>
+        <circle cx="265" cy="111" r="2.7" fill="#2d3142"/>
+        <text x="145" y="129" fill="#2d3142" font-size="11" font-family="'Geist', sans-serif" font-weight="600">A change appears</text>
+        <text x="145" y="141" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">readings arrive, dated</text>
+        <text x="145" y="151" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">month over month</text>
+        <text x="145" y="161" fill="#5a6580" font-size="7.0" font-family="'Geist', sans-serif">patient intake + verified labs</text>
+        <!-- 2 · Role gate -->
+        <rect x="293" y="179" width="143" height="68" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.45)" stroke-width="1"/>
+        <text x="304" y="191" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">2</text>
+        <circle cx="424" cy="189" r="2.7" fill="#2d3142"/>
+        <text x="304" y="207" fill="#2d3142" font-size="11" font-family="'Geist', sans-serif" font-weight="600">Role gate</text>
+        <text x="304" y="219" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">clinician on the case</text>
+        <text x="304" y="229" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">list check, 403 else</text>
+        <text x="304" y="239" fill="#5a6580" font-size="7.0" font-family="'Geist', sans-serif">no case → no access</text>
+        <!-- 3 · Consent gate -->
+        <rect x="452" y="179" width="143" height="68" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.45)" stroke-width="1"/>
+        <text x="463" y="191" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">3</text>
+        <circle cx="583" cy="189" r="2.7" fill="#2d3142"/>
+        <text x="463" y="207" fill="#2d3142" font-size="11" font-family="'Geist', sans-serif" font-weight="600">Consent gate</text>
+        <text x="463" y="219" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">every member shared</text>
+        <text x="463" y="229" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">partner consent for joint</text>
+        <text x="463" y="239" fill="#5a6580" font-size="7.0" font-family="'Geist', sans-serif">revocable at any time</text>
+        <!-- 4 · Data check -->
+        <rect x="611" y="179" width="143" height="68" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.45)" stroke-width="1"/>
+        <text x="622" y="191" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">4</text>
+        <circle cx="742" cy="189" r="2.7" fill="#2d3142"/>
+        <text x="622" y="207" fill="#2d3142" font-size="11" font-family="'Geist', sans-serif" font-weight="600">Data check</text>
+        <text x="622" y="219" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">verified labs + profile</text>
+        <text x="622" y="229" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">missing → insufficient</text>
+        <text x="622" y="239" fill="#5a6580" font-size="7.0" font-family="'Geist', sans-serif">never a guess</text>
+        <!-- 5 · Grounded answers -->
+        <rect x="770" y="257" width="143" height="68" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.45)" stroke-width="1"/>
+        <text x="781" y="269" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">5</text>
+        <circle cx="901" cy="267" r="2.7" fill="#a8641a"/>
+        <text x="781" y="285" fill="#2d3142" font-size="11" font-family="'Geist', sans-serif" font-weight="600">Grounded answers</text>
+        <text x="781" y="297" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">azure search, or bm25</text>
+        <text x="781" y="307" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">fallback · 37 passages</text>
+        <text x="781" y="317" fill="#5a6580" font-size="7.0" font-family="'Geist', sans-serif">max 5 turns, then it stops</text>
+        <!-- 6 · Scores the case -->
+        <rect x="929" y="335" width="143" height="68" rx="5" fill="#2d3142"/>
+        <text x="940" y="347" fill="rgba(245,245,245,0.5)" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">6</text>
+        <circle cx="1060" cy="345" r="2.7" fill="#2d3142"/>
+        <text x="940" y="363" fill="#f5f5f5" font-size="11" font-family="'Geist', sans-serif" font-weight="600">Scores the case</text>
+        <text x="940" y="375" fill="#b9bec7" font-size="8.0" font-family="'Geist', sans-serif">verified inputs only,</text>
+        <text x="940" y="385" fill="#b9bec7" font-size="8.0" font-family="'Geist', sans-serif">every factor is shown</text>
+        <text x="940" y="395" fill="rgba(245,245,245,0.5)" font-size="7.0" font-family="'Geist', sans-serif">per couple · no guess</text>
+        <!-- 7 · A draft waits -->
+        <rect x="1088" y="413" width="143" height="68" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.45)" stroke-width="1.1" stroke-dasharray="5 4"/>
+        <text x="1099" y="425" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">7</text>
+        <circle cx="1219" cy="423" r="2.7" fill="#2d3142"/>
+        <text x="1099" y="441" fill="#2d3142" font-size="11" font-family="'Geist', sans-serif" font-weight="600">A draft waits</text>
+        <text x="1099" y="453" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">stored with its inputs,</text>
+        <text x="1099" y="463" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">invisible to the person</text>
+        <text x="1099" y="473" fill="#5a6580" font-size="7.0" font-family="'Geist', sans-serif">invisible until signed</text>
+        <!-- 8 · Signs or refuses -->
+        <rect x="1088" y="491" width="143" height="68" rx="5" fill="rgba(191,69,32,0.07)" stroke="#bf4520" stroke-width="1.6"/>
+        <text x="1099" y="503" fill="#bf4520" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">8</text>
+        <circle cx="1219" cy="501" r="2.7" fill="#2d3142"/>
+        <text x="1099" y="519" fill="#2d3142" font-size="11" font-family="'Geist', sans-serif" font-weight="600">Signs or refuses</text>
+        <text x="1099" y="531" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">reads it, then writes</text>
+        <text x="1099" y="541" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">a note, 10+ characters</text>
+        <text x="1099" y="551" fill="#5a6580" font-size="7.0" font-family="'Geist', sans-serif">release or discard, with a note</text>
+        <!-- 9 · Sees the record -->
+        <rect x="1088" y="101" width="143" height="68" rx="5" fill="#ffffff" stroke="rgba(45,49,66,0.45)" stroke-width="1"/>
+        <text x="1099" y="113" fill="#5a6580" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em">9</text>
+        <circle cx="1219" cy="111" r="2.7" fill="#a8641a"/>
+        <text x="1099" y="129" fill="#2d3142" font-size="11" font-family="'Geist', sans-serif" font-weight="600">Sees the record</text>
+        <text x="1099" y="141" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">tier, markers, note and</text>
+        <text x="1099" y="151" fill="#4f5d75" font-size="8.0" font-family="'Geist', sans-serif">every source and limit</text>
+        <text x="1099" y="161" fill="#5a6580" font-size="7.0" font-family="'Geist', sans-serif">never a probability</text>
+        
+        <!-- the loop that keeps going -->
+        <text x="134" y="578" fill="#2d3142" font-size="6.4" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.12em">THE SECOND LOOP · A FLAGGED READING STARTS IT, AND SOMEONE MUST OWN IT</text>
+        <rect x="134" y="586" width="128" height="26" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.42)" stroke-width="1"/>
+        <text x="144" y="602" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">ALERT RAISED</text>
+        <path d="M264,599 H278" fill="none" stroke="#5a6580" stroke-width="1.1" marker-end="url(#arrow-muted)"/>
+        <rect x="280" y="586" width="152" height="26" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.42)" stroke-width="1"/>
+        <text x="290" y="602" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">APPOINTMENT SET</text>
+        <path d="M434,599 H448" fill="none" stroke="#5a6580" stroke-width="1.1" marker-end="url(#arrow-muted)"/>
+        <rect x="450" y="586" width="134" height="26" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.42)" stroke-width="1"/>
+        <text x="460" y="602" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">IN FOLLOW-UP</text>
+        <path d="M586,599 H600" fill="none" stroke="#5a6580" stroke-width="1.1" marker-end="url(#arrow-muted)"/>
+        <rect x="602" y="586" width="96" height="26" rx="4" fill="#ffffff" stroke="rgba(45,49,66,0.42)" stroke-width="1"/>
+        <text x="612" y="602" fill="#2d3142" font-size="6.2" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.1em">CLOSED</text>
+        <path d="M198,612 V620" fill="none" stroke="#a8641a" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#arrow-warn)"/>
+        <text x="140" y="632" fill="#a8641a" font-size="6.0" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.08em">LOST · NO APPOINTMENT IN 14 DAYS</text>
+        <text x="992" y="602" fill="#4f5d75" font-size="7" font-family="'Geist', sans-serif">↻ then the next reading starts again at 1</text>
+        
+        <!-- audit -->
+        <rect x="40" y="646" width="1191" height="50" rx="4" fill="#2d3142"/>
+        <circle cx="62" cy="667" r="2.8" fill="#f5f5f5"/>
+        <text x="73" y="670" fill="#f5f5f5" font-size="6.8" font-family="'Geist Mono', monospace" font-weight="500" letter-spacing="0.16em">THE AUDIT LAYER</text>
+        <text x="73" y="687" fill="rgba(245,245,245,0.74)" font-size="8.8" font-family="'Geist', sans-serif">Every beat writes who, what and when — and which consent covered it.</text>
+        <text x="1217" y="666" fill="rgba(245,245,245,0.62)" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em" text-anchor="end">NO TRAINING ON PATIENT DATA</text>
+        <text x="1217" y="683" fill="rgba(245,245,245,0.62)" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.1em" text-anchor="end">CONSENT REVOCABLE AT ANY TIME</text>
+        
+        <text x="40" y="710" fill="#a8641a" font-size="6.2" font-family="'Geist Mono', monospace" letter-spacing="0.05em">MEASURED (TEAM-WRITTEN QUESTIONS) — retrieval hit@4 36/36 · Arabic 8/8 · end to end on Azure gpt-5-mini, 14 Nov: abstains 12/12 · citations resolve 80/80 · sentences supported 72/80 · NOT YET — time from signal to counselling on real patients</text>
+      </svg>

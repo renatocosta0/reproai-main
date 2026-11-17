@@ -169,7 +169,7 @@ function Headline({ a, sex }: { a: AssessmentView; sex: string | null }) {
         <h2>{tier.summary || "Your clinician has reviewed your latest results."}</h2>
         {a.percentile !== null && sex === "female" && (
           <p>
-            {t("amhIs")} {ar ? percentileWordsAr(a.percentile) : percentileWords(a.percentile)} ({t("aroundPercentile", { n: Math.round(a.percentile) })}).
+            {t("amhIs")} {ar ? percentileWordsAr(a.percentile) : percentileWords(a.percentile)} ({t("aroundPercentile", { n: Math.round(a.percentile * 2) })}).
           </p>
         )}
         {a.clinicianNote && <Note text={a.clinicianNote} light />}

@@ -9,6 +9,33 @@ export const CODES = {
   sleep: { code: "93832-4", unit: "h" }
 } as const;
 
+/**
+ * The only observation codes the API accepts, with plausible ranges. Lab values
+ * never travel this path: they are clinician-entered LabResults. Legacy aliases
+ * map to their LOINC code; the unit is always set by the server.
+ */
+const ACCEPTED_OBSERVATIONS: Record<string, { unit: string; min: number; max: number; label: string }> = {
+  "8310-5": { unit: "Cel", min: 34, max: 40, label: "Basal body temperature (°C)" },
+  "93832-4": { unit: "h", min: 0, max: 16, label: "Sleep duration (hours)" }
+};
+const OBSERVATION_ALIASES: Record<string, string> = { "body-temperature": "8310-5", "sleep-hours": "93832-4" };
+
+export function normaliseObservation(
+  code: unknown,
+  value: unknown
+): { ok: true; code: string; unit: string; value: number } | { ok: false; error: string } {
+  const raw = typeof code === "string" ? code.trim() : "";
+  const loinc = OBSERVATION_ALIASES[raw] ?? raw;
+  const def = ACCEPTED_OBSERVATIONS[loinc];
+  if (!def) {
+    return { ok: false, error: `Unsupported reading "${raw || "(none)"}". Only basal body temperature (8310-5) and sleep duration (93832-4) can be logged.` };
+  }
+  if (typeof value !== "number" || !Number.isFinite(value) || value < def.min || value > def.max) {
+    return { ok: false, error: `${def.label} must be a number between ${def.min} and ${def.max}.` };
+  }
+  return { ok: true, code: loinc, unit: def.unit, value };
+}
+
 export const MIN_BBT_READINGS = 10; // same threshold the server uses before judging a curve
 export const SHIFT_THRESHOLD_C = 0.3; // WHO / Roetzer biphasic criterion shown to users
 const SERVER_SHIFT_CUTOFF_C = 0.28; // server's tolerance for rounding

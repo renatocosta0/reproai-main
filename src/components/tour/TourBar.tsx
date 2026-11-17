@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, PlayCircle, X } from "lucide-react";
 import { TOUR, TOUR_KEY, type TourStep } from "@/lib/tour";
 
-/** Language the tour was started in; step 9 always shows Arabic, other steps use this. */
+/** Language the tour was started in; a step with locale "ar" always shows Arabic, others use this. */
 const TOUR_LOCALE_KEY = "reproai.tourLocale";
 
 function tourLocale(): "en" | "ar" {

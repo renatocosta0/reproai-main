@@ -35,7 +35,7 @@ const UI = {
     before: "Before clinical use",
     safeguards: "Safeguards around the model",
     safeguardList: [
-      "Patients never see an estimate until a clinician has reviewed and released it, and then see a tier and percentile rather than the probability.",
+      "Patients never see an estimate until a clinician has reviewed and released it, and then see a tier and a comparison with a typical AMH for their age rather than the probability.",
       "Lab values are entered or verified by clinicians and carry their source and date; patients cannot write lab values.",
       "Every estimate is stored with the exact inputs and model version that produced it.",
       "The assistants never calculate estimates; they explain recorded and released information and cite their sources.",
@@ -76,7 +76,7 @@ const UI = {
     before: "قبل الاستخدام السريري",
     safeguards: "الضمانات المحيطة بالنموذج",
     safeguardList: [
-      "لا يرى المرضى أي تقدير قبل أن يراجعه الطبيب ويعتمده، ثم يرون فئة ونسبة مئوية بدل الاحتمال.",
+      "لا يرى المرضى أي تقدير قبل أن يراجعه الطبيب ويعتمده، ثم يرون فئة ومقارنة مع قيمة AMH المعتادة لعمرهم بدل الاحتمال.",
       "يُدخل الأطباء قيم المختبر أو يتحققون منها، وتحمل مصدرها وتاريخها؛ ولا يمكن للمرضى إدخال قيم مخبرية.",
       "يُحفظ كل تقدير مع مُدخلاته الدقيقة وإصدار النموذج الذي أنتجه.",
       "لا يحسب المساعدان أي تقدير أبدًا؛ بل يشرحان المعلومات المسجّلة والمعتمدة ويذكران مصادرها.",

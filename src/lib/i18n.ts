@@ -80,7 +80,7 @@ export const STRINGS = {
   released: { en: "Released", ar: "صدر في" },
   reviewedBadge: { en: "Reviewed by your clinician", ar: "راجعه طبيبك" },
   amhIs: { en: "Your AMH is", ar: "مستوى AMH لديك" },
-  aroundPercentile: { en: "around the {n}th percentile", ar: "عند المئين {n} تقريبًا" },
+  aroundPercentile: { en: "about {n}% of a typical value for your age", ar: "حوالي {n}% من القيمة المعتادة لعمرك" },
   fromClinician: { en: "From your clinician:", ar: "من طبيبك:" },
   completeness: { en: "Data completeness", ar: "اكتمال البيانات" },
   notYetAvailable: { en: "Not yet available", ar: "غير متوفر بعد" },

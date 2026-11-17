@@ -27,7 +27,8 @@ export interface CaseFacts {
     tier: string | null;
     completeness: number | null;
     missingOptional: string[];
-    amhPercentile: number | null;
+    /** AMH as a percentage of an approximate typical value for age (100 = typical); a ratio, not a population percentile. */
+    amhPercentOfTypicalForAge: number | null;
     factors: { factor: string; shapleyValue: number | undefined }[];
     clinicianNote: string | null;
   }[];
@@ -54,7 +55,7 @@ export async function buildCaseFacts(caseId: string): Promise<CaseFacts | null> 
         tier: a.tier,
         completeness: a.completeness,
         missingOptional: a.missingOptional,
-        amhPercentile: a.percentile,
+        amhPercentOfTypicalForAge: a.percentile !== null ? Math.round(a.percentile * 2) : null,
         factors: (a.factors ?? []).map((f) => ({ factor: f.feature, shapleyValue: f.shapley_value })),
         clinicianNote: a.clinicianNote
       });

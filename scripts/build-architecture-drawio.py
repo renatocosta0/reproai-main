@@ -4,6 +4,10 @@ shareable app.diagrams.net editor URL (draw.io's #R deflate+base64 format).
 
 Node/band/edge geometry mirrors the SVG exactly, so the two artifacts agree.
 Run: python3 scripts/build-architecture-drawio.py
+
+WARNING: this OVERWRITES docs/reproai-architecture.drawio and .drawio.url with the
+simple generated layout. The current .drawio was hand-edited to mirror
+docs/slide-architecture-large.html; running this discards those edits.
 """
 import base64
 import zlib
@@ -46,9 +50,9 @@ NODES = [
     ("n-assess", 180, 348, 200, 64, "PIPE", "Assessment pipeline", "score \u00b7 Shapley factors", "focal", "work"),
     ("n-answer", 660, 348, 200, 64, "RAG", "Grounded answer", "retrieve \u00b7 verify \u00b7 cite", "focal", "work"),
     ("n-ml", 180, 504, 200, 64, "ML", "ML service", "FastAPI \u00b7 score + attribution", "backend", "work"),
-    ("n-db", 420, 504, 200, 64, "DB", "PostgreSQL", "Neon \u00b7 AES-256-GCM", "store", "work"),
+    ("n-db", 420, 504, 200, 64, "DB", "PostgreSQL", "Neon \u00b7 AES-256 text fields", "store", "work"),
     ("n-corpus", 660, 504, 200, 64, "EVID", "Guideline corpus", "Thiqa \u00b7 WHO \u00b7 ESHRE", "store", "partial"),
-    ("n-azure", 900, 504, 200, 64, "LLM", "Azure OpenAI", "gpt-5-mini \u00b7 UAE North", "external", "partial"),
+    ("n-azure", 900, 504, 200, 64, "LLM", "Azure OpenAI", "gpt-5-mini \u00b7 UAE region proposed", "external", "partial"),
 ]
 
 TREATMENTS = {
@@ -70,7 +74,7 @@ EDGES = [
     ("e-assess-gate", "n-assess", "gate", "DRAFT", ACCENT, (1, 0.5), (0, 0.5)),
     ("e-gate-db", "gate", "n-db", "RELEASED", ACCENT, (0.5, 1), (0.5, 0)),
     ("e-answer-corpus", "n-answer", "n-corpus", "RETRIEVE TOP 4", MUTED, (0.5, 1), (0.5, 0)),
-    ("e-answer-azure", "n-answer", "n-azure", "PASSAGES ONLY", LINK, (0.7, 1), (0.3, 0)),
+    ("e-answer-azure", "n-answer", "n-azure", "PASSAGES + RECORD FACTS", LINK, (0.7, 1), (0.3, 0)),
     ("e-azure-answer", "n-azure", "n-answer", "ANSWER + CITATIONS", LINK, (0.6, 0), (1, 0.56)),
 ]
 

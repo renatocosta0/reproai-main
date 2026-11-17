@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { hasConsent } from "@/lib/consent";
 import { audit } from "@/lib/audit";
+import { canAccessCase } from "@/lib/clinician-scope";
+import { normaliseObservation } from "@/lib/observation-analysis";
+import { analyseAndAlert } from "@/lib/observation-alerts";
 
 interface ObservationItem {
   code: string;
@@ -12,8 +15,8 @@ interface ObservationItem {
 }
 
 // Bulk longitudinal ingestion for wearable data (e.g. basal body temperature, sleep duration).
-// Uses high-performance batch insert (createMany) and performs closed-loop anomaly detection
-// to trigger clinician triage alerts without causing alarm to the couple.
+// Manual entry (typed or pasted). Device data uses /api/observations/import.
+// Runs the shared longitudinal analysis, which may raise a clinician-side alert.
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
@@ -34,27 +37,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Authorization: patient can only log for their couple; clinician can log for any
+    // Authorization: patients log only for their own couple; clinicians only for
+    // cases in their scope (prescribed or assigned).
     if (session.role === "PATIENT" && body.coupleId && session.coupleId !== body.coupleId) {
       return NextResponse.json({ error: "Forbidden: couple mismatch" }, { status: 403 });
     }
+    if (session.role === "CLINICIAN" && (!coupleId || !(await canAccessCase(session.userId, coupleId)))) {
+      return NextResponse.json({ error: "Forbidden: this case is not in your scope" }, { status: 403 });
+    }
 
-    const validObservations = (body.observations as ObservationItem[])
-      .filter((obs) => obs && typeof obs.code === "string" && typeof obs.value === "number" && !isNaN(obs.value))
-      .map((obs) => ({
+    // Only temperature and sleep readings are accepted; one bad item rejects the
+    // whole batch so nothing is half-saved. The unit is set by the server.
+    const items = body.observations as ObservationItem[];
+    if (items.length > 500) {
+      return NextResponse.json({ error: "Send at most 500 readings at a time." }, { status: 400 });
+    }
+    const validObservations = [];
+    for (const [i, obs] of items.entries()) {
+      const checked = normaliseObservation(obs?.code, obs?.value);
+      if (!checked.ok) {
+        return NextResponse.json({ error: `Reading ${i + 1}: ${checked.error}` }, { status: 400 });
+      }
+      const effectiveAt = obs.effectiveAt ? new Date(obs.effectiveAt) : new Date();
+      if (Number.isNaN(effectiveAt.getTime()) || effectiveAt.getTime() > Date.now() + 86_400_000) {
+        return NextResponse.json({ error: `Reading ${i + 1}: enter a valid date that is not in the future.` }, { status: 400 });
+      }
+      validObservations.push({
         coupleId: coupleId ?? null,
         userId: session.userId,
-        code: obs.code.trim(),
-        value: obs.value,
-        unit: obs.unit ? obs.unit.trim() : null,
-        effectiveAt: obs.effectiveAt ? new Date(obs.effectiveAt) : new Date()
-      }));
-
-    if (validObservations.length === 0) {
-      return NextResponse.json(
-        { error: "No valid observations provided (numeric value and code required)" },
-        { status: 400 }
-      );
+        code: checked.code,
+        value: checked.value,
+        unit: checked.unit,
+        effectiveAt,
+        source: "MANUAL"
+      });
     }
 
     // High-performance bulk insert
@@ -62,108 +78,12 @@ export async function POST(req: NextRequest) {
       data: validObservations
     });
 
-    // ── CLINICAL LONGITUDINAL TIME-SERIES ANOMALY DETECTION ─────────────
-    let alertTriggered = false;
-    let alertReason: string | null = null;
-    let bbtProfile: "BIPHASIC_OVULATORY" | "MONOPHASIC_SUSPECTED_ANOVULATORY" | "INSUFFICIENT_DATA" = "INSUFFICIENT_DATA";
-    let thermalShiftDelta = 0;
-    let meanSleepDuration = 0;
-    let sleepDisruptionDetected = false;
-
-    // Fetch combined historical + new observations for couple or individual to assess longitudinal trajectory
-    const allRecentObservations = await prisma.observation.findMany({
-      where: coupleId ? { coupleId } : { userId: session.userId },
-      orderBy: { effectiveAt: "asc" },
-      take: 60
-    });
-
-    // ── 1. Basal Body Temperature (BBT) Time-Series Analysis (Coverline / CUSUM)
-    const bbtSeries = allRecentObservations
-      .filter((o) => o.code === "body-temperature" || o.code === "8310-5" || o.code.toLowerCase().includes("temp"))
-      .map((o) => ({ date: o.effectiveAt, value: o.value }));
-
-    if (bbtSeries.length >= 10) {
-      // Calculate 6-day baseline window vs subsequent 3-day post-shift window (WHO Roetzer Rule)
-      const values = bbtSeries.map((s) => s.value);
-      let maxShift = 0;
-
-      for (let i = 6; i < values.length - 2; i++) {
-        const baselineMean = values.slice(i - 6, i).reduce((a, b) => a + b, 0) / 6;
-        const postShiftMean = values.slice(i, i + 3).reduce((a, b) => a + b, 0) / 3;
-        const shift = postShiftMean - baselineMean;
-        if (shift > maxShift) {
-          maxShift = shift;
-        }
-      }
-
-      thermalShiftDelta = Number(maxShift.toFixed(2));
-
-      // Biphasic shift criterion: temperature plateau must rise >= 0.3°C above baseline
-      if (maxShift >= 0.28) {
-        bbtProfile = "BIPHASIC_OVULATORY";
-      } else {
-        bbtProfile = "MONOPHASIC_SUSPECTED_ANOVULATORY";
-        alertTriggered = true;
-        alertReason = `Longitudinal BBT Time-Series: Monophasic thermal curve detected across ${bbtSeries.length} consecutive days (maximum thermal shift: ${thermalShiftDelta}°C; physiological target: ≥ 0.30°C). Possible anovulatory cycle or luteal phase defect (WHO Guideline / ICD-10 N97.0).`;
-      }
-    }
-
-    // ── 2. Circadian Rhythm & Sleep Time-Series Evaluation
-    const sleepSeries = allRecentObservations
-      .filter((o) => o.code === "sleep-hours" || o.code === "93832-4" || o.code.toLowerCase().includes("sleep"))
-      .map((o) => o.value);
-
-    if (sleepSeries.length >= 3) {
-      meanSleepDuration = Number((sleepSeries.reduce((a, b) => a + b, 0) / sleepSeries.length).toFixed(1));
-      
-      // Calculate sleep variance / standard deviation
-      const variance = sleepSeries.reduce((sum, val) => sum + Math.pow(val - meanSleepDuration, 2), 0) / sleepSeries.length;
-      const stdDev = Math.sqrt(variance);
-
-      if (meanSleepDuration < 5.0 || stdDev > 2.8) {
-        sleepDisruptionDetected = true;
-        alertTriggered = true;
-        const sleepNote = `Circadian Rhythm Disruption: Mean sleep ${meanSleepDuration}h/night (variability σ = ${stdDev.toFixed(1)}h). Sustained sleep fragmentation impairs hypothalamic-pituitary-gonadal (HPG) pulsatile GnRH release (ASRM 2023).`;
-        alertReason = alertReason ? `${alertReason} | ${sleepNote}` : sleepNote;
-      }
-    }
-
-    // ── 3. Proactive Clinician Triage Alert
-    if (coupleId && alertTriggered && alertReason) {
-      const existingAlert = await prisma.followUp.findFirst({
-        where: { coupleId, status: "ALERT_RAISED" }
-      });
-
-      if (!existingAlert) {
-        await prisma.followUp.create({
-          data: {
-            coupleId,
-            status: "ALERT_RAISED",
-            note: alertReason
-          }
-        });
-      } else {
-        await prisma.followUp.update({
-          where: { id: existingAlert.id },
-          data: { note: alertReason }
-        });
-      }
-    }
+    // Same longitudinal analysis and clinician-side alert as every other ingestion path.
+    const { alertTriggered, analytics } = await analyseAndAlert(session.userId, coupleId ?? null);
 
     await audit(session.userId, "bulk_observations_ingested", `couple:${coupleId}:${insertResult.count}`);
 
-    return NextResponse.json({
-      ok: true,
-      count: insertResult.count,
-      alertTriggered,
-      analytics: {
-        bbt_profile: bbtProfile,
-        thermal_shift_detected_celsius: thermalShiftDelta,
-        mean_sleep_hours: meanSleepDuration,
-        sleep_disruption_flag: sleepDisruptionDetected,
-        total_longitudinal_records: allRecentObservations.length
-      }
-    });
+    return NextResponse.json({ ok: true, count: insertResult.count, alertTriggered, analytics });
   } catch (error: any) {
     console.error("[POST /api/observations/bulk] error:", error);
     return NextResponse.json(

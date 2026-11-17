@@ -14,7 +14,7 @@ brief, the reference-demo patterns and the gap analysis. Prototype deadline: 20 
 - Import alias `@/*` → `src/*`. API routes live in `src/app/api/**/route.ts`.
 - Prisma (`prisma/schema.prisma`), JWT cookie auth (`src/lib/auth.ts`), role gating in
   `src/middleware.ts` (`/patient/*` = PATIENT, `/clinician/*` = CLINICIAN, else → `/login`).
-- ML: FastAPI in `ml-service/main.py` (the one the app calls via `ML_API_URL`).
+- ML: FastAPI in `ml-service/main.py` (the one the app calls via `ML_API_URL`). The Azure OpenAI resource is in UAE North; the database (Neon) is in the US.
   `ml/` is a legacy sklearn pipeline with no dataset; ignore it.
 
 ## Design reference
@@ -54,9 +54,9 @@ cd ml-service && pip install -r requirements.txt && uvicorn main:app --reload --
 
 ## Known issues (don't be surprised)
 - `prisma/migrations/` predates the move to PostgreSQL; use `npx prisma db push` (additive changes only on the shared DB, and ask first).
-- `src/lib/encryption.ts` exists but nothing calls it; data is not encrypted at rest.
+- Sensitive text fields are encrypted at rest (AES-256-GCM) by the Prisma extension in `src/lib/db.ts`; numeric lab values and emails are not. Without `ENCRYPTION_KEY` it writes plaintext.
 - `prisma/seed.ts` creates `clinician@reproai.dev`; `npm run demo:setup` creates the demo personas (needs the ML service).
-- No automated tests yet (`vitest` is installed); end-to-end checks have been run as scripts.
+- Unit tests (vitest, `npx vitest run`, config in `vitest.config.ts`): encryption, observation codes, email, device import and Bluetooth decoding; other end-to-end checks have been run as scripts.
 
 ## P0 safety rules (keep them true)
 - The ML service never imputes a missing required input; it returns `insufficient_data`.
