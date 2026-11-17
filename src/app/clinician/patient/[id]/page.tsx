@@ -107,7 +107,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
       setNotice(res.message);
       await load();
     } catch (err) {
-      setError(userMessage(err, "Failed to sync laboratory records from Malaffi HIE."));
+      setError(userMessage(err, "Failed to sync laboratory records from clinic EHR."));
     } finally {
       setBusy(null);
     }
@@ -151,7 +151,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
             <p className="date-label">{data.isCouple ? L.coupleRecord : L.individualRecord}</p>
             <h1>{name}</h1>
             <div style={{ marginTop: 4, marginBottom: 4 }}>
-              <span className="chip" style={{ background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 12 }}>
+              <span className="chip" style={{ background: "#f8fafc", color: "#334155", border: "1px solid #cbd5e1", fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 12 }}>
                 <Building2 size={13} /> {L.ehrAutoBadge}
               </span>
             </div>
@@ -177,7 +177,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
               <Link className="secondary" href={`/clinician/assistant?case=${data.id}`}>
                 <Sparkles size={16} /> {L.askCopilot}
               </Link>
-              <button className="secondary compact" onClick={syncEhr} disabled={busy === "sync-ehr"} title="Sync latest lab results from Malaffi HIE">
+              <button className="secondary compact" onClick={syncEhr} disabled={busy === "sync-ehr"} title="Sync latest lab results from connected clinic EHR">
                 <CloudDownload size={16} /> {busy === "sync-ehr" ? L.syncingEhr : L.syncEhr}
               </button>
               <button className="primary compact" onClick={exportFhir} disabled={busy === "fhir"}>
@@ -386,7 +386,10 @@ function MemberSection({
       </div>
 
       <div className="member-labs">
-        <h4 className="mini-title">{L.labsTitle}</h4>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+          <h4 className="mini-title" style={{ margin: 0 }}>{L.labsTitle}</h4>
+          <span style={{ fontSize: 11.5, color: "#64748b" }}>{L.labsSyncOrManualHint}</span>
+        </div>
         {codes.length === 0 ? (
           <p className="muted-note">{L.noResults}</p>
         ) : (

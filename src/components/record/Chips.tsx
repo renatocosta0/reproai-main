@@ -7,7 +7,7 @@ import { SOURCE_LABELS, type LabSource } from "@/lib/labs";
 /** Where a value came from: clinician verified, self-reported, imported or undocumented. */
 const SOURCE_AR: Record<string, string> = {
   CLINICIAN_VERIFIED: "تحقّق منه الطبيب",
-  EHR_MALAFFI: "موثّق من ملفي (HIE)",
+  EHR_MALAFFI: "موثّق من السجل الصحي (EHR/HIE)",
   IMPORTED: "سجل مستورد",
   SELF_REPORTED: "أدخلته بنفسك",
   PROFILE: "مسجّل سابقًا (المصدر غير موثّق)"

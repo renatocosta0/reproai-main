@@ -45,7 +45,7 @@ export const LABS: Record<LabCode, LabDef> = {
 
 export const SOURCE_LABELS: Record<LabSource, string> = {
   CLINICIAN_VERIFIED: "Clinician verified",
-  EHR_MALAFFI: "Verified from Malaffi HIE",
+  EHR_MALAFFI: "Verified from Clinic EHR / HIE",
   IMPORTED: "Imported record",
   SELF_REPORTED: "Self-reported",
   PROFILE: "Recorded earlier (source not documented)"
