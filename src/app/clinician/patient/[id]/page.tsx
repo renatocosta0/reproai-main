@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, BellPlus, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, BellPlus, Building2, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { ReviewCard } from "@/components/clinician/ReviewCard";
 import { LabEntry } from "@/components/clinician/LabEntry";
@@ -95,6 +95,24 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
     }
   }
 
+  async function syncEhr() {
+    setBusy("sync-ehr");
+    setError("");
+    setNotice("");
+    try {
+      const res = await api<{ ok: boolean; imported: number; message: string }>(
+        `/api/clinician/cases/${params.id}/sync-ehr`,
+        { method: "POST" }
+      );
+      setNotice(res.message);
+      await load();
+    } catch (err) {
+      setError(userMessage(err, "Failed to sync laboratory records from Malaffi HIE."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function openFollowUp() {
     setBusy("followup");
     try {
@@ -132,6 +150,11 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
           <div>
             <p className="date-label">{data.isCouple ? L.coupleRecord : L.individualRecord}</p>
             <h1>{name}</h1>
+            <div style={{ marginTop: 4, marginBottom: 4 }}>
+              <span className="chip" style={{ background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 12 }}>
+                <Building2 size={13} /> {L.ehrAutoBadge}
+              </span>
+            </div>
             <span>
               {L.inCareSince(date(data.createdAt))}
               {data.invitation ? L.prescriptionStatus(data.invitation.status) : ""}
@@ -154,6 +177,9 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
               <Link className="secondary" href={`/clinician/assistant?case=${data.id}`}>
                 <Sparkles size={16} /> {L.askCopilot}
               </Link>
+              <button className="secondary compact" onClick={syncEhr} disabled={busy === "sync-ehr"} title="Sync latest lab results from Malaffi HIE">
+                <CloudDownload size={16} /> {busy === "sync-ehr" ? L.syncingEhr : L.syncEhr}
+              </button>
               <button className="primary compact" onClick={exportFhir} disabled={busy === "fhir"}>
                 <FileJson size={16} /> {busy === "fhir" ? L.exporting : L.exportFhir}
               </button>

@@ -15,6 +15,19 @@ export interface AzureSearchConfig {
   index: string;
 }
 
+export interface AzureFhirConfig {
+  endpoint: string;
+  tenantId?: string;
+  clientId?: string;
+  clientSecret?: string;
+}
+
+export interface MalaffiHieConfig {
+  gatewayUrl: string;
+  facilityId: string;
+  partnerApiKey?: string;
+}
+
 export function getAzureOpenAIConfig(): AzureOpenAIConfig | null {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
@@ -35,6 +48,28 @@ export function getAzureSearchConfig(): AzureSearchConfig | null {
   return { endpoint: endpoint.replace(/\/$/, ""), apiKey, index };
 }
 
+export function getAzureFhirConfig(): AzureFhirConfig | null {
+  const endpoint = process.env.AZURE_FHIR_ENDPOINT;
+  if (!endpoint) return null;
+  return {
+    endpoint: endpoint.replace(/\/$/, ""),
+    tenantId: process.env.AZURE_FHIR_TENANT_ID || undefined,
+    clientId: process.env.AZURE_FHIR_CLIENT_ID || undefined,
+    clientSecret: process.env.AZURE_FHIR_CLIENT_SECRET || undefined
+  };
+}
+
+export function getMalaffiHieConfig(): MalaffiHieConfig | null {
+  const gatewayUrl = process.env.MALAFFI_HIE_GATEWAY_URL;
+  const facilityId = process.env.MALAFFI_FACILITY_ID;
+  if (!gatewayUrl || !facilityId) return null;
+  return {
+    gatewayUrl: gatewayUrl.replace(/\/$/, ""),
+    facilityId,
+    partnerApiKey: process.env.REPROAI_PARTNER_API_KEY || undefined
+  };
+}
+
 export interface McpConfig {
   url: string;
   token?: string;
@@ -50,6 +85,8 @@ export function azureStatus() {
   return {
     openAI: getAzureOpenAIConfig() !== null,
     search: getAzureSearchConfig() !== null,
+    fhir: getAzureFhirConfig() !== null,
+    malaffi: getMalaffiHieConfig() !== null,
     mcp: getMcpConfig() !== null
   };
 }

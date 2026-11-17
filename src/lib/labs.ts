@@ -14,7 +14,7 @@ export type LabCode =
   | "SPERM_MORPHOLOGY"
   | "SEMEN_VOLUME";
 
-export type LabSource = "CLINICIAN_VERIFIED" | "SELF_REPORTED" | "IMPORTED" | "PROFILE";
+export type LabSource = "CLINICIAN_VERIFIED" | "SELF_REPORTED" | "IMPORTED" | "PROFILE" | "EHR_MALAFFI";
 
 export interface LabDef {
   code: LabCode;
@@ -45,6 +45,7 @@ export const LABS: Record<LabCode, LabDef> = {
 
 export const SOURCE_LABELS: Record<LabSource, string> = {
   CLINICIAN_VERIFIED: "Clinician verified",
+  EHR_MALAFFI: "Verified from Malaffi HIE",
   IMPORTED: "Imported record",
   SELF_REPORTED: "Self-reported",
   PROFILE: "Recorded earlier (source not documented)"
