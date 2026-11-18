@@ -7,6 +7,8 @@ import { LABS, isBelowLimit, type LabCode, type LabPoint } from "@/lib/labs";
 import { shortDate } from "@/lib/observation-analysis";
 import { SourceChip } from "@/components/record/Chips";
 import { CLINICIAN_STRINGS, shortDateL } from "@/lib/i18n-clinician";
+import { ChartHover } from "./ChartHover";
+import { AskChip } from "@/components/patient/AskPanel";
 
 /**
  * One marker over time against its reference limit, with the person's first
@@ -59,8 +61,12 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
             <small> {def.unit}</small>
           </strong>
         </div>
-        <SourceChip source={last.source} audience={audience} />
+        <div className="marker-actions">
+          <SourceChip source={last.source} audience={audience} />
+          {audience === "patient" && <AskChip topic={{ title: label, questions: markerQuestions(code, def.label) }} />}
+        </div>
       </header>
+      <div className="marker-plot">
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${label}: ${pts.map((p) => p.value).join(", ")}`}>
         {lim !== undefined && (
           <>
@@ -75,6 +81,21 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
           <circle key={p.id} cx={x(i)} cy={y(p.value)} r="4" style={{ fill: "var(--chart-dot-fill)", stroke: isBelowLimit(code, p.value) ? "var(--chart-risk)" : "var(--chart-line)" }} strokeWidth="2" />
         ))}
       </svg>
+      <ChartHover
+        count={pts.length}
+        xFraction={(i) => x(i) / width}
+        yFraction={(i) => y(pts[i].value) / height}
+        ariaLabel={`${label}: use the arrow keys to read each result`}
+        label={(i) => (
+          <>
+            <b dir="ltr">
+              {pts[i].value} {def.unit}
+            </b>{" "}
+            {date(pts[i].collectedAt)}
+          </>
+        )}
+      />
+      </div>
       <p className="marker-trend">
         <trend.Icon size={14} aria-hidden /> {trend.text}
       </p>
@@ -89,4 +110,20 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
       </small>
     </article>
   );
+}
+
+/** Suggested questions for a marker's Ask panel (English: the guidance library is English). */
+function markerQuestions(code: LabCode, label: string): string[] {
+  switch (code) {
+    case "AMH":
+      return ["What does my AMH result mean?", "Does AMH tell me whether I can get pregnant?", "Why can AMH differ between tests?"];
+    case "AFC":
+      return ["What is an antral follicle count?", "How does antral follicle count relate to AMH?"];
+    case "FSH":
+      return ["What does FSH measure?", "Why is FSH tested early in the cycle?"];
+    case "SPERM_CONCENTRATION":
+      return ["Is my sperm concentration in the normal range?", "What lifestyle changes does WHO recommend?", "Why do both partners get tested?"];
+    default:
+      return [`What does my ${label.toLowerCase()} result mean?`, "What lifestyle changes does WHO recommend?"];
+  }
 }

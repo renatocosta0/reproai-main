@@ -1,3 +1,6 @@
+"use client";
+
+import { ChartHover } from "./ChartHover";
 import type { BbtAnalysis, Point } from "@/lib/observation-analysis";
 import { shortDate as defaultDate } from "@/lib/observation-analysis";
 
@@ -83,6 +86,17 @@ export function TemperatureChart({ points, analysis, large = false, formatDate: 
             <span>{riseLabel}</span>
           </div>
         )}
+        <ChartHover
+          count={points.length}
+          xFraction={(i) => x(i) / width}
+          yFraction={(i) => y(points[i].value) / height}
+          ariaLabel="Temperature readings: use the arrow keys to read each day"
+          label={(i) => (
+            <>
+              <b dir="ltr">{points[i].value.toFixed(2)}°C</b> {shortDate(points[i].date)}
+            </>
+          )}
+        />
       </div>
       <div className="chart-days" aria-hidden>
         <span>{shortDate(points[0].date)}</span>

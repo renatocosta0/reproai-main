@@ -27,6 +27,9 @@ import { FormError } from "@/components/ui/Notice";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { percentileWordsAr, TIER_AR } from "@/lib/i18n";
 import { AppointmentCard } from "@/components/patient/AppointmentCard";
+import { AskChip } from "@/components/patient/AskPanel";
+import { ExplainTerms } from "@/components/patient/ExplainTerms";
+import type { Point } from "@/lib/observation-analysis";
 import {
   analyzeBbt,
   formatHours,
@@ -94,6 +97,7 @@ const S = {
     baselineText: "When your clinician records results such as an AMH test or a semen analysis and reviews them, your picture appears here.",
     nextSteps: "Your next best steps",
     nextStepsSub: "Based on what you have recorded",
+    fullJourney: "Your journey",
     signals: "Your health signals",
     signalsFemale: "Basal body temperature and sleep",
     signalsMale: "Sleep, lifestyle and lab markers",
@@ -180,6 +184,7 @@ const S = {
     baselineText: "عندما يسجّل طبيبك نتائج مثل فحص AMH أو تحليل السائل المنوي ويراجعها، تظهر صورتك هنا.",
     nextSteps: "خطواتك التالية",
     nextStepsSub: "بناءً على ما سجّلته",
+    fullJourney: "رحلتك",
     signals: "مؤشراتك الصحية",
     signalsFemale: "درجة حرارة الجسم الأساسية والنوم",
     signalsMale: "النوم ونمط الحياة والمؤشرات المخبرية",
@@ -387,33 +392,14 @@ export default function OverviewPage() {
             <Sparkles size={14} /> {L.insightEyebrow}
           </div>
           <h2>{insightTitle}</h2>
-          <p>{insightText}</p>
+          <p><ExplainTerms text={insightText} /></p>
           <Link href={semenPending ? "/patient/assessment" : "/patient/wearables"}>
             {semenPending ? L.viewTrajectory : L.explorePattern} <ArrowRight size={16} className="flip-rtl" />
           </Link>
         </div>
         <div className="journey-art" aria-hidden="true">
-          <svg viewBox="0 0 360 170">
-            <path
-              d="M16 132 C65 124, 74 107, 112 116 S164 142, 191 93 S243 80, 264 68 S313 55, 345 26"
-              fill="none"
-              stroke="#fff"
-              strokeOpacity=".8"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <path
-              d="M16 132 C65 124, 74 107, 112 116 S164 142, 191 93 S243 80, 264 68 S313 55, 345 26 L345 170 L16 170Z"
-              fill="url(#patientGradient)"
-              opacity=".35"
-            />
-            <defs>
-              <linearGradient id="patientGradient" x1="0" x2="0" y1="0" y2="1">
-                <stop stopColor="#fff" />
-                <stop offset="1" stopColor="#fff" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-          </svg>
+          {/* The patient's own recent readings, not an illustration. */}
+          <Sparkline points={sex === "female" ? recentTemps : recentSleep} />
           {insightValue && (
             <div className="art-note">
               <span dir="ltr">{insightValue}</span>
@@ -431,6 +417,17 @@ export default function OverviewPage() {
               <h2>{latestPrediction?.scope === "COUPLE" ? L.jointEstimate : L.reproPicture}</h2>
               <p>{latestPrediction ? L.reviewedOn(dateL(latestPrediction.createdAt)) : L.notAssessed}</p>
             </div>
+            {latestPrediction && (
+              <AskChip
+                topic={{
+                  title: latestPrediction.scope === "COUPLE" ? L.jointEstimate : L.reproPicture,
+                  questions:
+                    sex === "female"
+                      ? ["What does my AMH result mean?", "What does my latest assessment mean?", "When should I see a specialist?"]
+                      : ["Is my sperm concentration in the normal range?", "What does my latest assessment mean?", "When should we see a specialist?"]
+                }}
+              />
+            )}
           </div>
           {latestPrediction && latestPrediction.scope !== "COUPLE" ? (
             <div className="empty-state">
@@ -468,6 +465,9 @@ export default function OverviewPage() {
               <h2>{L.nextSteps}</h2>
               <p>{L.nextStepsSub}</p>
             </div>
+            <Link className="text-button" href="/patient/journey">
+              {L.fullJourney} <ArrowRight size={14} className="flip-rtl" />
+            </Link>
           </div>
           <div className="steps-list">
             {obsLoading && <div className="loading-block" style={{ height: 150 }} />}
@@ -491,6 +491,15 @@ export default function OverviewPage() {
             <h2>{L.signals}</h2>
             <p>{sex === "female" ? L.signalsFemale : L.signalsMale}</p>
           </div>
+          <AskChip
+            topic={{
+              title: L.signals,
+              questions:
+                sex === "female"
+                  ? ["What does a rise in basal body temperature mean?", "How should I measure my morning temperature?", "How does sleep affect fertility?"]
+                  : ["How does sleep affect fertility?", "What lifestyle changes does WHO recommend?"]
+            }}
+          />
           <Link className="text-button" href="/patient/wearables">
             {L.viewDetails} <ArrowRight size={15} className="flip-rtl" />
           </Link>
@@ -612,5 +621,35 @@ function Stat({ icon, label, value, note, good }: { icon: ReactNode; label: stri
       </span>
       {note ? <em className={good ? "good" : ""}>{note}</em> : <em />}
     </div>
+  );
+}
+
+/** Small line of the patient's own recent readings for the insight banner; nothing when there are fewer than two. */
+function Sparkline({ points }: { points: Point[] }) {
+  if (points.length < 2) return null;
+  const w = 360;
+  const h = 170;
+  const pad = 16;
+  const values = points.map((p) => p.value);
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const span = hi - lo || 1;
+  const x = (i: number) => pad + (i * (w - pad * 2)) / (points.length - 1);
+  const y = (v: number) => h - 30 - ((v - lo) / span) * (h - 70);
+  const line = points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`}>
+      <defs>
+        <linearGradient id="patientGradient" x1="0" x2="0" y1="0" y2="1">
+          <stop stopColor="#fff" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={`${x(0)},${h} ${line} ${x(points.length - 1)},${h}`} fill="url(#patientGradient)" opacity=".3" />
+      <polyline points={line} fill="none" stroke="#fff" strokeOpacity=".85" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <circle key={i} cx={x(i)} cy={y(p.value)} r="2.5" fill="#fff" fillOpacity=".9" />
+      ))}
+    </svg>
   );
 }

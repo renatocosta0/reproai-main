@@ -1,3 +1,6 @@
+"use client";
+
+import { ChartHover } from "./ChartHover";
 import { formatHours, shortDate as defaultDate, type Point, type SleepStats } from "@/lib/observation-analysis";
 
 const TARGET_HOURS = 7;
@@ -46,6 +49,16 @@ export function SleepChart({ points, stats, formatDate: shortDate = defaultDate 
           ))}
           {ma && <polyline points={ma} fill="none" style={{ stroke: "var(--chart-line)" }} strokeWidth="2.4" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
         </svg>
+        <ChartHover
+          count={points.length}
+          xFraction={(i) => cx(i) / width}
+          ariaLabel="Sleep by night: use the arrow keys to read each night"
+          label={(i) => (
+            <>
+              <b dir="ltr">{formatHours(points[i].value)}</b> {shortDate(points[i].date)}
+            </>
+          )}
+        />
       </div>
       <div className="chart-days" aria-hidden>
         <span>{shortDate(points[0].date)}</span>

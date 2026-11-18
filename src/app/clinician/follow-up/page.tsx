@@ -111,7 +111,7 @@ export default function FollowUpBoard() {
           {COLUMNS.map((col, ci) => {
             const colItems = items.filter((i) => i.status === col.status || col.also?.includes(i.status as FollowUpStatus));
             return (
-              <section className="kanban-col" key={col.status} aria-label={label(col.status)}>
+              <section className={`kanban-col ${colItems.length === 0 ? "is-empty" : ""}`} key={col.status} aria-label={label(col.status)}>
                 <header>
                   <i className={`kanban-dot dot-${ci}`} />
                   <strong>{label(col.status)}</strong>
@@ -167,7 +167,7 @@ export default function FollowUpBoard() {
                             L.lostToFollowUp
                           ) : (
                             <>
-                              <Bell size={14} /> <span dir="auto">{shortReason(item.note)}</span>
+                              <Bell size={14} /> <span dir="auto" title={item.note ?? undefined}>{shortReason(item.note)}</span>
                             </>
                           )}
                         </div>
@@ -184,7 +184,7 @@ export default function FollowUpBoard() {
                             onClick={() => handleAdvance(item, next)}
                             disabled={busyId === item.id}
                           >
-                            {busyId === item.id ? L.moving : label(next)} <ArrowRight size={13} className="flip-rtl" />
+                            {busyId === item.id ? L.moving : L.moveTo(label(next))} <ArrowRight size={13} className="flip-rtl" />
                           </button>
                         ) : (
                           <span><Check size={14} /></span>

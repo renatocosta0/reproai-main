@@ -6,6 +6,7 @@ import type { OptionKind, PathwayOption } from "@/lib/pathways";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import type { StringKey } from "@/lib/i18n";
 import { CLINICIAN_STRINGS } from "@/lib/i18n-clinician";
+import { ExplainTerms } from "@/components/patient/ExplainTerms";
 
 const KIND: Record<OptionKind, { label: string; Icon: typeof Leaf; tone: string }> = {
   RED_FLAG: { label: "See a doctor", Icon: AlertTriangle, tone: "coral" },
@@ -49,7 +50,7 @@ export function OptionsList({
                 {audience === "clinician" && <code>{o.ruleId}</code>}
               </div>
               <strong dir={clinAr ? "auto" : undefined}>{ar && o.ar ? o.ar.title : o.title}</strong>
-              <p dir={clinAr ? "auto" : undefined}>{audience === "patient" ? (ar && o.ar ? o.ar.text : o.patientText) : o.clinicianText}</p>
+              <p dir={clinAr ? "auto" : undefined}>{audience === "patient" ? <ExplainTerms text={ar && o.ar ? o.ar.text : o.patientText} /> : o.clinicianText}</p>
               {clinAr ? (
                 // One text run, so the Arabic labels and English reason/source don't split into flex columns.
                 <small>

@@ -19,7 +19,8 @@ import { featureLabel } from "@/lib/tiers";
  * Diverging bars of exact Shapley values (log-odds contribution relative to the
  * reference population). Mint pushes the estimate up, coral pulls it down.
  */
-export function ShapChart({ factors }: { factors: ShapFactor[] }) {
+export function ShapChart({ factors, audience = "clinician" }: { factors: ShapFactor[]; audience?: "patient" | "clinician" }) {
+  const patient = audience === "patient";
   const { locale } = useLocale();
   const ar = locale === "ar";
   const rows = factors
@@ -30,8 +31,8 @@ export function ShapChart({ factors }: { factors: ShapFactor[] }) {
   return (
     <div className="shap-chart" role="table" aria-label="Factor contributions">
       <div className="shap-legend" aria-hidden>
-        <span><i className="neg" /> {ar ? "يخفض التقدير" : "Lowers estimate"}</span>
-        <span><i className="pos" /> {ar ? "يرفع التقدير" : "Raises estimate"}</span>
+        <span><i className="neg" /> {patient ? (ar ? "أثّر سلبًا" : "Weighed against") : ar ? "يخفض التقدير" : "Lowers estimate"}</span>
+        <span><i className="pos" /> {patient ? (ar ? "ساعد" : "Helped") : ar ? "يرفع التقدير" : "Raises estimate"}</span>
       </div>
       {rows.map((r) => {
         const w = (Math.abs(r.phi) / max) * 50;
@@ -46,18 +47,35 @@ export function ShapChart({ factors }: { factors: ShapFactor[] }) {
                 style={positive ? { left: "50%", width: `${w}%` } : { right: "50%", width: `${w}%` }}
               />
             </div>
-            <span className={`shap-value ${positive ? "pos" : r.phi < 0 ? "neg" : ""}`} role="cell" dir="ltr">
-              {positive ? "+" : ""}
-              {r.phi.toFixed(2)}
-            </span>
+            {patient ? (
+              <span className={`shap-value shap-word ${positive ? "pos" : r.phi < 0 ? "neg" : ""}`} role="cell">
+                {strength(Math.abs(r.phi) / max, ar)}
+              </span>
+            ) : (
+              <span className={`shap-value ${positive ? "pos" : r.phi < 0 ? "neg" : ""}`} role="cell" dir="ltr">
+                {positive ? "+" : ""}
+                {r.phi.toFixed(2)}
+              </span>
+            )}
           </div>
         );
       })}
       <p className="shap-footnote">
-        {ar
-          ? "القيم هي مساهمة كل عامل مقارنةً بمجموعة مرجعية (إسناد شابلي الدقيق). الأشرطة الأطول أكثر تأثيرًا."
-          : "Values are contributions on the log-odds scale compared with a reference population (exact Shapley attribution). Longer bars matter more."}
+        {patient
+          ? ar
+            ? "يُظهر كل شريط مقدار تأثير العامل في تقديرك مقارنةً بشخص نموذجي. الأشرطة الأطول أكثر تأثيرًا. هذا شرح لحساب النموذج، وليس سببًا طبيًا."
+            : "Each bar shows how much a factor moved your estimate compared with a typical person. Longer bars mattered more. This explains the model's calculation; it is not a medical cause."
+          : ar
+            ? "القيم هي مساهمة كل عامل مقارنةً بمجموعة مرجعية (إسناد شابلي الدقيق). الأشرطة الأطول أكثر تأثيرًا."
+            : "Values are contributions on the log-odds scale compared with a reference population (exact Shapley attribution). Longer bars matter more."}
       </p>
     </div>
   );
+}
+
+/** Relative strength of one factor against the largest, in words (patient view). */
+function strength(rel: number, ar: boolean): string {
+  if (rel >= 0.6) return ar ? "كبير" : "Strong";
+  if (rel >= 0.25) return ar ? "متوسط" : "Moderate";
+  return ar ? "صغير" : "Small";
 }

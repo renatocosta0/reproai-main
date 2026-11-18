@@ -53,7 +53,8 @@ export default function CaseReportPage({ params }: { params: { id: string } }) {
 
   const name = data.members.map((m) => m.name).filter(Boolean).join(" & ") || data.invitation?.email || L.careCase;
   const released = data.assessments.filter((a) => a.status === "RELEASED");
-  const latest = released[0];
+  // For a couple, the joint estimate is the headline; otherwise the latest released one.
+  const latest = (data.isCouple ? released.find((a) => a.scope === "COUPLE") : undefined) ?? released[0];
 
   return (
     <div className="content case-report">
@@ -72,15 +73,10 @@ export default function CaseReportPage({ params }: { params: { id: string } }) {
         <span>{L.rptGenerated(date(new Date()))} · {L.rptScope}</span>
       </header>
 
-      <section className="report-section">
-        <h2>{L.rptKinds}</h2>
-        <ul className="report-kinds">
-          <li>{L.rptKindRecorded}</li>
-          <li>{L.rptKindCalculated}</li>
-          <li>{L.rptKindClinician}</li>
-          <li>{L.rptKindNoAi}</li>
-        </ul>
-      </section>
+      {/* One short legend instead of a section: what is recorded, calculated or clinician-written. */}
+      <p className="report-legend">
+        <strong>{L.rptKinds}:</strong> {L.rptKindRecorded} {L.rptKindCalculated} {L.rptKindClinician} {L.rptKindNoAi}
+      </p>
 
       <section className="report-section">
         <h2>{L.rptAssessment}</h2>
@@ -132,7 +128,14 @@ export default function CaseReportPage({ params }: { params: { id: string } }) {
               <p className="muted-note">{L.rptNoLabs}</p>
             )}
             <h3 className="mini-title">{L.rptOptions}</h3>
-            {m.options.length ? <OptionsList options={m.options} audience="clinician" /> : <p className="muted-note">{L.rptNoOptions}</p>}
+            {m.options.length ? (
+              <>
+                <OptionsList options={[...m.options].sort((a, b) => a.priority - b.priority)} audience="clinician" limit={3} />
+                {m.options.length > 3 && <p className="muted-note">{L.rptMoreOptions(m.options.length - 3)}</p>}
+              </>
+            ) : (
+              <p className="muted-note">{L.rptNoOptions}</p>
+            )}
           </section>
         );
       })}

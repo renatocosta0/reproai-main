@@ -7,6 +7,7 @@ export type Locale = "en" | "ar";
 export const STRINGS = {
   // Navigation and shell
   navToday: { en: "Today", ar: "اليوم" },
+  navJourney: { en: "My journey", ar: "رحلتي" },
   navTrajectory: { en: "My trajectory", ar: "مساري" },
   navAbout: { en: "About me", ar: "معلوماتي" },
   navTracking: { en: "Health tracking", ar: "متابعة صحتي" },
@@ -67,8 +68,8 @@ export const STRINGS = {
   },
   shapedTitle: { en: "What shaped your latest assessment", ar: "ما الذي أثّر في تقييمك الأخير" },
   shapedSubtitle: {
-    en: "Each factor compared with a reference population. Mint helped, coral weighed against.",
-    ar: "مقارنة كل عامل بمجموعة مرجعية. الأخضر ساعد، والمرجاني أثّر سلبًا."
+    en: "Which recorded factors helped your estimate and which weighed against it, compared with a typical person.",
+    ar: "أيّ العوامل المسجّلة ساعدت تقديرك وأيّها أثّر سلبًا، مقارنةً بشخص نموذجي."
   },
   importantContext: { en: "Important context", ar: "معلومة مهمة" },
   importantContextText: {

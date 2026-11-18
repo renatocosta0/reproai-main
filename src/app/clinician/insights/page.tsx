@@ -49,19 +49,27 @@ export default function InsightsPage() {
             <Users size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> {L.yourPanel}
             <small className="muted-note">{L.panelSharing(data.panel.sharing, data.panel.total)}</small>
           </h2>
+          {/* Groups with people first, largest first; criteria and rule sources open on click. */}
           <section className="cohort-grid">
-            {data.panel.cohorts.map((c) => (
-              <article key={c.id} className={`panel cohort-tile ${c.people.length ? "" : "empty"}`}>
-                <button className="cohort-head" onClick={() => setOpen(open === c.id ? null : c.id)} aria-expanded={open === c.id} disabled={!c.people.length}>
+            {[...data.panel.cohorts]
+              .filter((c) => c.people.length > 0)
+              .sort((a, b) => b.people.length - a.people.length)
+              .map((c) => (
+              <article key={c.id} className="panel cohort-tile">
+                <button className="cohort-head" onClick={() => setOpen(open === c.id ? null : c.id)} aria-expanded={open === c.id}>
                   <strong>{c.people.length}</strong>
                   <span>
                     <b>{tr(c).title}</b>
-                    <small>{tr(c).why}</small>
+                    <small>{L.suggested} {tr(c).action}</small>
                   </span>
-                  {c.people.length > 0 && <ChevronRight size={16} className={open === c.id ? "rot" : "flip-rtl"} />}
+                  <ChevronRight size={16} className={open === c.id ? "rot" : "flip-rtl"} />
                 </button>
-                <p className="cohort-action">{L.suggested} {tr(c).action}</p>
-                <small className="cohort-source">{L.rules} <span dir="ltr">{c.rules.join(", ")} · {c.source}</span></small>
+                {open === c.id && (
+                  <p className="cohort-action">{tr(c).why}</p>
+                )}
+                {open === c.id && (
+                  <small className="cohort-source">{L.rules} <span dir="ltr">{c.rules.join(", ")} · {c.source}</span></small>
+                )}
                 {open === c.id && (
                   <ul className="cohort-people">
                     {c.people.map((p) => (
@@ -75,11 +83,17 @@ export default function InsightsPage() {
               </article>
             ))}
           </section>
+          {data.panel.cohorts.some((c) => c.people.length === 0) && (
+            <p className="muted-note" style={{ margin: "8px 2px 0" }}>
+              {L.emptyGroups}: {data.panel.cohorts.filter((c) => c.people.length === 0).map((c) => tr(c).title).join(ar ? "، " : ", ")}
+            </p>
+          )}
 
-          <h2 className="section-title" style={{ marginTop: 22 }}>
-            <Globe2 size={18} style={{ display: "inline", verticalAlign: "-3px" }} /> {L.acrossService}
+          <details className="fold" style={{ marginTop: 22 }}>
+          <summary>
+            <Globe2 size={18} aria-hidden /> {L.acrossService}
             <small className="muted-note">{L.serviceConsenting(data.system.consenting)}</small>
-          </h2>
+          </summary>
           <div className="clinical-note" style={{ marginBottom: 14 }}>
             <ShieldCheck size={20} />
             <span>
@@ -107,6 +121,7 @@ export default function InsightsPage() {
               </table>
             </div>
           </section>
+          </details>
         </>
       )}
     </div>

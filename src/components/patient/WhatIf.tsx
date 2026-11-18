@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FlaskConical, MoonStar, Scale, Wind } from "lucide-react";
-import { api, userMessage } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { useLocale } from "@/components/i18n/LocaleContext";
 
 interface WhatIfResult {
@@ -34,10 +34,17 @@ export function WhatIf({ currentBmi }: { currentBmi: number | null }) {
           setResult(r);
           setError("");
         })
-        .catch((err) => setError(userMessage(err, "The simulator is not available right now.")));
+        // The simulator needs the model service; say so plainly rather than show a server error.
+        .catch(() =>
+          setError(
+            ar
+              ? "المحاكي غير متاح الآن لأن خدمة النموذج لا تستجيب. سجلك لم يتغيّر."
+              : "The simulator isn't available right now because the model service isn't responding. Your record is unchanged."
+          )
+        );
     }, 250);
     return () => clearTimeout(id);
-  }, [bmi]);
+  }, [bmi, ar]);
 
   return (
     <section className="panel whatif" style={{ marginBottom: 16 }}>
@@ -59,9 +66,13 @@ export function WhatIf({ currentBmi }: { currentBmi: number | null }) {
             <p className="muted-note">{error}</p>
           ) : result ? (
             <p className={`whatif-result ${result.direction}`}>
-              {ar ? "الآن" : "Now"} {result.currentBmi !== null ? <>(<span dir="ltr">{result.currentBmi}</span>)</> : ""}: {ar ? "عامل الوزن" : "weight is"} {effectWords(result.bmiEffectNow, ar)}.{" "}
-              {ar ? "عند" : "At"} <span dir="ltr">{result.simulatedBmi}</span>: {effectWords(result.bmiEffectSimulated, ar)}
-              {result.direction === "better" ? (ar ? " — أفضل." : ", better.") : result.direction === "worse" ? (ar ? " — أسوأ." : ", worse.") : ar ? " — مشابه." : ", about the same."}
+              {result.currentBmi !== null && (
+                <>
+                  {ar ? "عند مؤشر كتلة جسمك الحالي" : "At your current BMI"} (<span dir="ltr">{result.currentBmi}</span>), {ar ? "الوزن" : "weight is"} {effectWords(result.bmiEffectNow, ar)}.{" "}
+                </>
+              )}
+              {ar ? "عند" : "At"} <span dir="ltr">{result.simulatedBmi}</span>, {ar ? "سيكون" : "it would be"} {effectWords(result.bmiEffectSimulated, ar)}
+              {result.direction === "better" ? (ar ? "، أي أفضل." : ", which is better.") : result.direction === "worse" ? (ar ? "، أي أسوأ." : ", which is worse.") : ar ? "، أي مشابهًا تقريبًا." : ", about the same."}
             </p>
           ) : (
             <p className="muted-note">…</p>

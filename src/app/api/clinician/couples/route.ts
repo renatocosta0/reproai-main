@@ -109,6 +109,7 @@ export async function GET(req: NextRequest) {
           confidenceHigh: latestPrediction.confidenceHigh,
           tier: latestPrediction.tier ?? (scope === "INDIVIDUAL" ? "OPTIMAL" : "COUPLE_BIVARIATE"),
           scope: latestPrediction.scope,
+          status: latestPrediction.status,
           preservationGuidance: latestPrediction.preservationGuidance,
           factors: latestPrediction.factors ? JSON.parse(latestPrediction.factors) : null,
           createdAt: latestPrediction.createdAt

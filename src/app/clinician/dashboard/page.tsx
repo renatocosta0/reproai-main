@@ -89,7 +89,7 @@ export default function ClinicianDashboard() {
           detail={L.mReviewDetail}
           icon={<ClipboardCheck size={19} />}
           tone="gold"
-          href="/clinician/cases"
+          href="/clinician/cases?filter=review"
         />
       </section>
 
@@ -156,7 +156,7 @@ export default function ClinicianDashboard() {
                   <div className="alert-avatar red">{caseInitials(name)}</div>
                   <span>
                     <strong>{name}</strong>
-                    <small dir="auto">{shortReason(a.note)}</small>
+                    <small dir="auto" title={a.note ?? undefined}>{shortReason(a.note)}</small>
                     <em>{ago(a.createdAt)}</em>
                   </span>
                   <ChevronRight size={17} className="flip-rtl" />

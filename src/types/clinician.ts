@@ -9,6 +9,8 @@ export interface CasePrediction {
   confidenceHigh: number | null;
   tier: string | null;
   scope: string;
+  /** DRAFT while it waits for clinician review; RELEASED once the patient can see it. */
+  status?: string;
   preservationGuidance: string | null;
   factors: ShapFactor[] | null;
   createdAt: string;

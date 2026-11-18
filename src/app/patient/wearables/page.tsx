@@ -8,6 +8,8 @@ import { SOURCE_LABELS } from "@/lib/device-import";
 import { usePatient } from "@/components/patient/PatientContext";
 import { useObservations } from "@/components/patient/useObservations";
 import { TemperatureChart } from "@/components/charts/TemperatureChart";
+import { AskChip } from "@/components/patient/AskPanel";
+import { ExplainTerms } from "@/components/patient/ExplainTerms";
 import { SleepChart } from "@/components/charts/SleepChart";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
@@ -23,6 +25,7 @@ import {
   shortDate,
   sleepStats
 } from "@/lib/observation-analysis";
+import type { Point } from "@/lib/observation-analysis";
 import type { BulkObservationResponse } from "@/types/patient";
 import { useLocale } from "@/components/i18n/LocaleContext";
 
@@ -64,9 +67,9 @@ const S = {
     saving: "Saving…",
     saveTimeline: "Save to my timeline",
     bbtTitle: "Basal body temperature",
-    bbtSub: "LOINC 8310-5 · Oral readings at wake time",
-    biTitle: "Biphasic pattern detected",
-    biText: (shift: string, cover: string) => `A sustained rise of ${shift}°C above your earlier readings (coverline ${cover}°C) is consistent with ovulation. Your clinician can review this alongside other findings.`,
+    bbtSub: "Taken by mouth each morning, before getting up. Tap the chart to read any day.",
+    biTitle: "Your temperature rose and stayed up",
+    biText: (shift: string, _cover: string) => `Your morning temperature rose by about ${shift}°C and stayed higher. This kind of rise usually follows ovulation. Your clinician can review it alongside your other results.`,
     monoTitle: "No sustained rise yet",
     monoText: (n: number, shift: string, thr: string) => `Across ${n} readings the largest rise is ${shift}°C, below the ${thr}°C usually seen after ovulation. Single cycles vary; your care team looks at this over time.`,
     buildTitle: "Building your pattern",
@@ -74,7 +77,8 @@ const S = {
     noTempTitle: "No temperature readings yet",
     noTempText: "Log your basal temperature each morning, or import readings from your thermometer or wearable app.",
     sleepTitle: "Sleep duration",
-    sleepSub: (n: number) => `LOINC 93832-4 · Last ${n} nights, 7-night average line`,
+    noneInRange: (d: number) => `No readings in the last ${d} days. Choose a longer range to see earlier readings.`,
+    sleepSub: (n: number) => `Last ${n} nights. The line is your 7-night average; the dashed line is 7 hours.`,
     irregular: "Your sleep has been irregular",
     steady: "Your sleep looks steady",
     sleepStats: (mean: string, sd: string) => `Average ${mean} per night, varying by about ${sd} night to night.`,
@@ -121,9 +125,9 @@ const S = {
     saving: "جارٍ الحفظ…",
     saveTimeline: "حفظ في سجلي الزمني",
     bbtTitle: "درجة حرارة الجسم الأساسية",
-    bbtSub: "LOINC 8310-5 · قراءات فموية عند الاستيقاظ",
-    biTitle: "رُصد نمط ثنائي الطور",
-    biText: (shift: string, cover: string) => `ارتفاع مستمر بمقدار ${shift}°م فوق قراءاتك السابقة (خط الأساس ${cover}°م) يتوافق مع حدوث الإباضة. يمكن لطبيبك مراجعة ذلك مع النتائج الأخرى.`,
+    bbtSub: "تُقاس بالفم كل صباح قبل النهوض. المس المخطط لقراءة أي يوم.",
+    biTitle: "ارتفعت حرارتك وبقيت مرتفعة",
+    biText: (shift: string, _cover: string) => `ارتفعت حرارتك الصباحية بنحو ${shift}°م وبقيت أعلى. يحدث هذا النوع من الارتفاع عادةً بعد الإباضة. يمكن لطبيبك مراجعته مع نتائجك الأخرى.`,
     monoTitle: "لا يوجد ارتفاع مستمر بعد",
     monoText: (n: number, shift: string, thr: string) => `عبر ${n} قراءة، أكبر ارتفاع هو ${shift}°م، وهو أقل من ${thr}°م الذي يُلاحظ عادة بعد الإباضة. تختلف الدورات من واحدة لأخرى، ويتابع فريق رعايتك ذلك مع الوقت.`,
     buildTitle: "جارٍ بناء نمطك",
@@ -131,7 +135,8 @@ const S = {
     noTempTitle: "لا توجد قراءات حرارة بعد",
     noTempText: "سجّل حرارتك الأساسية كل صباح، أو استورد القراءات من مقياس الحرارة أو تطبيق جهازك.",
     sleepTitle: "مدة النوم",
-    sleepSub: (n: number) => `LOINC 93832-4 · آخر ${n} ليلة، مع خط متوسط ٧ ليالٍ`,
+    noneInRange: (d: number) => `لا توجد قراءات خلال آخر ${d} يومًا. اختر مدة أطول لرؤية القراءات السابقة.`,
+    sleepSub: (n: number) => `آخر ${n} ليلة. الخط هو متوسط ٧ ليالٍ، والخط المتقطع ٧ ساعات.`,
     irregular: "كان نومك غير منتظم",
     steady: "يبدو نومك منتظمًا",
     sleepStats: (mean: string, sd: string) => `المتوسط ${mean} في الليلة، ويتفاوت بنحو ${sd} من ليلة لأخرى.`,
@@ -184,6 +189,12 @@ export default function WearablesPage() {
   const bbt = analyzeBbt(temps);
   const sleepPts = series(observations, isSleep).slice(-30);
   const sleep = sleepStats(sleepPts);
+  // Range buttons change only what the charts show; the insight text uses all readings.
+  const [range, setRange] = useState<RangeDays>(0);
+  const tempsShown = inRange(temps, range);
+  const bbtShown = analyzeBbt(tempsShown);
+  const sleepShown = inRange(sleepPts, range);
+  const sleepShownStats = sleepStats(sleepShown);
   const lastTemp = temps[temps.length - 1];
   const last7 = sleepPts.slice(-7);
   const avg7 = last7.length ? last7.reduce((a, p) => a + p.value, 0) / last7.length : null;
@@ -358,13 +369,21 @@ export default function WearablesPage() {
               <h2>{L.bbtTitle}</h2>
               <p>{L.bbtSub}</p>
             </div>
+            <div className="panel-actions">
+              <RangeButtons value={range} onChange={setRange} ar={ar} />
+              <AskChip topic={{ title: L.bbtTitle, questions: ["What does a rise in basal body temperature mean?", "How should I measure my morning temperature?", "Can basal body temperature confirm ovulation?"] }} />
+            </div>
           </div>
           {loading ? (
             <div className="loading-block" />
           ) : temps.length >= 2 ? (
             <>
               <div className="large-chart-wrap" dir="ltr">
-                <TemperatureChart points={temps} analysis={bbt} large />
+                {tempsShown.length >= 2 ? (
+                  <TemperatureChart points={tempsShown} analysis={bbtShown} large />
+                ) : (
+                  <div className="empty-state" dir={ar ? "rtl" : "ltr"}>{L.noneInRange(range)}</div>
+                )}
               </div>
               <div className="chart-insight">
                 <Sparkles size={17} />
@@ -372,7 +391,7 @@ export default function WearablesPage() {
                   {bbt.status === "BIPHASIC" && (
                     <>
                       <strong>{L.biTitle}</strong>
-                      {L.biText(bbt.shift.toFixed(2), bbt.coverline?.toFixed(2) ?? "–")}
+                      <ExplainTerms text={L.biText(bbt.shift.toFixed(2), bbt.coverline?.toFixed(2) ?? "–")} />
                     </>
                   )}
                   {bbt.status === "MONOPHASIC" && (
@@ -405,13 +424,21 @@ export default function WearablesPage() {
             <h2>{L.sleepTitle}</h2>
             <p>{L.sleepSub(sleepPts.length || 30)}</p>
           </div>
+          <div className="panel-actions">
+            <RangeButtons value={range} onChange={setRange} ar={ar} />
+            <AskChip topic={{ title: L.sleepTitle, questions: ["How does sleep affect fertility?", "What lifestyle changes does WHO recommend?"] }} />
+          </div>
         </div>
         {loading ? (
           <div className="loading-block" />
         ) : sleep && sleepPts.length >= 2 ? (
           <>
             <div className="large-chart-wrap" dir="ltr">
-              <SleepChart points={sleepPts} stats={sleep} />
+              {sleepShown.length >= 2 && sleepShownStats ? (
+                <SleepChart points={sleepShown} stats={sleepShownStats} />
+              ) : (
+                <div className="empty-state" dir={ar ? "rtl" : "ltr"}>{L.noneInRange(range)}</div>
+              )}
             </div>
             <div className="chart-insight">
               <MoonStar size={17} />
@@ -468,6 +495,33 @@ export default function WearablesPage() {
       <p className="shap-footnote" style={{ marginTop: 14 }}>
         {L.footnote}
       </p>
+    </div>
+  );
+}
+
+type RangeDays = 0 | 7 | 30 | 90;
+
+/** Readings from the last `days` days (0 = all). */
+function inRange(points: Point[], days: RangeDays): Point[] {
+  if (!days) return points;
+  const from = Date.now() - days * 24 * 60 * 60 * 1000;
+  return points.filter((p) => p.date.getTime() >= from);
+}
+
+function RangeButtons({ value, onChange, ar }: { value: RangeDays; onChange: (d: RangeDays) => void; ar: boolean }) {
+  const options: { d: RangeDays; label: string }[] = [
+    { d: 7, label: ar ? "٧ أيام" : "7d" },
+    { d: 30, label: ar ? "٣٠ يومًا" : "30d" },
+    { d: 90, label: ar ? "٩٠ يومًا" : "90d" },
+    { d: 0, label: ar ? "الكل" : "All" }
+  ];
+  return (
+    <div className="range-buttons" role="group" aria-label={ar ? "المدة المعروضة" : "Time range shown"}>
+      {options.map((o) => (
+        <button key={o.d} type="button" className={value === o.d ? "active" : ""} aria-pressed={value === o.d} onClick={() => onChange(o.d)}>
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
