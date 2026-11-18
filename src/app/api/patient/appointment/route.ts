@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth";
 import {
   getPatientAppointmentState,
   confirmAppointmentByPatient
-} from "@/lib/appointment";
+} from "@/lib/appointment-server";
 
 export async function GET() {
   try {

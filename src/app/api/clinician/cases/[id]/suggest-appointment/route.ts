@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { suggestAppointmentByClinician } from "@/lib/appointment";
+import { suggestAppointmentByClinician } from "@/lib/appointment-server";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {

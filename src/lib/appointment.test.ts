@@ -2,10 +2,12 @@ import { describe, it, expect, vi } from "vitest";
 import {
   parseSlotFromNote,
   parseReasonFromNote,
-  DEFAULT_SUGGESTED_SLOTS,
+  DEFAULT_SUGGESTED_SLOTS
+} from "./appointment";
+import {
   confirmAppointmentByPatient,
   suggestAppointmentByClinician
-} from "./appointment";
+} from "./appointment-server";
 import { prisma } from "@/lib/db";
 
 vi.mock("@/lib/db", () => ({
