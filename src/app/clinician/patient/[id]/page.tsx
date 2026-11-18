@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, BellPlus, Building2, CalendarCheck, CalendarPlus, CalendarX, Clock, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, BellPlus, CalendarCheck, CalendarPlus, CalendarX, Clock, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { ReviewCard } from "@/components/clinician/ReviewCard";
+import { MoreMenu } from "@/components/clinician/MoreMenu";
 import { SuggestConsultationModal } from "@/components/clinician/SuggestConsultationModal";
 import { ConfirmConsultationModal } from "@/components/clinician/ConfirmConsultationModal";
 import { CancelAppointmentModal } from "@/components/clinician/CancelAppointmentModal";
@@ -46,6 +47,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   const [suggestModalOpen, setSuggestModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [cancelModalTarget, setCancelModalTarget] = useState<string | null>(null);
+  const [activeMember, setActiveMember] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -71,6 +73,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
         { method: "POST", body: JSON.stringify(body) }
       );
       if (res.status === "insufficient_data") {
+        if (key !== "COUPLE") setActiveMember(key);
         setInsufficient({ key, missingRequired: res.missingRequired ?? [], missingOptional: res.missingOptional ?? [], completeness: res.completeness ?? 0, message: res.message ?? "" });
       } else {
         setNotice(L.draftCreated);
@@ -160,11 +163,6 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
           <div>
             <p className="date-label">{data.isCouple ? L.coupleRecord : L.individualRecord}</p>
             <h1>{name}</h1>
-            <div style={{ marginTop: 4, marginBottom: 4 }}>
-              <span className="chip" style={{ background: "#f8fafc", color: "#334155", border: "1px solid #cbd5e1", fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 12 }}>
-                <Building2 size={13} /> {L.ehrAutoBadge}
-              </span>
-            </div>
             <span>
               {L.inCareSince(date(data.createdAt))}
               {data.invitation ? L.prescriptionStatus(data.invitation.status) : ""}
@@ -228,29 +226,33 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
               <CalendarPlus size={16} /> {L.suggestConsultation}
             </button>
           )}
-          {openFollowUps.length === 0 && !scheduledFollowUp && !requestedFollowUp && !suggestedFollowUp && (
-            <button className="secondary" onClick={openFollowUp} disabled={busy === "followup"}>
-              <BellPlus size={16} /> {busy === "followup" ? L.opening : L.openFollowUp}
-            </button>
-          )}
-          {released.length > 0 && (
-            <Link className="secondary" href={`/clinician/patient/${data.id}/report`}>
-              <CloudDownload size={16} /> {L.pdfReport}
+          {anySharing && (
+            <Link className="secondary" href={`/clinician/assistant?case=${data.id}`}>
+              <Sparkles size={16} /> {L.askCopilot}
             </Link>
           )}
-          {anySharing && (
-            <>
-              <Link className="secondary" href={`/clinician/assistant?case=${data.id}`}>
-                <Sparkles size={16} /> {L.askCopilot}
+          <MoreMenu label={busy === "sync-ehr" ? L.syncingEhr : busy === "fhir" ? L.exporting : busy === "followup" ? L.opening : L.moreActions}>
+            {released.length > 0 && (
+              <Link role="menuitem" href={`/clinician/patient/${data.id}/report`}>
+                <CloudDownload size={15} /> {L.pdfReport}
               </Link>
-              <button className="secondary compact" onClick={syncEhr} disabled={busy === "sync-ehr"} title="Sync latest lab results from connected clinic EHR">
-                <CloudDownload size={16} /> {busy === "sync-ehr" ? L.syncingEhr : L.syncEhr}
+            )}
+            {openFollowUps.length === 0 && !scheduledFollowUp && !requestedFollowUp && !suggestedFollowUp && (
+              <button type="button" role="menuitem" onClick={openFollowUp} disabled={busy === "followup"}>
+                <BellPlus size={15} /> {L.openFollowUp}
               </button>
-              <button className="primary compact" onClick={exportFhir} disabled={busy === "fhir"}>
-                <FileJson size={16} /> {busy === "fhir" ? L.exporting : L.exportFhir}
-              </button>
-            </>
-          )}
+            )}
+            {anySharing && (
+              <>
+                <button type="button" role="menuitem" onClick={syncEhr} disabled={busy === "sync-ehr"}>
+                  <CloudDownload size={15} /> {L.syncEhr}
+                </button>
+                <button type="button" role="menuitem" onClick={exportFhir} disabled={busy === "fhir"}>
+                  <FileJson size={15} /> {L.exportFhir}
+                </button>
+              </>
+            )}
+          </MoreMenu>
         </div>
       </div>
 
@@ -312,17 +314,53 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
         </article>
       )}
 
-      {data.members.map((m) => (
-        <MemberSection
-          key={m.userId}
-          caseId={data.id}
-          m={m}
-          busy={busy === `assess-${m.userId}`}
-          insufficient={insufficient?.key === m.userId ? insufficient : null}
-          onAssess={() => runAssessment(m.userId, { userId: m.userId })}
-          onChanged={load}
-        />
-      ))}
+      {/* The clinician's main job on this page comes first: review and release. */}
+      {drafts.length > 0 && (
+        <section className="review-first">
+          <div className="review-first-head">
+            <h2 className="section-title">{L.needsReviewTitle} · {drafts.length}</h2>
+            <p>{L.needsReviewText}</p>
+          </div>
+          {drafts.map((a) => (
+            <ReviewCard key={a.id} a={a} onChanged={() => { setNotice(L.reviewSaved); void load(); }} />
+          ))}
+        </section>
+      )}
+
+      {data.members.length > 1 && (
+        <div className="member-tabs" role="tablist" aria-label={L.memberTabsAria}>
+          {data.members.map((m) => {
+            const selected = (activeMember ?? data.members[0].userId) === m.userId;
+            return (
+              <button
+                key={m.userId}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                className={selected ? "active" : ""}
+                onClick={() => setActiveMember(m.userId)}
+              >
+                {m.sex === "male" ? <UserRound size={15} /> : <HeartHandshake size={15} />}
+                {m.name ?? m.email}
+                {!m.clinicianAccess && <small>{L.notSharedShort}</small>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {data.members
+        .filter((m) => data.members.length === 1 || (activeMember ?? data.members[0].userId) === m.userId)
+        .map((m) => (
+          <MemberSection
+            key={m.userId}
+            caseId={data.id}
+            m={m}
+            busy={busy === `assess-${m.userId}`}
+            insufficient={insufficient?.key === m.userId ? insufficient : null}
+            onAssess={() => runAssessment(m.userId, { userId: m.userId })}
+            onChanged={load}
+          />
+        ))}
 
       {data.members.length === 2 && (
         <section className="panel joint-panel">
@@ -339,14 +377,6 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
         </section>
       )}
 
-      {drafts.length > 0 && (
-        <section style={{ marginBottom: 16 }}>
-          <h2 className="section-title">{L.awaitingReview(drafts.length)}</h2>
-          {drafts.map((a) => (
-            <ReviewCard key={a.id} a={a} onChanged={() => { setNotice(L.reviewSaved); void load(); }} />
-          ))}
-        </section>
-      )}
 
       {released.length > 0 && (
         <section className="factor-columns">

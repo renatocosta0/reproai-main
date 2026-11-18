@@ -36,10 +36,23 @@ export function band(probability: number): "high" | "moderate" | "low" {
 }
 
 /** Short form of an alert note for compact lists: its first clause, capped. */
+/**
+ * One plain line for an alert card. Known alert types (temperature, sleep) get a short
+ * summary; anything else falls back to the first sentence. The full note stays available
+ * on the case and follow-up pages.
+ */
 export function shortReason(note: string | null): string {
   if (!note) return "Alert raised";
-  const first = note.split(" | ")[0].split(": ").slice(-1)[0].split(". ")[0];
-  return first.length > 90 ? first.slice(0, 87) + "…" : first;
+  const parts = note.split(" | ").map((part) => {
+    const span = part.match(/across (\d+) (consecutive days|readings)/i);
+    if (/monophasic|no sustained rise/i.test(part)) {
+      return span ? `No temperature rise across ${span[1]} ${span[2].toLowerCase().includes("day") ? "days" : "readings"}` : "No temperature rise";
+    }
+    if (/^\s*sleep:/i.test(part)) return "Short or irregular sleep";
+    const first = part.split(": ").slice(-1)[0].split(". ")[0];
+    return first.length > 90 ? first.slice(0, 87) + "…" : first;
+  });
+  return parts.join(" · ");
 }
 
 /** Display name for a set of patients, falling back to emails. */

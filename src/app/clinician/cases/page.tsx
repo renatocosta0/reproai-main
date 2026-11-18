@@ -17,9 +17,9 @@ import { useClinicianText } from "@/components/clinician/useClinicianText";
 import { CaseTable } from "@/components/clinician/CaseTable";
 import type { CaseItem, DirectoryResponse } from "@/types/clinician";
 
-type Filter = "all" | "assessed" | "high" | "moderate" | "low";
+type Filter = "all" | "review" | "assessed" | "high" | "moderate" | "low";
 
-const FILTERS: string[] = ["all", "assessed", "high", "moderate", "low"];
+const FILTERS: string[] = ["all", "review", "assessed", "high", "moderate", "low"];
 const readFilter = (v: string | null): Filter => (v && FILTERS.includes(v) ? (v as Filter) : "all");
 
 export default function CasesPage() {
@@ -59,6 +59,7 @@ function Cases() {
     if (filter === "all") return true;
     const p = c.latestPrediction;
     if (!p) return false;
+    if (filter === "review") return p.status === "DRAFT";
     return filter === "assessed" ? true : band(p.probability) === filter;
   };
 
@@ -76,6 +77,7 @@ function Cases() {
 
   const summary = [
     { key: "all", label: L.filterAll, n: all.length, tone: "" },
+    { key: "review", label: L.filterReview, n: all.filter((c) => c.latestPrediction?.status === "DRAFT").length, tone: "amber" },
     { key: "assessed", label: L.mAssessed, n: assessed.length, tone: "" },
     { key: "high", label: L.higherEstimate, n: bandCount(assessed, "high"), tone: "mint" },
     { key: "moderate", label: L.moderateEstimate, n: bandCount(assessed, "moderate"), tone: "amber" },
