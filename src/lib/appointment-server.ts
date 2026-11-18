@@ -7,11 +7,368 @@ import { dispatchCareNotification } from "@/lib/notifications";
 import { isAtRisk, type FollowUpStatus } from "@/lib/follow-up";
 import { canAccessCase } from "@/lib/clinician-scope";
 import {
-  DEFAULT_SUGGESTED_SLOTS,
   parseReasonFromNote,
   parseSlotFromNote,
+  parseCancelNoteFromNote,
   type AppointmentState
 } from "@/lib/appointment";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+async function getPatientCoupleId(userId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { coupleId: true }
+  });
+  if (!user?.coupleId) throw new Error("No active care case found for this user.");
+  return user.coupleId;
+}
+
+async function getActiveFollowUp(coupleId: string) {
+  return prisma.followUp.findFirst({
+    where: {
+      coupleId,
+      status: {
+        in: [
+          "ALERT_RAISED",
+          "CONSULTATION_REQUESTED",
+          "APPOINTMENT_SUGGESTED",
+          "APPOINTMENT_SCHEDULED",
+          "IN_FOLLOW_UP"
+        ]
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+function followUpToState(followUp: any): AppointmentState {
+  const slot = parseSlotFromNote(followUp.note) ?? undefined;
+  const reason = parseReasonFromNote(followUp.note) ?? undefined;
+  const cancelNote = parseCancelNoteFromNote(followUp.note) ?? undefined;
+
+  switch (followUp.status as FollowUpStatus) {
+    case "CONSULTATION_REQUESTED":
+      return {
+        status: "REQUESTED",
+        followUpId: followUp.id,
+        slot,
+        reason,
+        isAtRisk: isAtRisk(followUp.status, followUp.createdAt.toISOString()),
+        note: followUp.note ?? undefined
+      };
+    case "APPOINTMENT_SUGGESTED":
+      return {
+        status: "SUGGESTED",
+        followUpId: followUp.id,
+        slot,
+        reason,
+        note: followUp.note ?? undefined
+      };
+    case "APPOINTMENT_SCHEDULED":
+      return {
+        status: "SCHEDULED",
+        followUpId: followUp.id,
+        slot,
+        reason,
+        scheduledAt: followUp.updatedAt.toISOString(),
+        note: followUp.note ?? undefined
+      };
+    case "IN_FOLLOW_UP":
+      return {
+        status: "IN_FOLLOW_UP",
+        followUpId: followUp.id,
+        slot,
+        reason,
+        scheduledAt: followUp.updatedAt.toISOString(),
+        note: followUp.note ?? undefined
+      };
+    case "APPOINTMENT_CANCELLED":
+      return {
+        status: "CANCELLED",
+        followUpId: followUp.id,
+        cancelNote,
+        note: followUp.note ?? undefined
+      };
+    default:
+      return { status: "NONE" };
+  }
+}
+
+// ─── Patient Actions ─────────────────────────────────────────────────────────
+
+/**
+ * Patient: request a consultation. Clinician must set date/time and confirm.
+ * Creates FollowUp with status CONSULTATION_REQUESTED.
+ */
+export async function requestAppointmentByPatient(
+  userId: string,
+  requestNote?: string
+): Promise<{ ok: boolean; appointment: AppointmentState }> {
+  const coupleId = await getPatientCoupleId(userId);
+
+  const noteText = `[Consultation Requested]${requestNote ? ` Patient note: ${requestNote.trim()}` : ""}`;
+
+  let followUp = await getActiveFollowUp(coupleId);
+
+  if (followUp && followUp.status === "ALERT_RAISED") {
+    // Upgrade an existing alert to a patient-initiated request
+    followUp = await prisma.followUp.update({
+      where: { id: followUp.id },
+      data: {
+        status: "CONSULTATION_REQUESTED",
+        note: followUp.note ? `${followUp.note} | ${noteText}` : noteText
+      }
+    });
+  } else if (!followUp) {
+    followUp = await prisma.followUp.create({
+      data: {
+        coupleId,
+        status: "CONSULTATION_REQUESTED",
+        note: noteText
+      }
+    });
+  } else {
+    // Already has an active state (suggested/scheduled/in-follow-up), return current state
+    return { ok: true, appointment: followUpToState(followUp) };
+  }
+
+  await audit(userId, "consultation_requested", `follow_up:${followUp.id}:CONSULTATION_REQUESTED`);
+
+  await dispatchCareNotification({
+    caseId: coupleId,
+    actorId: userId,
+    type: "APPOINTMENT_SUGGESTED",
+    title: "ReproAI · Patient Request",
+    body: "A patient has requested a follow-up consultation. Please review and schedule a time.",
+    url: `/clinician/patient/${coupleId}`
+  }).catch((e) => console.error("Notification error:", e));
+
+  return { ok: true, appointment: followUpToState(followUp) };
+}
+
+/**
+ * Patient: accept a clinician-suggested slot.
+ * Transitions to CONSULTATION_REQUESTED so clinician can confirm the booking.
+ */
+export async function acceptSuggestionByPatient(
+  userId: string,
+  followUpId: string
+): Promise<{ ok: boolean; appointment: AppointmentState }> {
+  const coupleId = await getPatientCoupleId(userId);
+
+  const followUp = await prisma.followUp.findFirst({
+    where: { id: followUpId, coupleId, status: "APPOINTMENT_SUGGESTED" }
+  });
+  if (!followUp) throw new Error("No pending suggestion found.");
+
+  const updated = await prisma.followUp.update({
+    where: { id: followUpId },
+    data: {
+      status: "CONSULTATION_REQUESTED",
+      note: followUp.note ? `${followUp.note} | [Patient Accepted]` : "[Patient Accepted]"
+    }
+  });
+
+  await audit(userId, "suggestion_accepted", `follow_up:${followUpId}:CONSULTATION_REQUESTED`);
+
+  await dispatchCareNotification({
+    caseId: coupleId,
+    actorId: userId,
+    type: "APPOINTMENT_CONFIRMED",
+    title: "ReproAI · Patient Accepted",
+    body: "The patient accepted your suggested slot. Please confirm and finalize the appointment.",
+    url: `/clinician/patient/${coupleId}`
+  }).catch((e) => console.error("Notification error:", e));
+
+  return { ok: true, appointment: followUpToState(updated) };
+}
+
+/**
+ * Patient: decline a clinician-suggested slot.
+ * Transitions back to ALERT_RAISED so clinician can suggest again.
+ */
+export async function declineSuggestionByPatient(
+  userId: string,
+  followUpId: string,
+  declineNote?: string
+): Promise<{ ok: boolean; appointment: AppointmentState }> {
+  const coupleId = await getPatientCoupleId(userId);
+
+  const followUp = await prisma.followUp.findFirst({
+    where: { id: followUpId, coupleId, status: "APPOINTMENT_SUGGESTED" }
+  });
+  if (!followUp) throw new Error("No pending suggestion found.");
+
+  const noteText = `[Patient Declined]${declineNote ? ` Reason: ${declineNote.trim()}` : ""}`;
+  const updated = await prisma.followUp.update({
+    where: { id: followUpId },
+    data: {
+      status: "ALERT_RAISED",
+      note: followUp.note ? `${followUp.note} | ${noteText}` : noteText
+    }
+  });
+
+  await audit(userId, "suggestion_declined", `follow_up:${followUpId}:ALERT_RAISED`);
+
+  await dispatchCareNotification({
+    caseId: coupleId,
+    actorId: userId,
+    type: "APPOINTMENT_SUGGESTED",
+    title: "ReproAI · Patient Declined Slot",
+    body: "The patient declined the suggested slot. Please propose a new time.",
+    url: `/clinician/patient/${coupleId}`
+  }).catch((e) => console.error("Notification error:", e));
+
+  return { ok: true, appointment: followUpToState(updated) };
+}
+
+// ─── Clinician Actions ───────────────────────────────────────────────────────
+
+/**
+ * Clinician: suggest a consultation slot to the patient.
+ * Patient must accept before clinician can confirm/schedule.
+ */
+export async function suggestSlotByClinician(
+  clinicianId: string,
+  coupleId: string,
+  slot: string,
+  reason?: string
+): Promise<{ ok: boolean; followUp: any }> {
+  if (!(await canAccessCase(clinicianId, coupleId))) {
+    throw new Error("This case is not in your care list.");
+  }
+
+  const clinicalReason = reason || "Review recent biomarker trajectory and discuss optimal care pathway.";
+  const suggestionNote = `[Consultation Suggested] Slot: ${slot} | Reason: ${clinicalReason}`;
+
+  let followUp = await getActiveFollowUp(coupleId);
+
+  if (followUp && ["ALERT_RAISED", "CONSULTATION_REQUESTED"].includes(followUp.status)) {
+    followUp = await prisma.followUp.update({
+      where: { id: followUp.id },
+      data: {
+        status: "APPOINTMENT_SUGGESTED",
+        note: followUp.note ? `${followUp.note} | ${suggestionNote}` : suggestionNote
+      }
+    });
+  } else if (!followUp) {
+    followUp = await prisma.followUp.create({
+      data: {
+        coupleId,
+        status: "APPOINTMENT_SUGGESTED",
+        note: suggestionNote
+      }
+    });
+  } else {
+    throw new Error("Case already has an active appointment or suggestion.");
+  }
+
+  await audit(clinicianId, "slot_suggested", `follow_up:${followUp.id}:APPOINTMENT_SUGGESTED`);
+
+  await dispatchCareNotification({
+    caseId: coupleId,
+    actorId: clinicianId,
+    type: "APPOINTMENT_SUGGESTED",
+    title: "ReproAI · Consultation Suggestion",
+    body: `Your care team suggested a follow-up: ${slot}. Tap to accept or decline.`,
+    url: "/patient/overview"
+  }).catch((e) => console.error("Notification dispatch failed:", e));
+
+  return { ok: true, followUp };
+}
+
+/**
+ * Clinician: confirm and finalize the appointment (after patient accepted or requested).
+ * Transitions to APPOINTMENT_SCHEDULED.
+ */
+export async function confirmBookingByClinician(
+  clinicianId: string,
+  coupleId: string,
+  followUpId: string,
+  finalSlot: string,
+  notes?: string
+): Promise<{ ok: boolean; followUp: any }> {
+  if (!(await canAccessCase(clinicianId, coupleId))) {
+    throw new Error("This case is not in your care list.");
+  }
+
+  const followUp = await prisma.followUp.findFirst({
+    where: {
+      id: followUpId,
+      coupleId,
+      status: { in: ["CONSULTATION_REQUESTED", "ALERT_RAISED"] }
+    }
+  });
+  if (!followUp) throw new Error("No pending request found to confirm.");
+
+  const confirmNote = `[Appointment Confirmed: ${finalSlot}]${notes ? ` Clinician notes: ${notes.trim()}` : ""}`;
+  const updated = await prisma.followUp.update({
+    where: { id: followUpId },
+    data: {
+      status: "APPOINTMENT_SCHEDULED",
+      note: followUp.note ? `${followUp.note} | ${confirmNote}` : confirmNote
+    }
+  });
+
+  await audit(clinicianId, "status_transition", `follow_up:${followUpId}:APPOINTMENT_SCHEDULED`);
+
+  await dispatchCareNotification({
+    caseId: coupleId,
+    actorId: clinicianId,
+    type: "APPOINTMENT_CONFIRMED",
+    title: "ReproAI · Appointment Confirmed",
+    body: `Your consultation has been confirmed for ${finalSlot}. Tap to view details.`,
+    url: "/patient/overview"
+  }).catch((e) => console.error("Notification error:", e));
+
+  return { ok: true, followUp: updated };
+}
+
+/**
+ * Cancel an appointment/request — works for both patient and clinician.
+ * Sets status to APPOINTMENT_CANCELLED with optional note.
+ */
+export async function cancelAppointment(
+  actorId: string,
+  actorRole: "PATIENT" | "CLINICIAN",
+  followUpId: string,
+  cancelNote?: string
+): Promise<{ ok: boolean; appointment: AppointmentState }> {
+  const followUp = await prisma.followUp.findUnique({ where: { id: followUpId } });
+  if (!followUp) throw new Error("Follow-up not found.");
+
+  // Authorisation: patients can only cancel their own couple's follow-up
+  if (actorRole === "PATIENT") {
+    const coupleId = await getPatientCoupleId(actorId);
+    if (followUp.coupleId !== coupleId) throw new Error("Unauthorized.");
+  } else {
+    if (!(await canAccessCase(actorId, followUp.coupleId))) throw new Error("Unauthorized.");
+  }
+
+  const noteText = `[Cancelled by ${actorRole}]${cancelNote ? ` Cancel note: ${cancelNote.trim()}` : ""}`;
+  const updated = await prisma.followUp.update({
+    where: { id: followUpId },
+    data: {
+      status: "APPOINTMENT_CANCELLED",
+      note: followUp.note ? `${followUp.note} | ${noteText}` : noteText
+    }
+  });
+
+  await audit(actorId, "appointment_cancelled", `follow_up:${followUpId}:APPOINTMENT_CANCELLED`);
+
+  const otherType = actorRole === "PATIENT" ? "APPOINTMENT_SUGGESTED" : "APPOINTMENT_CONFIRMED";
+  await dispatchCareNotification({
+    caseId: followUp.coupleId,
+    actorId,
+    type: otherType,
+    title: "ReproAI · Appointment Cancelled",
+    body: `The appointment was cancelled${cancelNote ? `: "${cancelNote}"` : "."}`,
+    url: actorRole === "PATIENT" ? `/clinician/patient/${followUp.coupleId}` : "/patient/overview"
+  }).catch((e) => console.error("Notification error:", e));
+
+  return { ok: true, appointment: followUpToState(updated) };
+}
 
 /**
  * Get the current appointment / consultation state for a signed-in patient.
@@ -26,189 +383,21 @@ export async function getPatientAppointmentState(userId: string): Promise<Appoin
     return { status: "NONE" };
   }
 
-  // Find the latest active follow-up for this case
-  const followUp = await prisma.followUp.findFirst({
-    where: {
-      coupleId: user.coupleId,
-      status: { in: ["ALERT_RAISED", "APPOINTMENT_SCHEDULED", "IN_FOLLOW_UP"] }
-    },
-    orderBy: { createdAt: "desc" }
-  });
+  const followUp = await getActiveFollowUp(user.coupleId);
 
   if (!followUp) {
+    // Also check for recent cancellation
+    const cancelled = await prisma.followUp.findFirst({
+      where: { coupleId: user.coupleId, status: "APPOINTMENT_CANCELLED" },
+      orderBy: { updatedAt: "desc" }
+    });
+    if (cancelled) return followUpToState(cancelled);
     return { status: "NONE" };
   }
 
-  const slot = parseSlotFromNote(followUp.note) || DEFAULT_SUGGESTED_SLOTS[0];
-  const reason = parseReasonFromNote(followUp.note) || "Follow-up discussion on latest biomarkers and cycle trajectory.";
-  const atRisk = isAtRisk(followUp.status as FollowUpStatus, followUp.createdAt.toISOString());
-
-  if (followUp.status === "APPOINTMENT_SCHEDULED") {
-    return {
-      status: "SCHEDULED",
-      followUpId: followUp.id,
-      slot,
-      reason,
-      scheduledAt: followUp.updatedAt.toISOString(),
-      note: followUp.note ?? undefined
-    };
-  }
-
-  if (followUp.status === "IN_FOLLOW_UP") {
-    return {
-      status: "IN_FOLLOW_UP",
-      followUpId: followUp.id,
-      slot,
-      reason,
-      scheduledAt: followUp.updatedAt.toISOString(),
-      note: followUp.note ?? undefined
-    };
-  }
-
-  // ALERT_RAISED: consultation is recommended / suggested to the patient
-  return {
-    status: "SUGGESTED",
-    followUpId: followUp.id,
-    slot,
-    reason,
-    isAtRisk: atRisk,
-    note: followUp.note ?? undefined
-  };
+  return followUpToState(followUp);
 }
 
-/**
- * Patient action: confirm or request an appointment in one tap.
- * Transitions FollowUp status to APPOINTMENT_SCHEDULED and writes audit log.
- */
-export async function confirmAppointmentByPatient(
-  userId: string,
-  chosenSlot?: string,
-  userNote?: string
-): Promise<{ ok: boolean; appointment: AppointmentState }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { coupleId: true, email: true }
-  });
-
-  if (!user || !user.coupleId) {
-    throw new Error("No active care case found for this user.");
-  }
-
-  const slot = chosenSlot || DEFAULT_SUGGESTED_SLOTS[0];
-
-  // Find existing follow-up or create a new one
-  let followUp = await prisma.followUp.findFirst({
-    where: {
-      coupleId: user.coupleId,
-      status: { in: ["ALERT_RAISED", "APPOINTMENT_SCHEDULED", "IN_FOLLOW_UP"] }
-    },
-    orderBy: { createdAt: "desc" }
-  });
-
-  const bookingNote = `[Appointment Confirmed: ${slot}] ${userNote ? `Patient note: ${userNote.trim()}` : ""}`.trim();
-
-  if (followUp) {
-    followUp = await prisma.followUp.update({
-      where: { id: followUp.id },
-      data: {
-        status: "APPOINTMENT_SCHEDULED",
-        note: followUp.note ? `${followUp.note} | ${bookingNote}` : bookingNote
-      }
-    });
-  } else {
-    followUp = await prisma.followUp.create({
-      data: {
-        coupleId: user.coupleId,
-        status: "APPOINTMENT_SCHEDULED",
-        note: bookingNote
-      }
-    });
-  }
-
-  // Audit status transition for metric tracking (Signal -> Appointment)
-  await audit(userId, "status_transition", `follow_up:${followUp.id}:APPOINTMENT_SCHEDULED`);
-
-  // Dispatch confirmation notification to the patient
-  await dispatchCareNotification({
-    caseId: user.coupleId,
-    targetUserId: userId,
-    actorId: userId,
-    type: "APPOINTMENT_CONFIRMED",
-    title: "ReproAI · Appointment Confirmed",
-    body: `Your 15-minute consultation is booked for ${slot}. Tap to view your preparation notes.`,
-    url: "/patient/overview"
-  }).catch((e) => console.error("Notification error:", e));
-
-  return {
-    ok: true,
-    appointment: {
-      status: "SCHEDULED",
-      followUpId: followUp.id,
-      slot,
-      reason: parseReasonFromNote(followUp.note) || undefined,
-      scheduledAt: followUp.updatedAt.toISOString(),
-      note: followUp.note ?? undefined
-    }
-  };
-}
-
-/**
- * Clinician action: suggest a consultation slot to the patient.
- * Creates/updates FollowUp with ALERT_RAISED and dispatches notification.
- */
-export async function suggestAppointmentByClinician(
-  clinicianId: string,
-  coupleId: string,
-  slot?: string,
-  reason?: string
-): Promise<{ ok: boolean; followUp: any }> {
-  if (!(await canAccessCase(clinicianId, coupleId))) {
-    throw new Error("This case is not in your care list.");
-  }
-
-  const chosenSlot = slot || DEFAULT_SUGGESTED_SLOTS[0];
-  const clinicalReason = reason || "Review recent biomarker trajectory and discuss optimal care pathway.";
-  const suggestionNote = `[Consultation Suggested] Slot: ${chosenSlot} | Reason: ${clinicalReason}`;
-
-  // Check if open follow-up already exists
-  let followUp = await prisma.followUp.findFirst({
-    where: {
-      coupleId,
-      status: { in: ["ALERT_RAISED", "APPOINTMENT_SCHEDULED"] }
-    },
-    orderBy: { createdAt: "desc" }
-  });
-
-  if (followUp) {
-    followUp = await prisma.followUp.update({
-      where: { id: followUp.id },
-      data: {
-        status: "ALERT_RAISED",
-        note: `${followUp.note ?? ""} | ${suggestionNote}`.trim()
-      }
-    });
-  } else {
-    followUp = await prisma.followUp.create({
-      data: {
-        coupleId,
-        status: "ALERT_RAISED",
-        note: suggestionNote
-      }
-    });
-  }
-
-  // Audit suggestion
-  await audit(clinicianId, "consultation_suggested", `follow_up:${followUp.id}:couple:${coupleId}`);
-
-  // Dispatch lock-screen & in-app notification to the patient
-  await dispatchCareNotification({
-    caseId: coupleId,
-    actorId: clinicianId,
-    type: "APPOINTMENT_SUGGESTED",
-    title: "ReproAI · Dr. Fatima",
-    body: `Your care team suggested a follow-up consultation (${chosenSlot}). Tap to confirm in 1 touch.`,
-    url: "/patient/overview"
-  }).catch((e) => console.error("Notification dispatch failed:", e));
-
-  return { ok: true, followUp };
-}
+// Backward-compat aliases used in existing tests and old API routes
+export const confirmAppointmentByPatient = requestAppointmentByPatient;
+export const suggestAppointmentByClinician = suggestSlotByClinician;

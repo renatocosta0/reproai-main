@@ -3,188 +3,251 @@
 import { useEffect, useState } from "react";
 import {
   CalendarCheck,
-  CalendarDays,
+  CalendarClock,
+  CalendarOff,
   CalendarPlus,
+  CalendarX,
   Check,
   Clock,
   Loader2,
-  PhoneCall,
-  Sparkles,
-  Video
+  X
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { api, userMessage } from "@/lib/api-client";
 import { FormError } from "@/components/ui/Notice";
-import { DEFAULT_SUGGESTED_SLOTS, type AppointmentState } from "@/lib/appointment";
+import type { AppointmentState } from "@/lib/appointment";
 
-const STRINGS = {
+const S = {
   en: {
-    recommendedBadge: "Recommended by Care Team · One-Tap Scheduling",
-    scheduledBadge: "Consultation Confirmed",
+    // NONE
+    noneTitle: "Discuss your results with your clinician",
+    noneSub: "Have questions about your trajectory? Request a 15-minute consultation with your care team.",
+    requestBtn: "Request Consultation",
+    requesting: "Sending request\u2026",
+    // REQUESTED
     requestedBadge: "Consultation Requested",
-    suggestedTitle: "Follow-up consultation recommended",
-    suggestedSub: "Your clinician reviewed your recent results and suggested a 15-minute discussion.",
-    chooseSlot: "Select a convenient time:",
-    confirmOneTap: "Confirm in 1 Tap",
-    confirming: "Confirming appointment…",
+    requestedTitle: "Your request was sent",
+    requestedSub:
+      "Your clinician will review your request and schedule a time. You\u2019ll be notified when it\u2019s confirmed.",
+    // SUGGESTED
+    suggestedBadge: "Clinician Suggested a Time",
+    suggestedTitle: "Your clinician suggested a consultation",
+    suggestedSlot: "Proposed time:",
+    suggestedReason: "Reason:",
+    acceptBtn: "Accept",
+    declineBtn: "Decline",
+    accepting: "Accepting\u2026",
+    declining: "Declining\u2026",
+    declineNotePlaceholder: "Optional: reason for declining",
+    // SCHEDULED
+    scheduledBadge: "Appointment Confirmed",
     scheduledTitle: "Your consultation is confirmed",
-    scheduledSub: (slot: string) => `Scheduled for ${slot}. Telehealth link and calendar invite prepared.`,
-    clinicianReady: "Your clinician has your latest biomarker and wearable trends on hand.",
-    selfRequestTitle: "Discuss your results with your clinician",
-    selfRequestSub: "Have questions about your trajectory or cycle patterns? Request a quick 15-minute discussion.",
-    requestOneTap: "Request 15-Min Consultation",
-    requesting: "Sending request…",
-    errorConfirm: "Could not confirm appointment. Please try again.",
+    scheduledSub: (slot: string) => `Scheduled for ${slot}. Your clinician will reach out with details.`,
+    // IN_FOLLOW_UP
+    followUpBadge: "In Follow-up",
+    followUpTitle: "Follow-up in progress",
+    followUpSub: "Your care team is monitoring your progress.",
+    // CANCELLED
+    cancelledBadge: "Cancelled",
+    cancelledTitle: "Appointment was cancelled",
+    cancelledNote: "Note:",
+    // Cancel action
+    cancelBtn: "Cancel",
+    cancelling: "Cancelling\u2026",
+    cancelNotePlaceholder: "Optional: reason for cancellation",
+    confirmCancelBtn: "Confirm Cancel",
+    // Errors
     loadError: "Could not check appointment status.",
-    slotTelehealth: "Telehealth (Video call)",
-    slotInPerson: "In-Clinic (Abu Dhabi)"
+    errorMsg: "Something went wrong. Please try again."
   },
   ar: {
-    recommendedBadge: "موصى به من الفريق الطبي · حجز بنقرة واحدة",
-    scheduledBadge: "تم تأكيد الموعد بنجاح",
-    requestedBadge: "تم طلب الاستشارة",
-    suggestedTitle: "موعد متابعة موصى به من الطبيب",
-    suggestedSub: "راجع طبيبك نتائجك الأخيرة واقترح مناقشة مدتها ١٥ دقيقة لمراجعة الخطوات القادمة.",
-    chooseSlot: "اختر الوقت المناسب لك:",
-    confirmOneTap: "تأكيد الموعد بنقرة واحدة",
-    confirming: "جارٍ تأكيد الموعد…",
-    scheduledTitle: "تم تأكيد موعد استشارتك",
-    scheduledSub: (slot: string) => `محدد في ${slot}. تم تجهيز رابط الاستشارة عن بُعد ودعوة التقويم.`,
-    clinicianReady: "سيكون لدى طبيبك أحدث مؤشراتك الحيوية وأنماطك جاهزة في ملفك الطبي.",
-    selfRequestTitle: "ناقش نتائجك مباشرة مع طبيبك",
-    selfRequestSub: "لديك استفسار حول مسارك التناسلي أو حرارتك الصباحية؟ اطلب مناقشة سريعة مدتها ١٥ دقيقة.",
-    requestOneTap: "طلب استشارة مدتها ١٥ دقيقة",
-    requesting: "جارٍ إرسال الطلب…",
-    errorConfirm: "تعذّر تأكيد الموعد. يُرجى المحاولة مرة أخرى.",
-    loadError: "تعذّر التحقق من حالة الموعد.",
-    slotTelehealth: "استشارة مرئية عن بُعد",
-    slotInPerson: "في العيادة (أبوظبي)"
+    noneTitle: "\u0646\u0627\u0642\u0634 \u0646\u062a\u0627\u0626\u062c\u0643 \u0645\u0628\u0627\u0634\u0631\u0629 \u0645\u0639 \u0637\u0628\u064a\u0628\u0643",
+    noneSub: "\u0644\u062f\u064a\u0643 \u0627\u0633\u062a\u0641\u0633\u0627\u0631 \u062d\u0648\u0644 \u0645\u0633\u0627\u0631\u0643\u061f \u0627\u0637\u0644\u0628 \u0627\u0633\u062a\u0634\u0627\u0631\u0629 \u0645\u062f\u062a\u0647\u0627 \u0661\u0665 \u062f\u0642\u064a\u0642\u0629.",
+    requestBtn: "\u0637\u0644\u0628 \u0627\u0633\u062a\u0634\u0627\u0631\u0629",
+    requesting: "\u062c\u0627\u0631\u064d \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0637\u0644\u0628\u2026",
+    requestedBadge: "\u062a\u0645 \u0637\u0644\u0628 \u0627\u0644\u0627\u0633\u062a\u0634\u0627\u0631\u0629",
+    requestedTitle: "\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628\u0643",
+    requestedSub: "\u0633\u064a\u0631\u0627\u062c\u0639 \u0637\u0628\u064a\u0628\u0643 \u0637\u0644\u0628\u0643 \u0648\u064a\u062d\u062f\u062f \u0645\u0648\u0639\u062f\u0627\u064b. \u0633\u062a\u0635\u0644\u0643 \u0625\u0634\u0639\u0627\u0631 \u0641\u0648\u0631 \u0627\u0644\u062a\u0623\u0643\u064a\u062f.",
+    suggestedBadge: "\u0627\u0642\u062a\u0631\u062d \u0627\u0644\u0637\u0628\u064a\u0628 \u0645\u0648\u0639\u062f\u0627\u064b",
+    suggestedTitle: "\u0627\u0642\u062a\u0631\u062d \u0637\u0628\u064a\u0628\u0643 \u0625\u062c\u0631\u0627\u0621 \u0627\u0633\u062a\u0634\u0627\u0631\u0629",
+    suggestedSlot: "\u0627\u0644\u0648\u0642\u062a \u0627\u0644\u0645\u0642\u062a\u0631\u062d:",
+    suggestedReason: "\u0627\u0644\u0633\u0628\u0628:",
+    acceptBtn: "\u0642\u0628\u0648\u0644",
+    declineBtn: "\u0631\u0641\u0636",
+    accepting: "\u062c\u0627\u0631\u064d \u0627\u0644\u0642\u0628\u0648\u0644\u2026",
+    declining: "\u062c\u0627\u0631\u064d \u0627\u0644\u0631\u0641\u0636\u2026",
+    declineNotePlaceholder: "\u0627\u062e\u062a\u064a\u0627\u0631\u064a: \u0633\u0628\u0628 \u0627\u0644\u0631\u0641\u0636",
+    scheduledBadge: "\u062a\u0645 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0645\u0648\u0639\u062f",
+    scheduledTitle: "\u062a\u0645 \u062a\u0623\u0643\u064a\u062f \u0627\u0633\u062a\u0634\u0627\u0631\u062a\u0643",
+    scheduledSub: (slot: string) => `\u0645\u062d\u062f\u062f \u0641\u064a ${slot}. \u0633\u064a\u062a\u0648\u0627\u0635\u0644 \u0645\u0639\u0643 \u0627\u0644\u0637\u0628\u064a\u0628 \u0628\u0627\u0644\u062a\u0641\u0627\u0635\u064a\u0644.`,
+    followUpBadge: "\u0641\u064a \u0627\u0644\u0645\u062a\u0627\u0628\u0639\u0629",
+    followUpTitle: "\u0627\u0644\u0645\u062a\u0627\u0628\u0639\u0629 \u062c\u0627\u0631\u064a\u0629",
+    followUpSub: "\u0641\u0631\u064a\u0642 \u0631\u0639\u0627\u064a\u062a\u0643 \u064a\u0631\u0627\u0642\u0628 \u062a\u0642\u062f\u0645\u0643.",
+    cancelledBadge: "\u0645\u0644\u063a\u0649",
+    cancelledTitle: "\u062a\u0645 \u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u0645\u0648\u0639\u062f",
+    cancelledNote: "\u0645\u0644\u0627\u062d\u0638\u0629:",
+    cancelBtn: "\u0625\u0644\u063a\u0627\u0621",
+    cancelling: "\u062c\u0627\u0631\u064d \u0627\u0644\u0625\u0644\u063a\u0627\u0621\u2026",
+    cancelNotePlaceholder: "\u0627\u062e\u062a\u064a\u0627\u0631\u064a: \u0633\u0628\u0628 \u0627\u0644\u0625\u0644\u063a\u0627\u0621",
+    confirmCancelBtn: "\u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0625\u0644\u063a\u0627\u0621",
+    loadError: "\u062a\u0639\u0630\u0651\u0631 \u0627\u0644\u062a\u062d\u0642\u0642 \u0645\u0646 \u062d\u0627\u0644\u0629 \u0627\u0644\u0645\u0648\u0639\u062f.",
+    errorMsg: "\u062d\u062f\u062b \u062e\u0637\u0623. \u064a\u064f\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649."
   }
 };
 
 export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => void }) {
   const { locale } = useLocale();
-  const ar = locale === "ar";
-  const L = STRINGS[locale];
+  const L = S[locale as keyof typeof S] ?? S.en;
 
   const [appointment, setAppointment] = useState<AppointmentState | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<string>(DEFAULT_SUGGESTED_SLOTS[0]);
+  const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [successNotice, setSuccessNotice] = useState(false);
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelNote, setCancelNote] = useState("");
+  const [showDeclineForm, setShowDeclineForm] = useState(false);
+  const [declineNote, setDeclineNote] = useState("");
 
   useEffect(() => {
-    let active = true;
     api<{ appointment: AppointmentState }>("/api/patient/appointment")
-      .then((res) => {
-        if (!active) return;
-        setAppointment(res.appointment);
-        if (res.appointment.slot) {
-          setSelectedSlot(res.appointment.slot);
-        }
-      })
-      .catch((err) => {
-        if (active) setError(userMessage(err, L.loadError));
-      });
-
-    return () => {
-      active = false;
-    };
+      .then((r) => setAppointment(r.appointment))
+      .catch(() => setLoadError(L.loadError));
   }, [L.loadError]);
 
-  async function handleConfirm() {
+  async function handleRequest() {
     setBusy(true);
     setError("");
     try {
-      const res = await api<{ ok: boolean; appointment: AppointmentState }>("/api/patient/appointment", {
+      const r = await api<{ appointment: AppointmentState }>("/api/patient/appointment", {
         method: "POST",
-        body: JSON.stringify({ slot: selectedSlot })
+        body: JSON.stringify({})
       });
-      setAppointment(res.appointment);
-      setSuccessNotice(true);
+      setAppointment(r.appointment);
       onStatusChange?.();
     } catch (err) {
-      setError(userMessage(err, L.errorConfirm));
+      setError(userMessage(err, L.errorMsg));
     } finally {
       setBusy(false);
     }
   }
 
-  if (!appointment) return null;
+  async function handleAccept() {
+    if (!appointment?.followUpId) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api<{ appointment: AppointmentState }>("/api/patient/appointment", {
+        method: "POST",
+        body: JSON.stringify({ action: "accept", followUpId: appointment.followUpId })
+      });
+      setAppointment(r.appointment);
+      onStatusChange?.();
+    } catch (err) {
+      setError(userMessage(err, L.errorMsg));
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  // State 1: SCHEDULED
-  if (appointment.status === "SCHEDULED" || appointment.status === "IN_FOLLOW_UP") {
+  async function handleDecline() {
+    if (!appointment?.followUpId) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api<{ appointment: AppointmentState }>("/api/patient/appointment", {
+        method: "POST",
+        body: JSON.stringify({ action: "decline", followUpId: appointment.followUpId, note: declineNote })
+      });
+      setAppointment(r.appointment);
+      setShowDeclineForm(false);
+      setDeclineNote("");
+      onStatusChange?.();
+    } catch (err) {
+      setError(userMessage(err, L.errorMsg));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (!appointment?.followUpId) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api<{ appointment: AppointmentState }>("/api/patient/appointment", {
+        method: "DELETE",
+        body: JSON.stringify({ followUpId: appointment.followUpId, note: cancelNote })
+      });
+      setAppointment(r.appointment);
+      setShowCancelForm(false);
+      setCancelNote("");
+      onStatusChange?.();
+    } catch (err) {
+      setError(userMessage(err, L.errorMsg));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!appointment) {
+    if (loadError) return <p style={{ color: "var(--muted, #64748b)", fontSize: 13 }}>{loadError}</p>;
+    return null;
+  }
+
+  const { status } = appointment;
+
+  // ── CANCELLED ──────────────────────────────────────────────────────────────
+  if (status === "CANCELLED") {
     return (
       <article
-        className="panel appointment-confirmed-banner"
+        className="panel"
         style={{
           margin: "0 0 16px",
-          padding: "16px 20px",
-          background: "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%)",
-          border: "1px solid rgba(16, 185, 129, 0.3)",
-          borderRadius: 14,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10
+          padding: "14px 18px",
+          borderRadius: 12,
+          border: "1px solid #fecaca",
+          background: "#fff7f7"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-          <span
-            className="chip mint"
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "3px 10px",
-              borderRadius: 20,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6
-            }}
-          >
-            <CalendarCheck size={14} /> {L.scheduledBadge}
-          </span>
-          <span style={{ fontSize: 12, color: "var(--muted, #64748b)", display: "flex", alignItems: "center", gap: 5 }}>
-            <Video size={13} /> {L.slotTelehealth}
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <CalendarX size={16} color="#ef4444" />
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#ef4444" }}>{L.cancelledBadge}</span>
         </div>
-
-        <div>
-          <h3 style={{ margin: "2px 0 4px", fontSize: 16, fontWeight: 700, color: "var(--text, #0f172a)" }}>
-            {L.scheduledTitle}
-          </h3>
-          <p style={{ margin: 0, fontSize: 13.5, color: "var(--sub, #334155)", lineHeight: 1.5 }}>
-            {L.scheduledSub(appointment.slot || selectedSlot)}
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{L.cancelledTitle}</p>
+        {appointment.cancelNote && (
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
+            {L.cancelledNote} {appointment.cancelNote}
           </p>
-        </div>
-
-        <div style={{ fontSize: 12, color: "#059669", display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-          <Check size={14} />
-          <span>{L.clinicianReady}</span>
-        </div>
+        )}
       </article>
     );
   }
 
-  // State 2: SUGGESTED (Recommended by clinician or agent rule)
-  if (appointment.status === "SUGGESTED") {
+  // ── SCHEDULED ─────────────────────────────────────────────────────────────
+  if (status === "SCHEDULED") {
     return (
       <article
-        className="panel appointment-suggested-banner"
+        className="panel"
         style={{
           margin: "0 0 16px",
-          padding: "18px 20px",
-          background: "linear-gradient(135deg, rgba(238, 242, 255, 0.8) 0%, rgba(245, 243, 255, 0.6) 100%)",
-          border: "1px solid rgba(129, 140, 248, 0.35)",
+          padding: "16px 20px",
           borderRadius: 14,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          boxShadow: "0 2px 8px rgba(99, 102, 241, 0.06)"
+          border: "1px solid rgba(99,214,147,0.4)",
+          background: "rgba(240,253,244,0.8)"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 8
+          }}
+        >
           <span
-            className="chip purple"
+            className="chip green"
             style={{
               fontSize: 12,
               fontWeight: 600,
@@ -195,93 +258,267 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
               gap: 6
             }}
           >
-            <Sparkles size={13} /> {L.recommendedBadge}
+            <CalendarCheck size={13} /> {L.scheduledBadge}
           </span>
+          {!showCancelForm && (
+            <button
+              type="button"
+              className="ghost compact"
+              onClick={() => setShowCancelForm(true)}
+              style={{ fontSize: 12, color: "#ef4444", display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              <CalendarOff size={13} /> {L.cancelBtn}
+            </button>
+          )}
         </div>
-
-        <div>
-          <h3 style={{ margin: "0 0 4px", fontSize: 16.5, fontWeight: 700, color: "var(--text, #0f172a)" }}>
-            {L.suggestedTitle}
-          </h3>
-          <p style={{ margin: 0, fontSize: 13.5, color: "var(--sub, #334155)", lineHeight: 1.5 }}>
-            {appointment.reason ? appointment.reason : L.suggestedSub}
+        <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>{L.scheduledTitle}</h3>
+        {appointment.slot && (
+          <p style={{ margin: "0 0 4px", fontSize: 13.5, color: "#334155", display: "flex", alignItems: "center", gap: 6 }}>
+            <Clock size={13} /> {appointment.slot}
           </p>
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--muted, #64748b)", marginBottom: 6 }}>
-            {L.chooseSlot}
-          </label>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {DEFAULT_SUGGESTED_SLOTS.map((slot) => {
-              const active = selectedSlot === slot;
-              return (
-                <button
-                  key={slot}
-                  type="button"
-                  onClick={() => setSelectedSlot(slot)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 8,
-                    fontSize: 12.5,
-                    fontWeight: active ? 600 : 500,
-                    border: active ? "1.5px solid #4f46e5" : "1px solid #cbd5e1",
-                    background: active ? "#ffffff" : "#f8fafc",
-                    color: active ? "#4338ca" : "#475569",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  <Clock size={13} />
-                  <span>{slot}</span>
-                </button>
-              );
-            })}
+        )}
+        {appointment.reason && (
+          <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>{appointment.reason}</p>
+        )}
+        {showCancelForm && (
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            <textarea
+              rows={2}
+              placeholder={L.cancelNotePlaceholder}
+              value={cancelNote}
+              onChange={(e) => setCancelNote(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid #cbd5e1",
+                fontSize: 13,
+                fontFamily: "inherit",
+                resize: "vertical"
+              }}
+            />
+            {error && <FormError>{error}</FormError>}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className="secondary compact"
+                onClick={() => setShowCancelForm(false)}
+                disabled={busy}
+              >
+                <X size={13} /> {L.declineBtn}
+              </button>
+              <button type="button" className="danger compact" onClick={handleCancel} disabled={busy}>
+                {busy ? <Loader2 size={13} className="spin" /> : <CalendarX size={13} />}{" "}
+                {busy ? L.cancelling : L.confirmCancelBtn}
+              </button>
+            </div>
           </div>
-        </div>
-
-        {error && <FormError>{error}</FormError>}
-
-        <div style={{ display: "flex", justifyContent: "flex-start", marginTop: 4 }}>
-          <button
-            type="button"
-            className="primary"
-            onClick={handleConfirm}
-            disabled={busy}
-            style={{
-              padding: "9px 18px",
-              fontSize: 13.5,
-              fontWeight: 600,
-              borderRadius: 8,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8
-            }}
-          >
-            {busy ? (
-              <>
-                <Loader2 size={16} className="spin" />
-                <span>{L.confirming}</span>
-              </>
-            ) : (
-              <>
-                <CalendarCheck size={16} />
-                <span>{L.confirmOneTap}</span>
-              </>
-            )}
-          </button>
-        </div>
+        )}
       </article>
     );
   }
 
-  // State 3: NONE - Patient-initiated action
+  // ── IN_FOLLOW_UP ───────────────────────────────────────────────────────────
+  if (status === "IN_FOLLOW_UP") {
+    return (
+      <article
+        className="panel"
+        style={{
+          margin: "0 0 16px",
+          padding: "14px 18px",
+          borderRadius: 12,
+          border: "1px solid #bfdbfe",
+          background: "#eff6ff"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <CalendarClock size={16} color="#3b82f6" />
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6" }}>{L.followUpBadge}</span>
+        </div>
+        <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600 }}>{L.followUpTitle}</p>
+        <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>{L.followUpSub}</p>
+      </article>
+    );
+  }
+
+  // ── SUGGESTED ─────────────────────────────────────────────────────────────
+  if (status === "SUGGESTED") {
+    return (
+      <article
+        className="panel"
+        style={{
+          margin: "0 0 16px",
+          padding: "16px 20px",
+          borderRadius: 14,
+          border: "1px solid rgba(129,140,248,0.35)",
+          background: "rgba(238,242,255,0.8)"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <CalendarClock size={15} color="#6366f1" />
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#6366f1" }}>{L.suggestedBadge}</span>
+        </div>
+        <h3 style={{ margin: "0 0 8px", fontSize: 15.5, fontWeight: 700 }}>{L.suggestedTitle}</h3>
+        {appointment.slot && (
+          <p style={{ margin: "0 0 4px", fontSize: 13.5, color: "#334155" }}>
+            <strong>{L.suggestedSlot}</strong> {appointment.slot}
+          </p>
+        )}
+        {appointment.reason && (
+          <p style={{ margin: "0 0 12px", fontSize: 13, color: "#64748b" }}>
+            <strong>{L.suggestedReason}</strong> {appointment.reason}
+          </p>
+        )}
+        {error && <FormError>{error}</FormError>}
+        {!showDeclineForm ? (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="primary compact"
+              onClick={handleAccept}
+              disabled={busy}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}
+            >
+              {busy ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
+              {busy ? L.accepting : L.acceptBtn}
+            </button>
+            <button
+              type="button"
+              className="secondary compact"
+              onClick={() => setShowDeclineForm(true)}
+              disabled={busy}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13 }}
+            >
+              <X size={14} /> {L.declineBtn}
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <textarea
+              rows={2}
+              placeholder={L.declineNotePlaceholder}
+              value={declineNote}
+              onChange={(e) => setDeclineNote(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid #cbd5e1",
+                fontSize: 13,
+                fontFamily: "inherit",
+                resize: "vertical"
+              }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className="secondary compact"
+                onClick={() => setShowDeclineForm(false)}
+                disabled={busy}
+              >
+                <X size={13} /> {L.acceptBtn}
+              </button>
+              <button type="button" className="danger compact" onClick={handleDecline} disabled={busy}>
+                {busy ? <Loader2 size={13} className="spin" /> : <CalendarX size={13} />}{" "}
+                {busy ? L.declining : L.declineBtn}
+              </button>
+            </div>
+          </div>
+        )}
+      </article>
+    );
+  }
+
+  // ── REQUESTED ─────────────────────────────────────────────────────────────
+  if (status === "REQUESTED") {
+    return (
+      <article
+        className="panel"
+        style={{
+          margin: "0 0 16px",
+          padding: "16px 20px",
+          borderRadius: 14,
+          border: "1px solid #fed7aa",
+          background: "#fff7ed"
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 8
+          }}
+        >
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#ea580c",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6
+            }}
+          >
+            <CalendarClock size={13} /> {L.requestedBadge}
+          </span>
+          {!showCancelForm && (
+            <button
+              type="button"
+              className="ghost compact"
+              onClick={() => setShowCancelForm(true)}
+              style={{ fontSize: 12, color: "#ef4444", display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              <X size={13} /> {L.cancelBtn}
+            </button>
+          )}
+        </div>
+        <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700 }}>{L.requestedTitle}</h3>
+        <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>{L.requestedSub}</p>
+        {showCancelForm && (
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            <textarea
+              rows={2}
+              placeholder={L.cancelNotePlaceholder}
+              value={cancelNote}
+              onChange={(e) => setCancelNote(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid #cbd5e1",
+                fontSize: 13,
+                fontFamily: "inherit",
+                resize: "vertical"
+              }}
+            />
+            {error && <FormError>{error}</FormError>}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className="secondary compact"
+                onClick={() => setShowCancelForm(false)}
+                disabled={busy}
+              >
+                <X size={13} />
+              </button>
+              <button type="button" className="danger compact" onClick={handleCancel} disabled={busy}>
+                {busy ? <Loader2 size={13} className="spin" /> : <CalendarX size={13} />}{" "}
+                {busy ? L.cancelling : L.confirmCancelBtn}
+              </button>
+            </div>
+          </div>
+        )}
+      </article>
+    );
+  }
+
+  // ── NONE — Patient request form ───────────────────────────────────────────
   return (
     <article
-      className="panel appointment-request-card"
+      className="panel"
       style={{
         margin: "0 0 16px",
         padding: "16px 20px",
@@ -296,30 +533,19 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
       }}
     >
       <div style={{ maxWidth: 540 }}>
-        <h4 style={{ margin: "0 0 4px", fontSize: 14.5, fontWeight: 700, color: "var(--text, #0f172a)" }}>
-          {L.selfRequestTitle}
-        </h4>
-        <p style={{ margin: 0, fontSize: 12.5, color: "var(--muted, #64748b)", lineHeight: 1.4 }}>
-          {L.selfRequestSub}
-        </p>
+        <h4 style={{ margin: "0 0 4px", fontSize: 14.5, fontWeight: 700 }}>{L.noneTitle}</h4>
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--muted, #64748b)", lineHeight: 1.4 }}>{L.noneSub}</p>
       </div>
-
+      {error && <FormError>{error}</FormError>}
       <button
         type="button"
         className="secondary compact"
-        onClick={handleConfirm}
+        onClick={handleRequest}
         disabled={busy}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 12.5,
-          fontWeight: 600,
-          whiteSpace: "nowrap"
-        }}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}
       >
         {busy ? <Loader2 size={14} className="spin" /> : <CalendarPlus size={14} />}
-        <span>{busy ? L.requesting : L.requestOneTap}</span>
+        <span>{busy ? L.requesting : L.requestBtn}</span>
       </button>
     </article>
   );

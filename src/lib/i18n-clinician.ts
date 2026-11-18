@@ -171,6 +171,12 @@ const en = {
   sendInviteBtn: "Send 1-Tap Invite to Patient",
   inviteSentNotice: "Consultation invite sent to patient's mobile app and dashboard.",
   appointmentScheduledBadge: "Appointment scheduled",
+  consultationRequestedBadge: "Consultation requested",
+  awaitingPatientBadge: "Awaiting patient acceptance",
+  confirmAppointmentBtn: "Set Date & Confirm",
+  cancelAppointmentBtn: "Cancel Appointment",
+  cancelRequestBtn: "Decline Request",
+  cancelSuggestionBtn: "Cancel Suggestion",
   pdfReport: "Report",
   // Printable case report
   rptTitle: "Clinician case report",
@@ -612,8 +618,11 @@ export function cohortArabic(id: string): { title: string; why: string; action: 
 
 const AR_STATUS: Record<string, string> = {
   ALERT_RAISED: "تنبيه مفتوح",
+  CONSULTATION_REQUESTED: "طلب استشارة",
+  APPOINTMENT_SUGGESTED: "في انتظار قبول المريض",
   APPOINTMENT_SCHEDULED: "تم تحديد موعد",
   IN_FOLLOW_UP: "قيد المتابعة",
+  APPOINTMENT_CANCELLED: "ملغى",
   CLOSED: "مغلق",
   LOST: "انقطعت المتابعة"
 };
@@ -815,6 +824,12 @@ const ar: ClinicianStrings = {
   sendInviteBtn: "إرسال الدعوة بنقرة واحدة للمريض",
   inviteSentNotice: "تم إرسال دعوة الاستشارة بنجاح إلى تطبيق المريض.",
   appointmentScheduledBadge: "تم تحديد الموعد",
+  consultationRequestedBadge: "طلب استشارة",
+  awaitingPatientBadge: "في انتظار قبول المريض",
+  confirmAppointmentBtn: "تحديد الموعد والتأكيد",
+  cancelAppointmentBtn: "إلغاء الموعد",
+  cancelRequestBtn: "رفض الطلب",
+  cancelSuggestionBtn: "إلغاء الاقتراح",
   pdfReport: "التقرير",
   rptTitle: "تقرير الحالة للطبيب",
   rptScope: "يتضمن المعلومات المعتمدة فقط. لا تُدرج المسودات التي تنتظر المراجعة.",

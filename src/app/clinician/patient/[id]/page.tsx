@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, BellPlus, Building2, CalendarCheck, CalendarPlus, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, BellPlus, Building2, CalendarCheck, CalendarPlus, CalendarX, Clock, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { ReviewCard } from "@/components/clinician/ReviewCard";
 import { SuggestConsultationModal } from "@/components/clinician/SuggestConsultationModal";
+import { ConfirmConsultationModal } from "@/components/clinician/ConfirmConsultationModal";
+import { CancelAppointmentModal } from "@/components/clinician/CancelAppointmentModal";
+import { parseSlotFromNote } from "@/lib/appointment";
 import { LabEntry } from "@/components/clinician/LabEntry";
 import { MarkerTrend } from "@/components/charts/MarkerTrend";
 import { TemperatureChart } from "@/components/charts/TemperatureChart";
@@ -41,6 +44,8 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   const [notice, setNotice] = useState("");
   const [insufficient, setInsufficient] = useState<Insufficient | null>(null);
   const [suggestModalOpen, setSuggestModalOpen] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [cancelModalTarget, setCancelModalTarget] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -137,8 +142,10 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   const released = data.assessments.filter((a) => a.status === "RELEASED");
   // One series per chart: joint estimates for couples, individual ones otherwise.
   const history = released.filter((a) => a.scope === (data.isCouple ? "COUPLE" : "INDIVIDUAL")).reverse();
-  const openFollowUps = data.followUps.filter((f) => f.status !== "CLOSED" && f.status !== "LOST");
+  const openFollowUps = data.followUps.filter((f) => f.status !== "CLOSED" && f.status !== "LOST" && f.status !== "APPOINTMENT_CANCELLED");
   const scheduledFollowUp = data.followUps.find((f) => f.status === "APPOINTMENT_SCHEDULED");
+  const requestedFollowUp = data.followUps.find((f) => f.status === "CONSULTATION_REQUESTED");
+  const suggestedFollowUp = data.followUps.find((f) => f.status === "APPOINTMENT_SUGGESTED");
   const canJoint = data.members.length === 2 && data.members.every((m) => m.clinicianAccess);
   const anySharing = data.members.some((m) => m.clinicianAccess);
 
@@ -166,15 +173,62 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
         </div>
         <div className="heading-actions">
           {scheduledFollowUp ? (
-            <span className="chip mint" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 16 }}>
-              <CalendarCheck size={14} /> {L.appointmentScheduledBadge}
-            </span>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span className="chip mint" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 16 }}>
+                <CalendarCheck size={14} /> {L.appointmentScheduledBadge}
+              </span>
+              <button
+                type="button"
+                className="ghost compact"
+                onClick={() => setCancelModalTarget(scheduledFollowUp.id)}
+                style={{ fontSize: 12, color: "#dc2626", display: "inline-flex", alignItems: "center", gap: 4 }}
+                title={L.cancelAppointmentBtn}
+              >
+                <CalendarX size={13} /> {L.cancelAppointmentBtn}
+              </button>
+            </div>
+          ) : requestedFollowUp ? (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                className="primary compact"
+                onClick={() => setConfirmModalOpen(true)}
+                disabled={busy !== null}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <CalendarCheck size={14} /> {L.confirmAppointmentBtn}
+              </button>
+              <button
+                type="button"
+                className="ghost compact"
+                onClick={() => setCancelModalTarget(requestedFollowUp.id)}
+                disabled={busy !== null}
+                style={{ fontSize: 12, color: "#dc2626", display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                <CalendarX size={13} /> {L.cancelRequestBtn}
+              </button>
+            </div>
+          ) : suggestedFollowUp ? (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span className="chip purple" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 16 }}>
+                <Clock size={14} /> {L.awaitingPatientBadge}
+              </span>
+              <button
+                type="button"
+                className="ghost compact"
+                onClick={() => setCancelModalTarget(suggestedFollowUp.id)}
+                disabled={busy !== null}
+                style={{ fontSize: 12, color: "#dc2626", display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                <CalendarX size={13} /> {L.cancelSuggestionBtn}
+              </button>
+            </div>
           ) : (
             <button className="secondary" onClick={() => setSuggestModalOpen(true)} disabled={busy !== null}>
               <CalendarPlus size={16} /> {L.suggestConsultation}
             </button>
           )}
-          {openFollowUps.length === 0 && !scheduledFollowUp && (
+          {openFollowUps.length === 0 && !scheduledFollowUp && !requestedFollowUp && !suggestedFollowUp && (
             <button className="secondary" onClick={openFollowUp} disabled={busy === "followup"}>
               <BellPlus size={16} /> {busy === "followup" ? L.opening : L.openFollowUp}
             </button>
@@ -208,6 +262,33 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
           caseId={params.id}
           patientName={name}
           onClose={() => setSuggestModalOpen(false)}
+          onSuccess={(msg) => {
+            setNotice(msg);
+            bump();
+            void load();
+          }}
+        />
+      )}
+      {confirmModalOpen && (requestedFollowUp || suggestedFollowUp) && (
+        <ConfirmConsultationModal
+          caseId={params.id}
+          patientName={name}
+          followUpId={(requestedFollowUp || suggestedFollowUp)!.id}
+          defaultSlot={parseSlotFromNote((requestedFollowUp || suggestedFollowUp)?.note) ?? undefined}
+          onClose={() => setConfirmModalOpen(false)}
+          onSuccess={(msg) => {
+            setNotice(msg);
+            bump();
+            void load();
+          }}
+        />
+      )}
+      {cancelModalTarget && (
+        <CancelAppointmentModal
+          caseId={params.id}
+          patientName={name}
+          followUpId={cancelModalTarget}
+          onClose={() => setCancelModalTarget(null)}
           onSuccess={(msg) => {
             setNotice(msg);
             bump();

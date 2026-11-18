@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarCheck, CalendarPlus, Clock, Loader2, Sparkles, X } from "lucide-react";
+import { CalendarCheck, Loader2, Sparkles, X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
-import { DEFAULT_SUGGESTED_SLOTS } from "@/lib/appointment";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
 
 interface SuggestConsultationModalProps {
@@ -16,6 +15,35 @@ interface SuggestConsultationModalProps {
   onSuccess: (notice: string) => void;
 }
 
+const STRINGS = {
+  en: {
+    title: "Suggest Follow-up Consultation",
+    sub: "Suggest a date and time to the patient. They will need to accept before the appointment is confirmed by you.",
+    slotLabel: "Proposed Date & Time",
+    slotPlaceholder: "e.g. Monday 10 Feb, 14:00 (Telehealth)",
+    reasonLabel: "Clinical Reason",
+    reasonPlaceholder: "e.g. Review AMH trajectory and discuss next steps.",
+    sendBtn: "Send Suggestion to Patient",
+    sending: "Sending\u2026",
+    cancel: "Cancel",
+    slotRequired: "Please enter a proposed date and time.",
+    successMsg: "Suggestion sent. Waiting for patient acceptance — you\u2019ll confirm after they accept."
+  },
+  ar: {
+    title: "\u0627\u0642\u062a\u0631\u0627\u062d \u0645\u0648\u0639\u062f \u0627\u0633\u062a\u0634\u0627\u0631\u0629",
+    sub: "\u0627\u0642\u062a\u0631\u062d \u062a\u0627\u0631\u064a\u062e\u0627\u064b \u0648\u0648\u0642\u062a\u0627\u064b \u0644\u0644\u0645\u0631\u064a\u0636. \u064a\u062c\u0628 \u0623\u0646 \u064a\u0648\u0627\u0641\u0642 \u0627\u0644\u0645\u0631\u064a\u0636 \u0642\u0628\u0644 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0645\u0648\u0639\u062f.",
+    slotLabel: "\u0627\u0644\u062a\u0627\u0631\u064a\u062e \u0648\u0627\u0644\u0648\u0642\u062a \u0627\u0644\u0645\u0642\u062a\u0631\u062d",
+    slotPlaceholder: "\u0645\u062b\u0627\u0644: \u0627\u0644\u0627\u062b\u0646\u064a\u0646 10 \u0641\u0628\u0631\u0627\u064a\u0631\u060c 14:00",
+    reasonLabel: "\u0627\u0644\u0633\u0628\u0628 \u0627\u0644\u0633\u0631\u064a\u0631\u064a",
+    reasonPlaceholder: "\u0645\u062b\u0627\u0644: \u0645\u0631\u0627\u062c\u0639\u0629 \u0645\u0633\u0627\u0631 AMH.",
+    sendBtn: "\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0627\u0642\u062a\u0631\u0627\u062d \u0644\u0644\u0645\u0631\u064a\u0636",
+    sending: "\u062c\u0627\u0631\u064d \u0627\u0644\u0625\u0631\u0633\u0627\u0644\u2026",
+    cancel: "\u0625\u0644\u063a\u0627\u0621",
+    slotRequired: "\u064a\u064f\u0631\u062c\u0649 \u0625\u062f\u062e\u0627\u0644 \u0627\u0644\u062a\u0627\u0631\u064a\u062e \u0648\u0627\u0644\u0648\u0642\u062a \u0627\u0644\u0645\u0642\u062a\u0631\u062d.",
+    successMsg: "\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0627\u0642\u062a\u0631\u0627\u062d. \u0641\u064a \u0627\u0646\u062a\u0638\u0627\u0631 \u0645\u0648\u0627\u0641\u0642\u0629 \u0627\u0644\u0645\u0631\u064a\u0636."
+  }
+};
+
 export function SuggestConsultationModal({
   caseId,
   patientName,
@@ -23,95 +51,87 @@ export function SuggestConsultationModal({
   onClose,
   onSuccess
 }: SuggestConsultationModalProps) {
-  const { L } = useClinicianText();
-  const [slot, setSlot] = useState(DEFAULT_SUGGESTED_SLOTS[0]);
-  const [customSlot, setCustomSlot] = useState("");
-  const [reason, setReason] = useState(defaultReason || "Review recent biomarker trajectory and discuss optimal care pathway.");
+  const { locale } = useClinicianText();
+  const L = STRINGS[locale as keyof typeof STRINGS] ?? STRINGS.en;
+
+  const [slot, setSlot] = useState("");
+  const [reason, setReason] = useState(defaultReason ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSend() {
+    if (!slot.trim()) {
+      setError(L.slotRequired);
+      return;
+    }
     setBusy(true);
     setError("");
-    const finalSlot = customSlot.trim() || slot;
-
     try {
       await api(`/api/clinician/cases/${caseId}/suggest-appointment`, {
         method: "POST",
-        body: JSON.stringify({ slot: finalSlot, reason: reason.trim() })
+        body: JSON.stringify({ slot: slot.trim(), reason: reason.trim() })
       });
-      onSuccess(L.inviteSentNotice);
+      onSuccess(L.successMsg);
       onClose();
     } catch (err) {
-      setError(userMessage(err, "Failed to send consultation invite."));
+      setError(userMessage(err, "Failed to send suggestion."));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={L.suggestConsultationTitle} onClose={onClose}>
+    <Modal title={L.title} onClose={onClose}>
       <div style={{ padding: "4px 0" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <span className="chip purple" style={{ fontSize: 12, padding: "3px 10px", borderRadius: 16 }}>
-            <Sparkles size={13} /> {patientName}
+          <span
+            className="chip purple"
+            style={{ fontSize: 12, padding: "3px 10px", borderRadius: 16, display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <Sparkles size={12} /> {patientName}
           </span>
         </div>
 
-        <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 6px" }}>
-          {L.suggestConsultationTitle}
-        </h2>
         <p style={{ fontSize: 13, color: "var(--muted, #64748b)", margin: "0 0 16px", lineHeight: 1.5 }}>
-          {L.suggestConsultationSub}
+          {L.sub}
         </p>
 
-        {error && <div style={{ marginBottom: 12 }}><FormError>{error}</FormError></div>}
+        {error && (
+          <div style={{ marginBottom: 12 }}>
+            <FormError>{error}</FormError>
+          </div>
+        )}
 
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
-            {L.suggestSlotLabel}
+            {L.slotLabel}
           </label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {DEFAULT_SUGGESTED_SLOTS.map((s) => (
-              <label
-                key={s}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  border: slot === s && !customSlot ? "1.5px solid #4f46e5" : "1px solid #e2e8f0",
-                  background: slot === s && !customSlot ? "#f5f3ff" : "#ffffff",
-                  cursor: "pointer",
-                  fontSize: 13
-                }}
-              >
-                <input
-                  type="radio"
-                  name="slot"
-                  value={s}
-                  checked={slot === s && !customSlot}
-                  onChange={() => {
-                    setSlot(s);
-                    setCustomSlot("");
-                  }}
-                />
-                <Clock size={14} color="#6366f1" />
-                <span>{s}</span>
-              </label>
-            ))}
-          </div>
+          <input
+            type="text"
+            value={slot}
+            onChange={(e) => setSlot(e.target.value)}
+            placeholder={L.slotPlaceholder}
+            style={{
+              width: "100%",
+              padding: "9px 12px",
+              borderRadius: 8,
+              border: "1px solid #cbd5e1",
+              fontSize: 13,
+              fontFamily: "inherit",
+              boxSizing: "border-box"
+            }}
+          />
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 18 }}>
           <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
-            {L.suggestReasonLabel}
+            {L.reasonLabel}
           </label>
           <textarea
             rows={2}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
+            placeholder={L.reasonPlaceholder}
             style={{
               width: "100%",
               padding: "8px 12px",
@@ -124,13 +144,19 @@ export function SuggestConsultationModal({
           />
         </div>
 
-        <div className="modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+        <div className="modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button type="button" className="secondary" onClick={onClose} disabled={busy}>
             {L.cancel}
           </button>
-          <button type="button" className="primary" onClick={handleSend} disabled={busy}>
+          <button
+            type="button"
+            className="primary"
+            onClick={handleSend}
+            disabled={busy}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+          >
             {busy ? <Loader2 size={15} className="spin" /> : <CalendarCheck size={15} />}
-            <span>{busy ? L.opening : L.sendInviteBtn}</span>
+            <span>{busy ? L.sending : L.sendBtn}</span>
           </button>
         </div>
       </div>

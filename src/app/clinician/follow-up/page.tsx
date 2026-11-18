@@ -14,14 +14,17 @@ import { statusLabel } from "@/lib/i18n-clinician";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
 
 const COLUMNS: { status: FollowUpStatus; also?: FollowUpStatus[] }[] = [
-  { status: "ALERT_RAISED" },
+  { status: "ALERT_RAISED", also: ["CONSULTATION_REQUESTED"] },
+  { status: "APPOINTMENT_SUGGESTED" },
   { status: "APPOINTMENT_SCHEDULED" },
   { status: "IN_FOLLOW_UP" },
-  { status: "CLOSED", also: ["LOST"] }
+  { status: "CLOSED", also: ["LOST", "APPOINTMENT_CANCELLED"] }
 ];
 
 const NEXT: Partial<Record<FollowUpStatus, FollowUpStatus>> = {
   ALERT_RAISED: "APPOINTMENT_SCHEDULED",
+  CONSULTATION_REQUESTED: "APPOINTMENT_SCHEDULED",
+  APPOINTMENT_SUGGESTED: "APPOINTMENT_SCHEDULED",
   APPOINTMENT_SCHEDULED: "IN_FOLLOW_UP",
   IN_FOLLOW_UP: "CLOSED"
 };

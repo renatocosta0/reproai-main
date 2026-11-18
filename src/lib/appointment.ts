@@ -1,7 +1,14 @@
 // Client-safe appointment types, constants and text helpers.
 // Safe to import in both Client Components and Server code without pulling in DB / crypto.
 
-export type AppointmentStatus = "NONE" | "SUGGESTED" | "SCHEDULED" | "IN_FOLLOW_UP";
+export type AppointmentStatus =
+  | "NONE"
+  | "REQUESTED"
+  | "SUGGESTED"
+  | "ACCEPTED"
+  | "SCHEDULED"
+  | "CANCELLED"
+  | "IN_FOLLOW_UP";
 
 export interface AppointmentState {
   status: AppointmentStatus;
@@ -12,14 +19,9 @@ export interface AppointmentState {
   scheduledAt?: string;
   isAtRisk?: boolean;
   note?: string;
+  cancelNote?: string;
+  cancelledBy?: "PATIENT" | "CLINICIAN";
 }
-
-/** Default fast-pick slot options for low-friction one-tap booking. */
-export const DEFAULT_SUGGESTED_SLOTS = [
-  "Thursday, 18:00 (Telehealth)",
-  "Saturday, 10:30 (In-Clinic)",
-  "Tuesday, 14:00 (Telehealth)"
-];
 
 /** Extract slot from follow-up note text if present. */
 export function parseSlotFromNote(note: string | null | undefined): string | null {
@@ -32,5 +34,12 @@ export function parseSlotFromNote(note: string | null | undefined): string | nul
 export function parseReasonFromNote(note: string | null | undefined): string | null {
   if (!note) return null;
   const match = note.match(/(?:Reason|reason):\s*([^.\n|\]]+)/i);
+  return match ? match[1].trim() : null;
+}
+
+/** Extract cancel note from follow-up note text if present. */
+export function parseCancelNoteFromNote(note: string | null | undefined): string | null {
+  if (!note) return null;
+  const match = note.match(/Cancel note:\s*([^.\n|\]]+)/i);
   return match ? match[1].trim() : null;
 }
