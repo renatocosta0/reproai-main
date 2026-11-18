@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { canAccessCase } from "@/lib/clinician-scope";
 import { toAssessmentView } from "@/lib/person-record";
 import { DISCARD_ACTION_PREFIX, isDiscardReason } from "@/lib/review-reasons";
+import { dispatchCareNotification } from "@/lib/notifications";
 
 // PATCH /api/clinician/assessments/:id { action: "RELEASE" | "DISCARD", note, reason }
 // Clinician sign-off: a DRAFT becomes visible to the patient only when a
@@ -35,6 +36,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         data: { status: "RELEASED", clinicianNote: note, reviewedById: session.userId, reviewedAt: new Date() }
       });
       await audit(session.userId, "assessment_released", `prediction:${pred.id}`);
+
+      // Dispatch real-time lock screen & in-app notification to the patient
+      await dispatchCareNotification({
+        caseId: pred.coupleId,
+        targetUserId: pred.userId ?? undefined,
+        actorId: session.userId,
+        type: "ASSESSMENT_RELEASED",
+        title: "ReproAI · Dr. Fatima",
+        body: "Your clinician reviewed your fertility results and shared new guidance. Tap to view.",
+        url: "/patient/assessment"
+      }).catch((e) => console.error("Notification dispatch failed:", e));
+
       return NextResponse.json({ assessment: toAssessmentView(updated) });
     }
     if (body?.action === "DISCARD") {

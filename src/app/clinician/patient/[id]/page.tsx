@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, BellPlus, Building2, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, BellPlus, Building2, CalendarCheck, CalendarPlus, CloudDownload, FileJson, HeartHandshake, Lock, NotebookPen, Play, Sparkles, UserRound } from "lucide-react";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { ReviewCard } from "@/components/clinician/ReviewCard";
+import { SuggestConsultationModal } from "@/components/clinician/SuggestConsultationModal";
 import { LabEntry } from "@/components/clinician/LabEntry";
 import { MarkerTrend } from "@/components/charts/MarkerTrend";
 import { TemperatureChart } from "@/components/charts/TemperatureChart";
@@ -39,6 +40,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [insufficient, setInsufficient] = useState<Insufficient | null>(null);
+  const [suggestModalOpen, setSuggestModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -136,6 +138,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   // One series per chart: joint estimates for couples, individual ones otherwise.
   const history = released.filter((a) => a.scope === (data.isCouple ? "COUPLE" : "INDIVIDUAL")).reverse();
   const openFollowUps = data.followUps.filter((f) => f.status !== "CLOSED" && f.status !== "LOST");
+  const scheduledFollowUp = data.followUps.find((f) => f.status === "APPOINTMENT_SCHEDULED");
   const canJoint = data.members.length === 2 && data.members.every((m) => m.clinicianAccess);
   const anySharing = data.members.some((m) => m.clinicianAccess);
 
@@ -162,7 +165,16 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
           </div>
         </div>
         <div className="heading-actions">
-          {openFollowUps.length === 0 && (
+          {scheduledFollowUp ? (
+            <span className="chip mint" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 16 }}>
+              <CalendarCheck size={14} /> {L.appointmentScheduledBadge}
+            </span>
+          ) : (
+            <button className="secondary" onClick={() => setSuggestModalOpen(true)} disabled={busy !== null}>
+              <CalendarPlus size={16} /> {L.suggestConsultation}
+            </button>
+          )}
+          {openFollowUps.length === 0 && !scheduledFollowUp && (
             <button className="secondary" onClick={openFollowUp} disabled={busy === "followup"}>
               <BellPlus size={16} /> {busy === "followup" ? L.opening : L.openFollowUp}
             </button>
@@ -191,6 +203,18 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
       <CaseWorkflow data={data} />
 
       {notice && <div style={{ marginBottom: 14 }}><ClinicalNotice>{notice}</ClinicalNotice></div>}
+      {suggestModalOpen && (
+        <SuggestConsultationModal
+          caseId={params.id}
+          patientName={name}
+          onClose={() => setSuggestModalOpen(false)}
+          onSuccess={(msg) => {
+            setNotice(msg);
+            bump();
+            void load();
+          }}
+        />
+      )}
       {error && <div style={{ marginBottom: 14 }}><FormError>{error}</FormError></div>}
       {data.invitation?.notes && (
         <div style={{ marginBottom: 16 }}>

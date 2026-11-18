@@ -26,6 +26,7 @@ import { SleepChart } from "@/components/charts/SleepChart";
 import { FormError } from "@/components/ui/Notice";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { percentileWordsAr, TIER_AR } from "@/lib/i18n";
+import { AppointmentCard } from "@/components/patient/AppointmentCard";
 import {
   analyzeBbt,
   formatHours,
@@ -374,6 +375,8 @@ export default function OverviewPage() {
           <span>{L.subtitle}</span>
         </div>
       </div>
+
+      <AppointmentCard />
 
       {obsLoading ? (
         <div className="loading-block" style={{ height: 232, margin: "0 0 17px" }} aria-label={L.loadingInsight} />

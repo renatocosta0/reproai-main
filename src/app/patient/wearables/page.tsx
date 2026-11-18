@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { Activity, Bluetooth, Check, FileUp, MoonStar, Plus, Sparkles, Thermometer, X } from "lucide-react";
 import { BluetoothThermometer } from "@/components/patient/BluetoothThermometer";
+import { HealthConnectModal } from "@/components/patient/HealthConnectModal";
 import { SOURCE_LABELS } from "@/lib/device-import";
 import { usePatient } from "@/components/patient/PatientContext";
 import { useObservations } from "@/components/patient/useObservations";
@@ -49,6 +50,7 @@ const S = {
     subtitle: "Daily signals become meaningful when viewed together over time.",
     importReadings: "Import readings",
     bluetoothBtn: "Bluetooth thermometer",
+    healthSyncBtn: "Apple Health / Health Connect",
     sources: (list: string) => `From: ${list}`,
     logMeasurementBtn: "Log measurement",
     dismiss: "Dismiss",
@@ -92,6 +94,7 @@ const S = {
   },
   ar: {
     temperature: "الحرارة", sleep: "النوم", hours: "ساعات",
+    healthSyncBtn: "Apple Health / Health Connect",
     saved1: "حُفظ القياس في سجلك الزمني",
     savedN: (n: number) => `حُفظت القياسات في سجلك الزمني: ${n}`,
     saveError: "تعذّر الحفظ. يُرجى المحاولة مرة أخرى.",
@@ -163,7 +166,7 @@ export default function WearablesPage() {
   const kindLabel = (k: Kind) => (k === "temperature" ? L.temperature : L.sleep);
   const kindUnit = (k: Kind) => (k === "temperature" ? "°C" : L.hours);
   const dateL = (d: string | Date) => (ar ? new Date(d).toLocaleDateString("ar-AE-u-nu-latn", { day: "numeric", month: "short" }) : shortDate(d));
-  const [mode, setMode] = useState<"none" | "single" | "bulk" | "bluetooth">("none");
+  const [mode, setMode] = useState<"none" | "single" | "bulk" | "bluetooth" | "health-sync">("none");
   const [kind, setKind] = useState<Kind>(sex === "male" ? "sleep" : "temperature");
   // One draft per kind, so switching between temperature and sleep never carries a value across.
   const [values, setValues] = useState<Record<Kind, string>>({ temperature: "", sleep: "" });
@@ -254,6 +257,9 @@ export default function WearablesPage() {
           <span>{L.subtitle}</span>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="secondary" onClick={() => { setMode(mode === "health-sync" ? "none" : "health-sync"); setError(""); }}>
+            <Activity size={16} /> {L.healthSyncBtn}
+          </button>
           {sex !== "male" && (
             <button className="secondary" onClick={() => { setMode(mode === "bluetooth" ? "none" : "bluetooth"); setError(""); }}>
               <Bluetooth size={16} /> {L.bluetoothBtn}
@@ -275,6 +281,14 @@ export default function WearablesPage() {
             <X size={15} />
           </button>
         </div>
+      )}
+
+      {mode === "health-sync" && (
+        <HealthConnectModal
+          locale={ar ? "ar" : "en"}
+          onClose={() => setMode("none")}
+          onSaved={(msg) => { setToast(msg); setMode("none"); void refresh(); }}
+        />
       )}
 
       {mode === "bluetooth" && (

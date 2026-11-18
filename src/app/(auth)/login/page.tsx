@@ -8,6 +8,8 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { Field } from "@/components/ui/Field";
 import { ClinicalNotice, FormError } from "@/components/ui/Notice";
 import { api, ApiError, homeForRole, userMessage } from "@/lib/api-client";
+import { authenticateWithFaceId, isMobileDevice } from "@/lib/biometrics";
+import { Fingerprint } from "lucide-react";
 import type { Role } from "@/types";
 import { useLocale } from "@/components/i18n/LocaleContext";
 
@@ -42,6 +44,9 @@ const S = {
     password: "Password",
     signingIn: "Signing in…",
     continue: "Continue securely",
+    orBiometrics: "Or authenticate with biometrics",
+    signInBiometrics: "Sign in with FaceID / Biometrics",
+    verifyingBiometrics: "Verifying FaceID…",
     patientNotice: "ReproAI is prescribed by licensed healthcare providers. If you are a new patient, please use the secure activation link sent to your email by your fertility clinic or partner.",
     clinicianNote: "Clinician accounts are provisioned by your organisation",
     orDemo: "Or explore the demo",
@@ -69,6 +74,9 @@ const S = {
     password: "كلمة المرور",
     signingIn: "جارٍ تسجيل الدخول…",
     continue: "متابعة بأمان",
+    orBiometrics: "أو سجّل الدخول بالبصمة الحيوية",
+    signInBiometrics: "تسجيل الدخول عبر FaceID / البصمة",
+    verifyingBiometrics: "جارٍ التحقق عبر FaceID…",
     patientNotice: "يصف ReproAI مقدّمو رعاية صحية مرخّصون. إذا كنت مريضًا جديدًا، فاستخدم رابط التفعيل الآمن الذي أرسلته عيادة الخصوبة أو شريكك إلى بريدك الإلكتروني.",
     clinicianNote: "تُنشئ مؤسستك حسابات الأطباء",
     orDemo: "أو استكشف العرض التوضيحي",
@@ -89,6 +97,30 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [demoEnabled, setDemoEnabled] = useState(false);
   const [demoLoading, setDemoLoading] = useState<DemoPersona | null>(null);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+  }, []);
+
+  async function handleBiometricLogin() {
+    setBiometricLoading(true);
+    setError("");
+    try {
+      const result = await authenticateWithFaceId(email || undefined);
+      if (result.ok && result.role) {
+        router.replace(homeForRole(result.role));
+        router.refresh();
+      } else {
+        setError(result.error || "Biometric authentication failed.");
+      }
+    } catch (err) {
+      setError(userMessage(err, "FaceID authentication failed."));
+    } finally {
+      setBiometricLoading(false);
+    }
+  }
 
   useEffect(() => {
     api<{ enabled: boolean }>("/api/auth/demo")
@@ -200,9 +232,30 @@ export default function LoginPage() {
 
         {error && <FormError>{error}</FormError>}
 
-        <button className="primary wide" disabled={loading}>
+        <button className="primary wide" disabled={loading || biometricLoading}>
           {loading ? L.signingIn : L.continue} <ArrowRight size={17} aria-hidden className="flip-rtl" />
         </button>
+
+        {isMobile && (
+          <>
+            <div style={{ margin: "10px 0", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ flex: 1, height: 1, background: "var(--border, #cbd5e1)" }} />
+              <span style={{ fontSize: 11.5, color: "var(--muted, #64748b)" }}>{L.orBiometrics}</span>
+              <div style={{ flex: 1, height: 1, background: "var(--border, #cbd5e1)" }} />
+            </div>
+
+            <button
+              type="button"
+              className="secondary wide"
+              onClick={handleBiometricLogin}
+              disabled={loading || biometricLoading}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              <Fingerprint size={17} color="#059669" />
+              <span>{biometricLoading ? L.verifyingBiometrics : L.signInBiometrics}</span>
+            </button>
+          </>
+        )}
 
         {role === "PATIENT" ? (
           <ClinicalNotice>
