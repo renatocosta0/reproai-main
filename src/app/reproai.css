@@ -4952,3 +4952,68 @@ button.term.term {
 .kanban-col > header strong {
   line-height: 1.25;
 }
+
+/* Folded sections (<details>) for secondary detail on clinician pages. */
+details.fold {
+  margin-bottom: 14px;
+  border: 1px solid #e3eae6;
+  border-radius: 12px;
+  background: #ffffff;
+}
+details.fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  color: #173330;
+  font-family: var(--font-manrope), "Manrope", sans-serif;
+  font-size: 15.5px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+details.fold > summary::-webkit-details-marker {
+  display: none;
+}
+details.fold > summary::after {
+  content: "";
+  margin-inline-start: auto;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #71817d;
+  border-bottom: 2px solid #71817d;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+details.fold[open] > summary::after {
+  transform: rotate(-135deg);
+}
+details.fold > summary small {
+  font-family: var(--font-dm-sans), "DM Sans", sans-serif;
+  font-weight: 500;
+}
+details.fold > :not(summary) {
+  margin-inline: 14px;
+}
+details.fold[open] {
+  padding-bottom: 14px;
+}
+details.fold > summary:focus-visible {
+  outline: 2px solid #0c655e;
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+.report-legend {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #e3eae6;
+  border-radius: 10px;
+  background: #fbfcfb;
+  color: #5f716d;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.report-legend strong {
+  color: #173330;
+}

@@ -94,13 +94,7 @@ export default function EvidencePage() {
             <Metric label={L.evSignalAppt} value={days(data.live.daysSignalToAppointment)} detail={L.evSignalApptDetail(data.live.daysSignalToAppointment.n, data.live.signals)} />
             <Metric label={L.evSignalClosed} value={days(data.live.daysSignalToClosed)} detail={L.evSignalClosedDetail(data.live.daysSignalToClosed.n)} />
           </section>
-          <section className="metrics-grid">
-            <Metric label={L.evActedOn} value={pc(data.live.signalsProgressed.rate)} detail={L.evActedOnDetail(ci(data.live.signalsProgressed))} />
-            <Metric label={L.evFlagged} value={String(data.live.flaggedForReferral)} detail={L.evFlaggedDetail} />
-            <Metric label={L.evReferral} value={pc(data.live.referralActedOn.rate)} detail={L.evReferralDetail(ci(data.live.referralActedOn))} />
-            <Metric label={L.evRelease} value={days(data.live.daysAssessmentToRelease)} detail={L.evReleaseDetail(data.live.daysAssessmentToRelease.n)} />
-          </section>
-
+          {/* Key measures stay visible; the rest open on demand. */}
           {data.oversight && (
             <section className="panel" style={{ marginBottom: 16 }}>
               <div className="panel-head">
@@ -132,6 +126,15 @@ export default function EvidencePage() {
             </section>
           )}
 
+          <details className="fold">
+            <summary>{L.moreLiveMeasures}</summary>
+          <section className="metrics-grid">
+            <Metric label={L.evActedOn} value={pc(data.live.signalsProgressed.rate)} detail={L.evActedOnDetail(ci(data.live.signalsProgressed))} />
+            <Metric label={L.evFlagged} value={String(data.live.flaggedForReferral)} detail={L.evFlaggedDetail} />
+            <Metric label={L.evReferral} value={pc(data.live.referralActedOn.rate)} detail={L.evReferralDetail(ci(data.live.referralActedOn))} />
+            <Metric label={L.evRelease} value={days(data.live.daysAssessmentToRelease)} detail={L.evReleaseDetail(data.live.daysAssessmentToRelease.n)} />
+          </section>
+
           <section className="panel" style={{ marginBottom: 16 }}>
             <div className="panel-head">
               <div>
@@ -159,20 +162,25 @@ export default function EvidencePage() {
             </div>
             <p className="muted-note" style={{ padding: "10px 20px 16px" }}>{L.smallSubgroups}</p>
           </section>
+          </details>
 
-          <h2 className="section-title">
-            {L.simTitle} <span className="chip evidence"><FlaskConical size={12} /> {L.synthetic}</span>
-          </h2>
-          {"error" in data.simulation ? (
-            <FormError>{L.simNeedsMl} <span dir="ltr">{data.simulation.error}</span></FormError>
-          ) : (
-            <Simulation s={data.simulation} />
-          )}
+          <details className="fold">
+            <summary>
+              {L.simTitle} <span className="chip evidence"><FlaskConical size={12} /> {L.synthetic}</span>
+            </summary>
+            {"error" in data.simulation ? (
+              <FormError>{L.simNeedsMl} <span dir="ltr">{data.simulation.error}</span></FormError>
+            ) : (
+              <Simulation s={data.simulation} />
+            )}
+          </details>
 
-          <h2 className="section-title" style={{ marginTop: 24 }}>
-            {L.ragTitle} <span className="chip evidence"><BookOpen size={12} /> {L.offlineSet}</span>
-          </h2>
-          <RagSection r={data.rag} />
+          <details className="fold">
+            <summary>
+              {L.ragTitle} <span className="chip evidence"><BookOpen size={12} /> {L.offlineSet}</span>
+            </summary>
+            <RagSection r={data.rag} />
+          </details>
 
           <section className="panel" style={{ marginTop: 16 }}>
             <div className="panel-head">
