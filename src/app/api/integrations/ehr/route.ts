@@ -1,25 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ingestFhirPayload, LOINC_TO_LAB_CODE } from "@/lib/fhir/ingest";
+import { isAuthorized, partnerKey } from "@/lib/fhir/partner-key";
 
 // POST /api/integrations/ehr
-// Automated machine-to-machine integration endpoint for hospital EHR / Malaffi HIE.
-// Accepts HL7 FHIR R4 Observation or Bundle resources, verifies authentication,
-// and ingests lab results directly into ReproAI without clinician manual data entry.
-
-function isAuthorized(req: NextRequest): boolean {
-  const masterKey = process.env.REPROAI_PARTNER_API_KEY || process.env.AUTH_SECRET;
-  const authHeader = req.headers.get("authorization") || req.headers.get("x-api-key");
-  if (!authHeader) return false;
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  return Boolean(masterKey && token === masterKey);
-}
+// Machine-to-machine endpoint for a hospital EHR / Malaffi HIE to push lab results as
+// HL7 FHIR R4 Observation or Bundle resources.
+//
+// This route is outside the role middleware, so the partner key is its only protection.
+// It accepts only REPROAI_PARTNER_API_KEY: never the session secret, never the demo key.
 
 export async function POST(req: NextRequest) {
-  try {
-    if (!isAuthorized(req)) {
-      return NextResponse.json({ error: "Unauthorized: valid EHR integration token required" }, { status: 401 });
-    }
+  const key = partnerKey();
+  if (!key) {
+    return NextResponse.json({ error: "EHR integration endpoint is not enabled in this environment" }, { status: 503 });
+  }
+  if (!isAuthorized(req.headers, key)) {
+    return NextResponse.json({ error: "Unauthorized: valid EHR integration token required" }, { status: 401 });
+  }
 
+  try {
     const body = await req.json().catch(() => null);
     if (!body) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
@@ -38,24 +37,24 @@ export async function POST(req: NextRequest) {
       },
       { status: outcome.imported > 0 ? 200 : 422 }
     );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Internal integration error";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Internal integration error" }, { status: 500 });
   }
 }
 
 export async function GET() {
   return NextResponse.json({
-    name: "ReproAI Hospital & Malaffi HIE Interoperability Gateway",
+    name: "ReproAI EHR / HIE lab-result endpoint",
     standard: "HL7 FHIR R4",
-    status: "active",
+    // Whether a partner key is configured here; no hospital is connected by default.
+    enabled: partnerKey() !== null,
     supportedLoincCodes: LOINC_TO_LAB_CODE,
-    capabilities: [
-      "Automated LIS result ingestion (Observation / Bundle)",
-      "Continuous synchronization without manual clinician entry",
-      "Consent validation at API boundary (Gate B)",
-      "Zero-fabrication physiological range verification",
-      "Immutable audit trail logging"
+    behaviour: [
+      "Accepts FHIR R4 Observation or Bundle resources carrying lab results",
+      "Imports only results whose patient has consented to LAB_RESULTS",
+      "Skips results with an unmapped code, a missing collection date, an unaccepted unit or an out-of-range value",
+      "Skips results already imported",
+      "Writes an audit log entry for each imported value"
     ]
   });
 }

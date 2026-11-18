@@ -5,6 +5,8 @@ import { canAccessCase } from "@/lib/clinician-scope";
 import { hasConsent } from "@/lib/consent";
 import { ingestFhirPayload } from "@/lib/fhir/ingest";
 import { getAzureFhirConfig, getMalaffiHieConfig } from "@/lib/azure/config";
+import { getAzureFhirToken } from "@/lib/azure/fhir-token";
+import { partnerKey } from "@/lib/fhir/partner-key";
 
 // POST /api/clinician/cases/:id/sync-ehr
 // Allows a clinician to trigger a live sync of laboratory results from the
@@ -57,13 +59,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const fhirCfg = getAzureFhirConfig();
     const malaffiCfg = getMalaffiHieConfig();
 
-    const hasActiveFhir = Boolean(fhirCfg?.endpoint && fhirCfg.clientId && fhirCfg.clientSecret);
-    const hasActiveMalaffi = Boolean(
-      malaffiCfg?.gatewayUrl &&
-      malaffiCfg.facilityId &&
-      malaffiCfg.partnerApiKey &&
-      malaffiCfg.partnerApiKey !== "sk_reproai_partner_uae_demo_key"
-    );
+    const fhirAuth =
+      fhirCfg?.endpoint && fhirCfg.tenantId && fhirCfg.clientId && fhirCfg.clientSecret
+        ? { endpoint: fhirCfg.endpoint, tenantId: fhirCfg.tenantId, clientId: fhirCfg.clientId, clientSecret: fhirCfg.clientSecret }
+        : null;
+    const malaffiKey = partnerKey();
+    const hasActiveFhir = fhirAuth !== null;
+    const hasActiveMalaffi = Boolean(malaffiCfg?.gatewayUrl && malaffiCfg.facilityId && malaffiKey);
 
     // If no active live credentials are configured, degrade honestly with an explicit error.
     // Do NOT mock or invent fake lab results.
@@ -81,17 +83,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     let totalImported = 0;
     const details: string[] = [];
 
+    // KNOWN LIMITATION: the query uses the ReproAI user id as the FHIR subject. A real EHR
+    // or HIE identifies patients by its own id (MRN / Emirates ID), so a patient-identity
+    // mapping is needed before this can return results from a live server.
     for (const member of consentingMembers) {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 6000);
 
+        // Azure FHIR needs an Entra ID access token; the client secret never goes to the FHIR server.
+        const authHeaders: Record<string, string> = fhirAuth
+          ? { Authorization: `Bearer ${await getAzureFhirToken(fhirAuth, controller.signal)}` }
+          : malaffiKey
+            ? { "X-API-Key": malaffiKey }
+            : {};
+
         const res = await fetch(`${targetUrl}/Observation?subject=${encodeURIComponent(member.id)}&category=laboratory`, {
-          headers: {
-            Accept: "application/fhir+json",
-            ...(hasActiveFhir && fhirCfg?.clientSecret ? { Authorization: `Bearer ${fhirCfg.clientSecret}` } : {}),
-            ...(hasActiveMalaffi && malaffiCfg?.partnerApiKey ? { "X-API-Key": malaffiCfg.partnerApiKey } : {})
-          },
+          headers: { Accept: "application/fhir+json", ...authHeaders },
           signal: controller.signal
         });
         clearTimeout(timeout);
