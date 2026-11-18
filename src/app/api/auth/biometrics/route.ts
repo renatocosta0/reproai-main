@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createSession, getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import type { Role } from "@/types";
 
 // GET /api/auth/biometrics
 // Reports biometric capabilities and policy for the mobile/PWA client.
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Create secure session
     await createSession({
       userId: user.id,
-      role: user.role,
+      role: user.role as Role,
       coupleId: user.coupleId
     });
 
