@@ -2213,7 +2213,7 @@ td {
 .clinical-note > svg {
   color: #8f8275;
 }
-.clinical-note span {
+.clinical-note > span {
   display: flex;
   flex-direction: column;
 }
@@ -2294,7 +2294,7 @@ td {
   flex: none;
   color: #4e9582;
 }
-.chart-insight span {
+.chart-insight > span {
   display: flex;
   flex-direction: column;
 }
@@ -4307,4 +4307,64 @@ html[dir="rtl"] .switch.on i { right: 23px; }
 .shap-word {
   font-size: 12px;
   font-weight: 600;
+}
+
+/* Range buttons on tracking charts. */
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.range-buttons {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #e3eae6;
+  border-radius: 9px;
+  background: #f4f7f5;
+}
+.range-buttons button {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #5f716d;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.range-buttons button.active {
+  background: #ffffff;
+  color: #0c655e;
+  box-shadow: 0 1px 3px #1733301a;
+}
+.range-buttons button:focus-visible {
+  outline: 2px solid #0c655e;
+  outline-offset: 1px;
+}
+
+/* Tap-to-explain terms inside sentences (ExplainTerms). */
+span.explained.explained,
+button.term.term {
+  display: inline;
+}
+.term {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dotted currentColor;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: help;
+}
+.term:hover {
+  border-bottom-style: solid;
+}
+.term:focus-visible {
+  outline: 2px solid #0c655e;
+  outline-offset: 1px;
+  border-radius: 2px;
 }

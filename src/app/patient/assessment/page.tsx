@@ -15,6 +15,7 @@ import type { AssessmentView } from "@/types/record";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { WhatIf } from "@/components/patient/WhatIf";
 import { AskChip } from "@/components/patient/AskPanel";
+import { ExplainTerms } from "@/components/patient/ExplainTerms";
 import { percentileWordsAr, TIER_AR } from "@/lib/i18n";
 
 export default function TrajectoryPage() {
@@ -147,7 +148,7 @@ export default function TrajectoryPage() {
         <ShieldCheck size={20} />
         <span>
           <strong>{t("importantContext")}</strong>
-          {t("importantContextText")}
+          <ExplainTerms text={t("importantContextText")} />
         </span>
       </div>
     </div>
@@ -181,10 +182,10 @@ function Headline({ a, sex }: { a: AssessmentView; sex: string | null }) {
             }}
           />
         </div>
-        <h2>{tier.summary || "Your clinician has reviewed your latest results."}</h2>
+        <h2><ExplainTerms text={tier.summary || "Your clinician has reviewed your latest results."} /></h2>
         {a.percentile !== null && sex === "female" && (
           <p>
-            {t("amhIs")} {ar ? percentileWordsAr(a.percentile) : percentileWords(a.percentile)}.
+            <ExplainTerms text={t("amhIs")} /> {ar ? percentileWordsAr(a.percentile) : percentileWords(a.percentile)}.
           </p>
         )}
         {a.clinicianNote && <Note text={a.clinicianNote} light />}
@@ -200,7 +201,7 @@ function Note({ text, light = false }: { text: string; light?: boolean }) {
   const { t } = useLocale();
   return (
     <p className={`clinician-note ${light ? "light" : ""}`}>
-      <BadgeCheck size={15} aria-hidden /> <span><strong>{t("fromClinician")}</strong> <span dir="auto">{text}</span></span>
+      <BadgeCheck size={15} aria-hidden /> <span><strong>{t("fromClinician")}</strong> <span dir="auto"><ExplainTerms text={text} /></span></span>
     </p>
   );
 }

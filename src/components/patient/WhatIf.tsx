@@ -66,9 +66,13 @@ export function WhatIf({ currentBmi }: { currentBmi: number | null }) {
             <p className="muted-note">{error}</p>
           ) : result ? (
             <p className={`whatif-result ${result.direction}`}>
-              {ar ? "الآن" : "Now"} {result.currentBmi !== null ? <>(<span dir="ltr">{result.currentBmi}</span>)</> : ""}: {ar ? "عامل الوزن" : "weight is"} {effectWords(result.bmiEffectNow, ar)}.{" "}
-              {ar ? "عند" : "At"} <span dir="ltr">{result.simulatedBmi}</span>: {effectWords(result.bmiEffectSimulated, ar)}
-              {result.direction === "better" ? (ar ? " — أفضل." : ", better.") : result.direction === "worse" ? (ar ? " — أسوأ." : ", worse.") : ar ? " — مشابه." : ", about the same."}
+              {result.currentBmi !== null && (
+                <>
+                  {ar ? "عند مؤشر كتلة جسمك الحالي" : "At your current BMI"} (<span dir="ltr">{result.currentBmi}</span>), {ar ? "الوزن" : "weight is"} {effectWords(result.bmiEffectNow, ar)}.{" "}
+                </>
+              )}
+              {ar ? "عند" : "At"} <span dir="ltr">{result.simulatedBmi}</span>, {ar ? "سيكون" : "it would be"} {effectWords(result.bmiEffectSimulated, ar)}
+              {result.direction === "better" ? (ar ? "، أي أفضل." : ", which is better.") : result.direction === "worse" ? (ar ? "، أي أسوأ." : ", which is worse.") : ar ? "، أي مشابهًا تقريبًا." : ", about the same."}
             </p>
           ) : (
             <p className="muted-note">…</p>

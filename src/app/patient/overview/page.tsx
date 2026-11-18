@@ -28,6 +28,7 @@ import { useLocale } from "@/components/i18n/LocaleContext";
 import { percentileWordsAr, TIER_AR } from "@/lib/i18n";
 import { AppointmentCard } from "@/components/patient/AppointmentCard";
 import { AskChip } from "@/components/patient/AskPanel";
+import { ExplainTerms } from "@/components/patient/ExplainTerms";
 import type { Point } from "@/lib/observation-analysis";
 import {
   analyzeBbt,
@@ -389,7 +390,7 @@ export default function OverviewPage() {
             <Sparkles size={14} /> {L.insightEyebrow}
           </div>
           <h2>{insightTitle}</h2>
-          <p>{insightText}</p>
+          <p><ExplainTerms text={insightText} /></p>
           <Link href={semenPending ? "/patient/assessment" : "/patient/wearables"}>
             {semenPending ? L.viewTrajectory : L.explorePattern} <ArrowRight size={16} className="flip-rtl" />
           </Link>
