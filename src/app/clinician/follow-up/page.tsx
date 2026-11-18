@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Bell, Check, Clock3, ExternalLink, NotebookPen } from "lucide-react";
+import { ArrowRight, Bell, Check, Clock3, ExternalLink, NotebookPen, Trash2 } from "lucide-react";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { Modal } from "@/components/ui/Modal";
 import { FormError } from "@/components/ui/Notice";
@@ -12,6 +12,8 @@ import { isAtRisk, STATUS_LABELS, type FollowUpStatus } from "@/lib/follow-up";
 import type { FollowUpItem } from "@/types/clinician";
 import { statusLabel } from "@/lib/i18n-clinician";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { ConfirmConsultationModal } from "@/components/clinician/ConfirmConsultationModal";
+import { parseSlotFromNote } from "@/lib/appointment";
 
 const COLUMNS: { status: FollowUpStatus; also?: FollowUpStatus[] }[] = [
   { status: "ALERT_RAISED", also: ["CONSULTATION_REQUESTED"] },
@@ -34,6 +36,7 @@ export default function FollowUpBoard() {
   const [items, setItems] = useState<FollowUpItem[] | null>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<FollowUpItem | null>(null);
+  const [scheduleTarget, setScheduleTarget] = useState<FollowUpItem | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const { L, locale } = useClinicianText();
   const label = (s: FollowUpStatus) => statusLabel(locale, s, STATUS_LABELS[s]);
@@ -55,11 +58,36 @@ export default function FollowUpBoard() {
   async function move(item: FollowUpItem, status: FollowUpStatus, note?: string) {
     setBusyId(item.id);
     try {
-      await api("/api/follow-up", { method: "PATCH", body: JSON.stringify({ id: item.id, status, ...(note !== undefined ? { note } : {}) }) });
+      await api("/api/follow-up", {
+        method: "PATCH",
+        body: JSON.stringify({ id: item.id, status, ...(note !== undefined ? { note } : {}) })
+      });
       await load();
       return true;
     } catch (err) {
       setError(userMessage(err, L.updateCaseError));
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function handleAdvance(item: FollowUpItem, nextStatus: FollowUpStatus) {
+    if (nextStatus === "APPOINTMENT_SCHEDULED") {
+      setScheduleTarget(item);
+    } else {
+      void move(item, nextStatus);
+    }
+  }
+
+  async function removeItem(id: string) {
+    setBusyId(id);
+    try {
+      await api("/api/follow-up", { method: "DELETE", body: JSON.stringify({ id }) });
+      await load();
+      return true;
+    } catch (err) {
+      setError(userMessage(err, "Failed to remove case from board."));
       return false;
     } finally {
       setBusyId(null);
@@ -95,9 +123,35 @@ export default function FollowUpBoard() {
                   const name = peopleName(item.patients, item.emails);
                   const next = NEXT[item.status as FollowUpStatus];
                   return (
-                    <article className="case-card" key={item.id}>
+                    <article className="case-card" key={item.id} style={{ position: "relative" }}>
+                      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2 }}>
+                        <button
+                          type="button"
+                          title={L.removeCase}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(L.confirmRemoveCase)) {
+                              void removeItem(item.id);
+                            }
+                          }}
+                          disabled={busyId === item.id}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#94a3b8",
+                            padding: "4px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            borderRadius: "4px"
+                          }}
+                          aria-label={L.removeCase}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                       <button className="case-open" onClick={() => setOpen(item)} aria-label={L.openName(name)}>
-                        <div className="case-top">
+                        <div className="case-top" style={{ paddingRight: 24 }}>
                           <div className={`avatar ${ci === 0 ? "peach" : ""}`} aria-hidden>{caseInitials(name)}</div>
                           <span>
                             <strong>{name}</strong>
@@ -109,7 +163,13 @@ export default function FollowUpBoard() {
                           <NotebookPen size={15} />
                         </div>
                         <div className={`case-reason ${ci === 3 ? "closed" : ""}`}>
-                          {item.status === "LOST" ? L.lostToFollowUp : <><Bell size={14} /> <span dir="auto">{shortReason(item.note)}</span></>}
+                          {item.status === "LOST" ? (
+                            L.lostToFollowUp
+                          ) : (
+                            <>
+                              <Bell size={14} /> <span dir="auto">{shortReason(item.note)}</span>
+                            </>
+                          )}
                         </div>
                       </button>
                       <div className="case-footer">
@@ -118,7 +178,12 @@ export default function FollowUpBoard() {
                           {isAtRisk(item.status as FollowUpStatus, item.createdAt) ? L.atRisk : ""}
                         </span>
                         {next ? (
-                          <button className="text-button" onClick={() => move(item, next)} disabled={busyId === item.id}>
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => handleAdvance(item, next)}
+                            disabled={busyId === item.id}
+                          >
                             {busyId === item.id ? L.moving : label(next)} <ArrowRight size={13} className="flip-rtl" />
                           </button>
                         ) : (
@@ -133,6 +198,19 @@ export default function FollowUpBoard() {
           })}
         </div>
       )}
+      {scheduleTarget && (
+        <ConfirmConsultationModal
+          caseId={scheduleTarget.caseId}
+          patientName={peopleName(scheduleTarget.patients, scheduleTarget.emails)}
+          followUpId={scheduleTarget.id}
+          defaultSlot={parseSlotFromNote(scheduleTarget.note) ?? undefined}
+          onClose={() => setScheduleTarget(null)}
+          onSuccess={() => {
+            setScheduleTarget(null);
+            void load();
+          }}
+        />
+      )}
       {open && (
         <CaseModal
           item={open}
@@ -140,6 +218,9 @@ export default function FollowUpBoard() {
           onClose={() => setOpen(null)}
           onSave={async (status, note) => {
             if (await move(open, status, note)) setOpen(null);
+          }}
+          onRemove={async () => {
+            if (await removeItem(open.id)) setOpen(null);
           }}
         />
       )}
@@ -151,48 +232,107 @@ function CaseModal({
   item,
   busy,
   onClose,
-  onSave
+  onSave,
+  onRemove
 }: {
   item: FollowUpItem;
   busy: boolean;
   onClose: () => void;
   onSave: (status: FollowUpStatus, note: string) => void;
+  onRemove: () => void;
 }) {
   const [status, setStatus] = useState<FollowUpStatus>(item.status as FollowUpStatus);
+  const [slot, setSlot] = useState(parseSlotFromNote(item.note) ?? "");
+  const [slotError, setSlotError] = useState("");
   const [note, setNote] = useState(item.note ?? "");
   const name = peopleName(item.patients, item.emails);
   const { L, locale, ago } = useClinicianText();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (status === "APPOINTMENT_SCHEDULED" && !slot.trim()) {
+      setSlotError("Date and time is required to schedule an appointment.");
+      return;
+    }
+    const finalNote =
+      status === "APPOINTMENT_SCHEDULED" && slot.trim()
+        ? `[Appointment Confirmed: ${slot.trim()}] ${note}`
+        : note;
+    onSave(status, finalNote);
+  }
 
   return (
     <Modal title={L.followUpTitle(name)} onClose={onClose}>
       <div className="modal-icon"><NotebookPen size={21} /></div>
       <h2>{name}</h2>
       <p>{L.openedUpdated(ago(item.createdAt), ago(item.updatedAt))}</p>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSave(status, note);
-        }}
-      >
+      <form onSubmit={handleSubmit}>
         <label className="field">
           <span>{L.stage}</span>
           <div className="input-wrap">
-            <select value={status} onChange={(e) => setStatus(e.target.value as FollowUpStatus)}>
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value as FollowUpStatus);
+                setSlotError("");
+              }}
+            >
               {(Object.keys(STATUS_LABELS) as FollowUpStatus[]).map((s) => (
                 <option key={s} value={s}>{statusLabel(locale, s, STATUS_LABELS[s])}</option>
               ))}
             </select>
           </div>
         </label>
+
+        {status === "APPOINTMENT_SCHEDULED" && (
+          <label className="field">
+            <span>Date & Time (Required for Scheduled Appointment) *</span>
+            <input
+              type="text"
+              placeholder="e.g. Thursday 20 Nov, 16:00 (Telehealth)"
+              value={slot}
+              onChange={(e) => {
+                setSlot(e.target.value);
+                setSlotError("");
+              }}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: slotError ? "1.5px solid #ef4444" : "1px solid #cbd5e1",
+                fontSize: 13
+              }}
+              required
+            />
+            {slotError && <small style={{ color: "#ef4444", marginTop: 4, display: "block" }}>{slotError}</small>}
+          </label>
+        )}
+
         <label className="field">
           <span>{L.clinicalNote} <em>{L.changesLogged}</em></span>
-          <textarea dir={note ? "auto" : undefined} rows={6} value={note} onChange={(e) => setNote(e.target.value)} />
+          <textarea dir={note ? "auto" : undefined} rows={4} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
-        <div className="modal-actions">
-          <Link className="secondary" href={`/clinician/patient/${item.caseId}`}>
-            <ExternalLink size={15} /> {L.openRecord}
-          </Link>
-          <button className="primary" disabled={busy}>{busy ? L.saving : L.save}</button>
+
+        <div className="modal-actions" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          <button
+            type="button"
+            className="ghost compact"
+            style={{ color: "#ef4444", display: "inline-flex", alignItems: "center", gap: 5 }}
+            onClick={() => {
+              if (confirm(L.confirmRemoveCase)) {
+                onRemove();
+              }
+            }}
+            disabled={busy}
+          >
+            <Trash2 size={14} /> {L.removeCase}
+          </button>
+          <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+            <Link className="secondary" href={`/clinician/patient/${item.caseId}`}>
+              <ExternalLink size={15} /> {L.openRecord}
+            </Link>
+            <button className="primary" disabled={busy}>{busy ? L.saving : L.save}</button>
+          </div>
         </div>
       </form>
     </Modal>

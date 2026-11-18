@@ -19,6 +19,9 @@ import { prisma } from "@/lib/db";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    invitation: {
+      findMany: vi.fn().mockResolvedValue([])
+    },
     user: {
       findUnique: vi.fn(),
       findMany: vi.fn().mockResolvedValue([])
@@ -180,7 +183,7 @@ describe("Clinician: confirm booking", () => {
 });
 
 describe("Cancel appointment", () => {
-  it("patient can cancel with optional note", async () => {
+  it("patient can cancel with optional note and returns status NONE", async () => {
     const scheduled = { ...baseFollowUp, status: "APPOINTMENT_SCHEDULED", coupleId: "couple-1" };
     (prisma.followUp.findUnique as any).mockResolvedValue(scheduled);
     (prisma.followUp.update as any).mockResolvedValue({
@@ -191,20 +194,20 @@ describe("Cancel appointment", () => {
 
     const result = await cancelAppointment("user-1", "PATIENT", "fu-1", "Family emergency");
     expect(result.ok).toBe(true);
-    expect(result.appointment.status).toBe("CANCELLED");
+    expect(result.appointment.status).toBe("NONE");
     expect(prisma.followUp.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "APPOINTMENT_CANCELLED" }) })
     );
   });
 
-  it("clinician can cancel with note", async () => {
+  it("clinician can cancel with note and returns status NONE", async () => {
     const scheduled = { ...baseFollowUp, status: "APPOINTMENT_SCHEDULED", coupleId: "couple-1" };
     (prisma.followUp.findUnique as any).mockResolvedValue(scheduled);
     (prisma.followUp.update as any).mockResolvedValue({ ...scheduled, status: "APPOINTMENT_CANCELLED" });
 
     const result = await cancelAppointment("clin-1", "CLINICIAN", "fu-1", "Doctor unavailable");
     expect(result.ok).toBe(true);
-    expect(result.appointment.status).toBe("CANCELLED");
+    expect(result.appointment.status).toBe("NONE");
   });
 });
 

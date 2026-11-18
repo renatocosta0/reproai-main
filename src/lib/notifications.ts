@@ -66,6 +66,7 @@ export function markNotificationAsRead(userId: string, notificationId: string): 
 export interface DispatchNotificationParams {
   caseId?: string;
   targetUserId?: string;
+  targetRole?: "PATIENT" | "CLINICIAN";
   actorId: string;
   type: NotificationType;
   title: string;
@@ -73,12 +74,56 @@ export interface DispatchNotificationParams {
   url?: string;
 }
 
+/** Find all clinicians responsible for a care case. */
+async function findClinicianIdsForCase(caseId: string): Promise<string[]> {
+  const clinicianIds = new Set<string>();
+
+  if (prisma.invitation?.findMany) {
+    const invitations = await prisma.invitation.findMany({
+      where: { coupleId: caseId },
+      select: { invitedBy: true }
+    });
+    for (const inv of invitations) {
+      if (inv.invitedBy) clinicianIds.add(inv.invitedBy);
+    }
+  }
+
+  if (clinicianIds.size === 0 && prisma.user?.findMany && prisma.invitation?.findMany) {
+    const users = await prisma.user.findMany({
+      where: { coupleId: caseId },
+      select: { email: true }
+    });
+    const emails = users.map((u) => u.email).filter(Boolean);
+    if (emails.length > 0) {
+      const emailInvites = await prisma.invitation.findMany({
+        where: { OR: [{ email: { in: emails } }, { partnerEmail: { in: emails } }] },
+        select: { invitedBy: true }
+      });
+      for (const inv of emailInvites) {
+        if (inv.invitedBy) clinicianIds.add(inv.invitedBy);
+      }
+    }
+  }
+
+  // Fallback: if no specific assigned clinician (e.g. self-registered or demo), notify all active clinicians
+  if (clinicianIds.size === 0 && prisma.user?.findMany) {
+    const clinicians = await prisma.user.findMany({
+      where: { role: "CLINICIAN" },
+      select: { id: true }
+    });
+    for (const c of clinicians) clinicianIds.add(c.id);
+  }
+
+  return Array.from(clinicianIds);
+}
+
 /**
- * Dispatches a privacy-compliant notification to the patient's mobile phone & in-app center.
+ * Dispatches a privacy-compliant notification to the patient or clinician.
+ * Ensures notifications meant for clinicians never route to patients, and vice-versa.
  * Conforms to UAE ADHICS / DoH privacy standards: Lock screen text never reveals sensitive lab values.
  */
 export async function dispatchCareNotification(params: DispatchNotificationParams): Promise<CareNotification[]> {
-  const { caseId, targetUserId, actorId, type, title, body, url = "/patient/assessment" } = params;
+  const { caseId, targetUserId, targetRole = "PATIENT", actorId, type, title, body, url = "/patient/assessment" } = params;
   const recipientIds = new Set<string>();
 
   if (targetUserId) {
@@ -86,13 +131,27 @@ export async function dispatchCareNotification(params: DispatchNotificationParam
   }
 
   if (caseId) {
-    const members = await prisma.user.findMany({
-      where: { coupleId: caseId, role: "PATIENT" },
-      select: { id: true }
-    });
-    for (const m of members) {
-      recipientIds.add(m.id);
+    if (targetRole === "CLINICIAN") {
+      // Route exclusively to clinicians
+      const clinicianIds = await findClinicianIdsForCase(caseId);
+      for (const id of clinicianIds) {
+        recipientIds.add(id);
+      }
+    } else {
+      // Route exclusively to patients
+      const members = await prisma.user.findMany({
+        where: { coupleId: caseId, role: "PATIENT" },
+        select: { id: true }
+      });
+      for (const m of members) {
+        recipientIds.add(m.id);
+      }
     }
+  }
+
+  // Never send the notification back to the person who triggered the action
+  if (actorId) {
+    recipientIds.delete(actorId);
   }
 
   const createdNotifications: CareNotification[] = [];

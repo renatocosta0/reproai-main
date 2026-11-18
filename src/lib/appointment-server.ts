@@ -137,6 +137,7 @@ export async function requestAppointmentByPatient(
 
   await dispatchCareNotification({
     caseId: coupleId,
+    targetRole: "CLINICIAN",
     actorId: userId,
     type: "APPOINTMENT_SUGGESTED",
     title: "ReproAI · Patient Request",
@@ -174,6 +175,7 @@ export async function acceptSuggestionByPatient(
 
   await dispatchCareNotification({
     caseId: coupleId,
+    targetRole: "CLINICIAN",
     actorId: userId,
     type: "APPOINTMENT_CONFIRMED",
     title: "ReproAI · Patient Accepted",
@@ -213,6 +215,7 @@ export async function declineSuggestionByPatient(
 
   await dispatchCareNotification({
     caseId: coupleId,
+    targetRole: "CLINICIAN",
     actorId: userId,
     type: "APPOINTMENT_SUGGESTED",
     title: "ReproAI · Patient Declined Slot",
@@ -268,6 +271,7 @@ export async function suggestSlotByClinician(
 
   await dispatchCareNotification({
     caseId: coupleId,
+    targetRole: "PATIENT",
     actorId: clinicianId,
     type: "APPOINTMENT_SUGGESTED",
     title: "ReproAI · Consultation Suggestion",
@@ -315,6 +319,7 @@ export async function confirmBookingByClinician(
 
   await dispatchCareNotification({
     caseId: coupleId,
+    targetRole: "PATIENT",
     actorId: clinicianId,
     type: "APPOINTMENT_CONFIRMED",
     title: "ReproAI · Appointment Confirmed",
@@ -357,9 +362,11 @@ export async function cancelAppointment(
 
   await audit(actorId, "appointment_cancelled", `follow_up:${followUpId}:APPOINTMENT_CANCELLED`);
 
-  const otherType = actorRole === "PATIENT" ? "APPOINTMENT_SUGGESTED" : "APPOINTMENT_CONFIRMED";
+  const isPatient = actorRole === "PATIENT";
+  const otherType = isPatient ? "APPOINTMENT_SUGGESTED" : "APPOINTMENT_CONFIRMED";
   await dispatchCareNotification({
     caseId: followUp.coupleId,
+    targetRole: isPatient ? "CLINICIAN" : "PATIENT",
     actorId,
     type: otherType,
     title: "ReproAI · Appointment Cancelled",
@@ -367,7 +374,7 @@ export async function cancelAppointment(
     url: actorRole === "PATIENT" ? `/clinician/patient/${followUp.coupleId}` : "/patient/overview"
   }).catch((e) => console.error("Notification error:", e));
 
-  return { ok: true, appointment: followUpToState(updated) };
+  return { ok: true, appointment: { status: "NONE" } };
 }
 
 /**
@@ -386,12 +393,6 @@ export async function getPatientAppointmentState(userId: string): Promise<Appoin
   const followUp = await getActiveFollowUp(user.coupleId);
 
   if (!followUp) {
-    // Also check for recent cancellation
-    const cancelled = await prisma.followUp.findFirst({
-      where: { coupleId: user.coupleId, status: "APPOINTMENT_CANCELLED" },
-      orderBy: { updatedAt: "desc" }
-    });
-    if (cancelled) return followUpToState(cancelled);
     return { status: "NONE" };
   }
 

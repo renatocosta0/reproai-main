@@ -174,11 +174,11 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
     setBusy(true);
     setError("");
     try {
-      const r = await api<{ appointment: AppointmentState }>("/api/patient/appointment", {
+      await api<{ appointment: AppointmentState }>("/api/patient/appointment", {
         method: "DELETE",
         body: JSON.stringify({ followUpId: appointment.followUpId, note: cancelNote })
       });
-      setAppointment(r.appointment);
+      setAppointment({ status: "NONE" });
       setShowCancelForm(false);
       setCancelNote("");
       onStatusChange?.();
@@ -196,32 +196,7 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
 
   const { status } = appointment;
 
-  // ── CANCELLED ──────────────────────────────────────────────────────────────
-  if (status === "CANCELLED") {
-    return (
-      <article
-        className="panel"
-        style={{
-          margin: "0 0 16px",
-          padding: "14px 18px",
-          borderRadius: 12,
-          border: "1px solid #fecaca",
-          background: "#fff7f7"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <CalendarX size={16} color="#ef4444" />
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#ef4444" }}>{L.cancelledBadge}</span>
-        </div>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{L.cancelledTitle}</p>
-        {appointment.cancelNote && (
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
-            {L.cancelledNote} {appointment.cancelNote}
-          </p>
-        )}
-      </article>
-    );
-  }
+
 
   // ── SCHEDULED ─────────────────────────────────────────────────────────────
   if (status === "SCHEDULED") {

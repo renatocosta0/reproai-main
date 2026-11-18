@@ -96,3 +96,25 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? "Failed to update follow-up" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await requireClinician();
+    if (!session) return NextResponse.json({ error: "Clinician access required" }, { status: 403 });
+
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body.id !== "string") {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+    const existing = await prisma.followUp.findUnique({ where: { id: body.id } });
+    if (!existing || !(await canAccessCase(session.userId, existing.coupleId))) {
+      return NextResponse.json({ error: "Follow-up not found" }, { status: 404 });
+    }
+    await prisma.followUp.delete({ where: { id: body.id } });
+    await audit(session.userId, "follow_up_removed", `follow_up:${body.id}:couple:${existing.coupleId}`);
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    console.error("[DELETE /api/follow-up] error:", error);
+    return NextResponse.json({ error: error?.message ?? "Failed to delete follow-up" }, { status: 500 });
+  }
+}

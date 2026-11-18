@@ -6,6 +6,7 @@ import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
 import { useClinician } from "@/components/clinician/ClinicianContext";
 import { PrescribeModal } from "@/components/clinician/PrescribeModal";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { NotificationSubscriber } from "@/components/patient/NotificationSubscriber";
 
 type NavKey = "navOverview" | "navFollowUp" | "navInsights" | "navCopilot" | "navEvidence";
 
@@ -24,6 +25,7 @@ export function ClinicianShell({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <NotificationSubscriber />
       <PortalShell
         theme="clinician"
         navLabel={L.navLabel}
