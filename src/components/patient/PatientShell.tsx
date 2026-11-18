@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Activity, HeartHandshake, Home, Languages, LineChart, Lock, MessageCircle, PenLine, UserRound } from "lucide-react";
+import { Activity, HeartHandshake, Home, Languages, LineChart, Lock, MessageCircle, PenLine, UserRound, Route } from "lucide-react";
 import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import type { StringKey } from "@/lib/i18n";
@@ -10,6 +10,7 @@ import { firstName, initials, usePatient } from "@/components/patient/PatientCon
 
 const NAV: { href: string; key: StringKey; icon: NavItem["icon"] }[] = [
   { href: "/patient/overview", key: "navToday", icon: Home },
+  { href: "/patient/journey", key: "navJourney", icon: Route },
   { href: "/patient/assessment", key: "navTrajectory", icon: LineChart },
   { href: "/patient/about", key: "navAbout", icon: PenLine },
   { href: "/patient/wearables", key: "navTracking", icon: Activity },

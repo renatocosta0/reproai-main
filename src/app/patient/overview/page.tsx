@@ -97,6 +97,7 @@ const S = {
     baselineText: "When your clinician records results such as an AMH test or a semen analysis and reviews them, your picture appears here.",
     nextSteps: "Your next best steps",
     nextStepsSub: "Based on what you have recorded",
+    fullJourney: "Your journey",
     signals: "Your health signals",
     signalsFemale: "Basal body temperature and sleep",
     signalsMale: "Sleep, lifestyle and lab markers",
@@ -183,6 +184,7 @@ const S = {
     baselineText: "عندما يسجّل طبيبك نتائج مثل فحص AMH أو تحليل السائل المنوي ويراجعها، تظهر صورتك هنا.",
     nextSteps: "خطواتك التالية",
     nextStepsSub: "بناءً على ما سجّلته",
+    fullJourney: "رحلتك",
     signals: "مؤشراتك الصحية",
     signalsFemale: "درجة حرارة الجسم الأساسية والنوم",
     signalsMale: "النوم ونمط الحياة والمؤشرات المخبرية",
@@ -463,6 +465,9 @@ export default function OverviewPage() {
               <h2>{L.nextSteps}</h2>
               <p>{L.nextStepsSub}</p>
             </div>
+            <Link className="text-button" href="/patient/journey">
+              {L.fullJourney} <ArrowRight size={14} className="flip-rtl" />
+            </Link>
           </div>
           <div className="steps-list">
             {obsLoading && <div className="loading-block" style={{ height: 150 }} />}

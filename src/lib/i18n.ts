@@ -7,6 +7,7 @@ export type Locale = "en" | "ar";
 export const STRINGS = {
   // Navigation and shell
   navToday: { en: "Today", ar: "اليوم" },
+  navJourney: { en: "My journey", ar: "رحلتي" },
   navTrajectory: { en: "My trajectory", ar: "مساري" },
   navAbout: { en: "About me", ar: "معلوماتي" },
   navTracking: { en: "Health tracking", ar: "متابعة صحتي" },
