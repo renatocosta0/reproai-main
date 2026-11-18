@@ -15,6 +15,33 @@
 }
 
 
+@keyframes reproai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes reproai-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Loader2 has no motion of its own: without this the loading icon looks frozen. */
+.spin {
+  animation: reproai-spin 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: reproai-pulse 1.4s ease-in-out infinite;
+  }
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: #bdcbc6 transparent;
@@ -634,6 +661,13 @@
 }
 .nav-label.second {
   padding-top: 23px;
+}
+.nav-divider {
+  width: 100%;
+  height: 0;
+  margin: 8px 0 4px;
+  border: 0;
+  border-top: 1px solid #e3eae6;
 }
 .sidebar nav button ,
 .sidebar nav a {

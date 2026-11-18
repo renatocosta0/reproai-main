@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X, type LucideIcon } from "lucide-react";
@@ -17,6 +17,8 @@ export interface NavItem {
   badge?: number;
   /** Other path prefixes that should highlight this item (e.g. detail pages). */
   match?: string[];
+  /** Show a hairline above this item to separate a secondary group. */
+  dividerBefore?: boolean;
 }
 
 interface PortalShellProps {
@@ -68,17 +70,19 @@ export function PortalShell({ theme, navLabel, nav, user, sidebarFooter, topActi
             const Icon = item.icon;
             const active = item === current;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={active ? "active" : ""}
-                aria-current={active ? "page" : undefined}
-                onClick={() => setMobileOpen(false)}
-              >
-                <Icon size={18} aria-hidden />
-                <span>{item.label}</span>
-                {item.badge ? <b>{item.badge}</b> : null}
-              </Link>
+              <Fragment key={item.href}>
+                {item.dividerBefore ? <hr className="nav-divider" aria-hidden /> : null}
+                <Link
+                  href={item.href}
+                  className={active ? "active" : ""}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Icon size={18} aria-hidden />
+                  <span>{item.label}</span>
+                  {item.badge ? <b>{item.badge}</b> : null}
+                </Link>
+              </Fragment>
             );
           })}
         </nav>
