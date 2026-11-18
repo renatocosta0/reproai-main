@@ -14,6 +14,7 @@ import type { LabCode } from "@/lib/labs";
 import type { AssessmentView } from "@/types/record";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { WhatIf } from "@/components/patient/WhatIf";
+import { AskChip } from "@/components/patient/AskPanel";
 import { percentileWordsAr, TIER_AR } from "@/lib/i18n";
 
 export default function TrajectoryPage() {
@@ -101,6 +102,7 @@ export default function TrajectoryPage() {
             <h2>{t("optionsTitle")}</h2>
             <p>{t("optionsSubtitle")}</p>
           </div>
+          <AskChip topic={{ title: t("optionsTitle"), questions: optionQuestions(sex) }} />
         </div>
         <div style={{ padding: "0 20px 20px" }}>
           <OptionsList options={record.options} audience="patient" intendedUse={record.intendedUse} />
@@ -135,8 +137,9 @@ export default function TrajectoryPage() {
               <h2>{t("shapedTitle")}</h2>
               <p>{t("shapedSubtitle")}</p>
             </div>
+            <AskChip topic={{ title: t("shapedTitle"), questions: ["What shaped my latest assessment?", "Which of these factors can I change?", "Why does age matter so much?"] }} />
           </div>
-          <ShapChart factors={latest.factors} />
+          <ShapChart factors={latest.factors} audience="patient" />
         </section>
       )}
 
@@ -163,18 +166,30 @@ function Headline({ a, sex }: { a: AssessmentView; sex: string | null }) {
         <em>{t("released")} {a.reviewedAt ? shortDate(a.reviewedAt) : shortDate(a.createdAt)}</em>
       </div>
       <div className="assessment-summary">
-        <span className="soft-pill light-pill">
-          <BadgeCheck size={14} /> {t("reviewedBadge")}
-        </span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span className="soft-pill light-pill">
+            <BadgeCheck size={14} /> {t("reviewedBadge")}
+          </span>
+          <AskChip
+            className="on-dark"
+            topic={{
+              title: sex === "female" ? t("eggReserve") : t("semenHealth"),
+              questions:
+                sex === "female"
+                  ? ["What does my AMH result mean?", "Does AMH tell me whether I can get pregnant?", "When should I see a specialist?"]
+                  : ["Is my sperm concentration in the normal range?", "What lifestyle changes does WHO recommend?", "When should we see a specialist?"]
+            }}
+          />
+        </div>
         <h2>{tier.summary || "Your clinician has reviewed your latest results."}</h2>
         {a.percentile !== null && sex === "female" && (
           <p>
-            {t("amhIs")} {ar ? percentileWordsAr(a.percentile) : percentileWords(a.percentile)} ({t("aroundPercentile", { n: Math.round(a.percentile * 2) })}).
+            {t("amhIs")} {ar ? percentileWordsAr(a.percentile) : percentileWords(a.percentile)}.
           </p>
         )}
         {a.clinicianNote && <Note text={a.clinicianNote} light />}
         <div style={{ maxWidth: 420, marginTop: 14 }}>
-          <Completeness value={a.completeness} missing={a.missingOptional} />
+          <Completeness value={a.completeness} missing={a.missingOptional} audience="patient" />
         </div>
       </div>
     </section>
@@ -188,4 +203,12 @@ function Note({ text, light = false }: { text: string; light?: boolean }) {
       <BadgeCheck size={15} aria-hidden /> <span><strong>{t("fromClinician")}</strong> <span dir="auto">{text}</span></span>
     </p>
   );
+}
+
+function optionQuestions(sex: string | null): string[] {
+  return sex === "female"
+    ? ["When should I see a specialist?", "Who can have social egg freezing under Thiqa?", "What happens at a fertility consultation?"]
+    : sex === "male"
+      ? ["When should we see a specialist?", "What lifestyle changes does WHO recommend?", "Can sperm be frozen before treatment?"]
+      : ["When should we see a specialist?", "Who can see my information?"];
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FlaskConical, MoonStar, Scale, Wind } from "lucide-react";
-import { api, userMessage } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { useLocale } from "@/components/i18n/LocaleContext";
 
 interface WhatIfResult {
@@ -34,10 +34,17 @@ export function WhatIf({ currentBmi }: { currentBmi: number | null }) {
           setResult(r);
           setError("");
         })
-        .catch((err) => setError(userMessage(err, "The simulator is not available right now.")));
+        // The simulator needs the model service; say so plainly rather than show a server error.
+        .catch(() =>
+          setError(
+            ar
+              ? "المحاكي غير متاح الآن لأن خدمة النموذج لا تستجيب. سجلك لم يتغيّر."
+              : "The simulator isn't available right now because the model service isn't responding. Your record is unchanged."
+          )
+        );
     }, 250);
     return () => clearTimeout(id);
-  }, [bmi]);
+  }, [bmi, ar]);
 
   return (
     <section className="panel whatif" style={{ marginBottom: 16 }}>

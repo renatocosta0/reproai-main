@@ -8,6 +8,7 @@ import { SOURCE_LABELS } from "@/lib/device-import";
 import { usePatient } from "@/components/patient/PatientContext";
 import { useObservations } from "@/components/patient/useObservations";
 import { TemperatureChart } from "@/components/charts/TemperatureChart";
+import { AskChip } from "@/components/patient/AskPanel";
 import { SleepChart } from "@/components/charts/SleepChart";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
@@ -64,9 +65,9 @@ const S = {
     saving: "Saving…",
     saveTimeline: "Save to my timeline",
     bbtTitle: "Basal body temperature",
-    bbtSub: "LOINC 8310-5 · Oral readings at wake time",
-    biTitle: "Biphasic pattern detected",
-    biText: (shift: string, cover: string) => `A sustained rise of ${shift}°C above your earlier readings (coverline ${cover}°C) is consistent with ovulation. Your clinician can review this alongside other findings.`,
+    bbtSub: "Taken by mouth each morning, before getting up. Tap the chart to read any day.",
+    biTitle: "Your temperature rose and stayed up",
+    biText: (shift: string, _cover: string) => `Your morning temperature rose by about ${shift}°C and stayed higher. This kind of rise usually follows ovulation. Your clinician can review it alongside your other results.`,
     monoTitle: "No sustained rise yet",
     monoText: (n: number, shift: string, thr: string) => `Across ${n} readings the largest rise is ${shift}°C, below the ${thr}°C usually seen after ovulation. Single cycles vary; your care team looks at this over time.`,
     buildTitle: "Building your pattern",
@@ -74,7 +75,7 @@ const S = {
     noTempTitle: "No temperature readings yet",
     noTempText: "Log your basal temperature each morning, or import readings from your thermometer or wearable app.",
     sleepTitle: "Sleep duration",
-    sleepSub: (n: number) => `LOINC 93832-4 · Last ${n} nights, 7-night average line`,
+    sleepSub: (n: number) => `Last ${n} nights. The line is your 7-night average; the dashed line is 7 hours.`,
     irregular: "Your sleep has been irregular",
     steady: "Your sleep looks steady",
     sleepStats: (mean: string, sd: string) => `Average ${mean} per night, varying by about ${sd} night to night.`,
@@ -121,9 +122,9 @@ const S = {
     saving: "جارٍ الحفظ…",
     saveTimeline: "حفظ في سجلي الزمني",
     bbtTitle: "درجة حرارة الجسم الأساسية",
-    bbtSub: "LOINC 8310-5 · قراءات فموية عند الاستيقاظ",
-    biTitle: "رُصد نمط ثنائي الطور",
-    biText: (shift: string, cover: string) => `ارتفاع مستمر بمقدار ${shift}°م فوق قراءاتك السابقة (خط الأساس ${cover}°م) يتوافق مع حدوث الإباضة. يمكن لطبيبك مراجعة ذلك مع النتائج الأخرى.`,
+    bbtSub: "تُقاس بالفم كل صباح قبل النهوض. المس المخطط لقراءة أي يوم.",
+    biTitle: "ارتفعت حرارتك وبقيت مرتفعة",
+    biText: (shift: string, _cover: string) => `ارتفعت حرارتك الصباحية بنحو ${shift}°م وبقيت أعلى. يحدث هذا النوع من الارتفاع عادةً بعد الإباضة. يمكن لطبيبك مراجعته مع نتائجك الأخرى.`,
     monoTitle: "لا يوجد ارتفاع مستمر بعد",
     monoText: (n: number, shift: string, thr: string) => `عبر ${n} قراءة، أكبر ارتفاع هو ${shift}°م، وهو أقل من ${thr}°م الذي يُلاحظ عادة بعد الإباضة. تختلف الدورات من واحدة لأخرى، ويتابع فريق رعايتك ذلك مع الوقت.`,
     buildTitle: "جارٍ بناء نمطك",
@@ -131,7 +132,7 @@ const S = {
     noTempTitle: "لا توجد قراءات حرارة بعد",
     noTempText: "سجّل حرارتك الأساسية كل صباح، أو استورد القراءات من مقياس الحرارة أو تطبيق جهازك.",
     sleepTitle: "مدة النوم",
-    sleepSub: (n: number) => `LOINC 93832-4 · آخر ${n} ليلة، مع خط متوسط ٧ ليالٍ`,
+    sleepSub: (n: number) => `آخر ${n} ليلة. الخط هو متوسط ٧ ليالٍ، والخط المتقطع ٧ ساعات.`,
     irregular: "كان نومك غير منتظم",
     steady: "يبدو نومك منتظمًا",
     sleepStats: (mean: string, sd: string) => `المتوسط ${mean} في الليلة، ويتفاوت بنحو ${sd} من ليلة لأخرى.`,
@@ -358,6 +359,7 @@ export default function WearablesPage() {
               <h2>{L.bbtTitle}</h2>
               <p>{L.bbtSub}</p>
             </div>
+            <AskChip topic={{ title: L.bbtTitle, questions: ["What does a rise in basal body temperature mean?", "How should I measure my morning temperature?", "Can basal body temperature confirm ovulation?"] }} />
           </div>
           {loading ? (
             <div className="loading-block" />
@@ -405,6 +407,7 @@ export default function WearablesPage() {
             <h2>{L.sleepTitle}</h2>
             <p>{L.sleepSub(sleepPts.length || 30)}</p>
           </div>
+          <AskChip topic={{ title: L.sleepTitle, questions: ["How does sleep affect fertility?", "What lifestyle changes does WHO recommend?"] }} />
         </div>
         {loading ? (
           <div className="loading-block" />

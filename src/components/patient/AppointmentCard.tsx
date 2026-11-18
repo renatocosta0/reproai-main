@@ -190,7 +190,7 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
   }
 
   if (!appointment) {
-    if (loadError) return <p style={{ color: "var(--muted, #64748b)", fontSize: 13 }}>{loadError}</p>;
+    if (loadError) return <p className="appt-sub" style={{ fontSize: 13 }}>{loadError}</p>;
     return null;
   }
 
@@ -202,14 +202,7 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
   if (status === "SCHEDULED") {
     return (
       <article
-        className="panel"
-        style={{
-          margin: "0 0 16px",
-          padding: "16px 20px",
-          borderRadius: 14,
-          border: "1px solid rgba(99,214,147,0.4)",
-          background: "rgba(240,253,244,0.8)"
-        }}
+        className="panel appt-card appt-scheduled"
       >
         <div
           style={{
@@ -238,9 +231,8 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
           {!showCancelForm && (
             <button
               type="button"
-              className="ghost compact"
               onClick={() => setShowCancelForm(true)}
-              style={{ fontSize: 12, color: "#ef4444", display: "inline-flex", alignItems: "center", gap: 4 }}
+              className="ghost compact appt-cancel" style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
             >
               <CalendarOff size={13} /> {L.cancelBtn}
             </button>
@@ -248,16 +240,17 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
         </div>
         <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>{L.scheduledTitle}</h3>
         {appointment.slot && (
-          <p style={{ margin: "0 0 4px", fontSize: 13.5, color: "#334155", display: "flex", alignItems: "center", gap: 6 }}>
+          <p style={{ margin: "0 0 4px", fontSize: 13.5, display: "flex", alignItems: "center", gap: 6 }}>
             <Clock size={13} /> {appointment.slot}
           </p>
         )}
         {appointment.reason && (
-          <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>{appointment.reason}</p>
+          <p className="appt-sub" style={{ margin: 0, fontSize: 13 }}>{appointment.reason}</p>
         )}
         {showCancelForm && (
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <textarea
+              className="appt-note"
               rows={2}
               placeholder={L.cancelNotePlaceholder}
               value={cancelNote}
@@ -266,7 +259,6 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 8,
-                border: "1px solid #cbd5e1",
                 fontSize: 13,
                 fontFamily: "inherit",
                 resize: "vertical"
@@ -297,21 +289,14 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
   if (status === "IN_FOLLOW_UP") {
     return (
       <article
-        className="panel"
-        style={{
-          margin: "0 0 16px",
-          padding: "14px 18px",
-          borderRadius: 12,
-          border: "1px solid #bfdbfe",
-          background: "#eff6ff"
-        }}
+        className="panel appt-card appt-followup"
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <CalendarClock size={16} color="#3b82f6" />
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6" }}>{L.followUpBadge}</span>
+          <CalendarClock size={16} className="appt-badge" />
+          <span className="appt-badge" style={{ fontSize: 12, fontWeight: 700 }}>{L.followUpBadge}</span>
         </div>
         <p style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 600 }}>{L.followUpTitle}</p>
-        <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>{L.followUpSub}</p>
+        <p className="appt-sub" style={{ margin: 0, fontSize: 13 }}>{L.followUpSub}</p>
       </article>
     );
   }
@@ -320,27 +305,20 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
   if (status === "SUGGESTED") {
     return (
       <article
-        className="panel"
-        style={{
-          margin: "0 0 16px",
-          padding: "16px 20px",
-          borderRadius: 14,
-          border: "1px solid rgba(129,140,248,0.35)",
-          background: "rgba(238,242,255,0.8)"
-        }}
+        className="panel appt-card appt-suggested"
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <CalendarClock size={15} color="#6366f1" />
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#6366f1" }}>{L.suggestedBadge}</span>
+          <CalendarClock size={15} className="appt-badge" />
+          <span className="appt-badge" style={{ fontSize: 12, fontWeight: 700 }}>{L.suggestedBadge}</span>
         </div>
         <h3 style={{ margin: "0 0 8px", fontSize: 15.5, fontWeight: 700 }}>{L.suggestedTitle}</h3>
         {appointment.slot && (
-          <p style={{ margin: "0 0 4px", fontSize: 13.5, color: "#334155" }}>
+          <p style={{ margin: "0 0 4px", fontSize: 13.5 }}>
             <strong>{L.suggestedSlot}</strong> {appointment.slot}
           </p>
         )}
         {appointment.reason && (
-          <p style={{ margin: "0 0 12px", fontSize: 13, color: "#64748b" }}>
+          <p className="appt-sub" style={{ margin: "0 0 12px", fontSize: 13 }}>
             <strong>{L.suggestedReason}</strong> {appointment.reason}
           </p>
         )}
@@ -370,6 +348,7 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <textarea
+              className="appt-note"
               rows={2}
               placeholder={L.declineNotePlaceholder}
               value={declineNote}
@@ -378,7 +357,6 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 8,
-                border: "1px solid #cbd5e1",
                 fontSize: 13,
                 fontFamily: "inherit",
                 resize: "vertical"
@@ -408,14 +386,7 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
   if (status === "REQUESTED") {
     return (
       <article
-        className="panel"
-        style={{
-          margin: "0 0 16px",
-          padding: "16px 20px",
-          borderRadius: 14,
-          border: "1px solid #fed7aa",
-          background: "#fff7ed"
-        }}
+        className="panel appt-card appt-requested"
       >
         <div
           style={{
@@ -428,10 +399,10 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
           }}
         >
           <span
+            className="appt-badge"
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: "#ea580c",
               display: "inline-flex",
               alignItems: "center",
               gap: 6
@@ -442,19 +413,19 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
           {!showCancelForm && (
             <button
               type="button"
-              className="ghost compact"
               onClick={() => setShowCancelForm(true)}
-              style={{ fontSize: 12, color: "#ef4444", display: "inline-flex", alignItems: "center", gap: 4 }}
+              className="ghost compact appt-cancel" style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
             >
               <X size={13} /> {L.cancelBtn}
             </button>
           )}
         </div>
         <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700 }}>{L.requestedTitle}</h3>
-        <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>{L.requestedSub}</p>
+        <p className="appt-sub" style={{ margin: 0, fontSize: 13 }}>{L.requestedSub}</p>
         {showCancelForm && (
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <textarea
+              className="appt-note"
               rows={2}
               placeholder={L.cancelNotePlaceholder}
               value={cancelNote}
@@ -463,7 +434,6 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: 8,
-                border: "1px solid #cbd5e1",
                 fontSize: 13,
                 fontFamily: "inherit",
                 resize: "vertical"
@@ -493,13 +463,8 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
   // ── NONE — Patient request form ───────────────────────────────────────────
   return (
     <article
-      className="panel"
+      className="panel appt-card appt-none"
       style={{
-        margin: "0 0 16px",
-        padding: "16px 20px",
-        background: "var(--panel, #ffffff)",
-        border: "1px solid var(--border, #e2e8f0)",
-        borderRadius: 14,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -509,7 +474,7 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
     >
       <div style={{ maxWidth: 540 }}>
         <h4 style={{ margin: "0 0 4px", fontSize: 14.5, fontWeight: 700 }}>{L.noneTitle}</h4>
-        <p style={{ margin: 0, fontSize: 12.5, color: "var(--muted, #64748b)", lineHeight: 1.4 }}>{L.noneSub}</p>
+        <p className="appt-sub" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.4 }}>{L.noneSub}</p>
       </div>
       {error && <FormError>{error}</FormError>}
       <button

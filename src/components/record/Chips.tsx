@@ -40,14 +40,25 @@ export function EvidenceChip({ text }: { text?: string | null }) {
 }
 
 /** Data completeness meter (0–1). */
-export function Completeness({ value, missing }: { value: number | null; missing?: string[] }) {
-  const { t } = useLocale();
+export function Completeness({ value, missing, audience = "clinician" }: { value: number | null; missing?: string[]; audience?: "patient" | "clinician" }) {
+  const { t, locale } = useLocale();
+  const ar = locale === "ar";
   if (value === null) return null;
   const pct = Math.round(value * 100);
   return (
     <div className="completeness" title={missing?.length ? `Missing: ${missing.join(", ")}` : undefined}>
       <div className="completeness-head">
-        <span>{t("completeness")}</span>
+        <span>
+          {audience === "patient"
+            ? pct >= 100
+              ? ar
+                ? "كل النتائج اللازمة لهذا التقدير مسجّلة"
+                : "All the results this estimate uses are on record"
+              : ar
+                ? "النتائج المسجّلة من بين ما يستخدمه هذا التقدير"
+                : "Results on record, of those this estimate uses"
+            : t("completeness")}
+        </span>
         <strong>{pct}%</strong>
       </div>
       <div className="completeness-bar">

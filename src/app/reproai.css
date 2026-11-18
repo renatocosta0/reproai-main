@@ -4009,3 +4009,302 @@ html[dir="rtl"] .switch.on i { right: 23px; }
   .report-section { border-color: #ccc; background: #fff !important; }
   .case-report button, .case-report .review-actions { display: none !important; }
 }
+
+/* Patient appointment card. Colours live here (not inline) so postcss/dark-theme.js
+   derives the dark theme; inline colours were unreadable in dark mode. */
+.appt-card {
+  margin: 0 0 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid #e3eae6;
+  background: #ffffff;
+  color: #173330;
+}
+.appt-card h3,
+.appt-card h4 {
+  color: #173330;
+}
+.appt-card .appt-sub {
+  color: #5f716d;
+}
+.appt-card .appt-badge {
+  color: #0c655e;
+}
+.appt-scheduled {
+  border-color: #b9dccd;
+  background: #eef8f3;
+}
+.appt-suggested,
+.appt-followup {
+  border-color: #c4ddd7;
+  background: #f1f7f5;
+}
+.appt-requested {
+  border-color: #ecd9bd;
+  background: #fbf6ee;
+}
+.appt-requested .appt-badge {
+  color: #a8641f;
+}
+.appt-card .appt-cancel {
+  color: #c45a4d;
+}
+.appt-card .appt-note {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d5dfdb;
+  background: #ffffff;
+  color: #173330;
+}
+
+/* Chart read-out (ChartHover): hover, tap or arrow keys show the exact value and date. */
+.marker-plot {
+  position: relative;
+}
+.marker-plot svg {
+  display: block;
+  width: 100%;
+}
+.chart-hover {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  cursor: crosshair;
+  touch-action: pan-y;
+  border-radius: 6px;
+}
+.chart-hover:focus-visible {
+  outline: 2px solid #0c655e;
+  outline-offset: 2px;
+}
+.chart-hover-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed #9fb3ad;
+  pointer-events: none;
+}
+.chart-hover-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  border: 2px solid #0c655e;
+  background: #ffffff;
+  pointer-events: none;
+}
+.chart-hover-tip {
+  position: absolute;
+  top: 2px;
+  transform: translate(-50%, 0);
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #173330;
+  color: #f2f7f5; /* dark-theme: ignore */
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px #17333026;
+}
+.chart-hover-tip.start {
+  transform: translate(8px, 0);
+}
+.chart-hover-tip.end {
+  transform: translate(calc(-100% - 8px), 0);
+}
+.chart-hover-tip b {
+  font-weight: 700;
+  margin-inline-end: 4px;
+}
+
+/* "Ask" chips and the side panel (AskPanel). */
+.ask-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid #c4ddd7;
+  border-radius: 999px;
+  background: #f1f7f5;
+  color: #0c655e;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ask-chip:hover {
+  background: #dff2e9;
+}
+.ask-chip:focus-visible {
+  outline: 2px solid #0c655e;
+  outline-offset: 2px;
+}
+.ask-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(23, 51, 48, 0.28);
+}
+.ask-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  inset-inline-end: 0;
+  z-index: 61;
+  width: min(440px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-inline-start: 1px solid #e3eae6;
+  box-shadow: -12px 0 32px #17333024;
+  outline: none;
+  animation: ask-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes ask-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ask-panel {
+    animation: none;
+  }
+}
+.ask-panel header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #e3eae6;
+}
+.ask-panel header h2 {
+  margin: 4px 0 2px;
+  font-size: 18px;
+  color: #173330;
+}
+.ask-panel header p {
+  margin: 0;
+  color: #71817d;
+  font-size: 12.5px;
+}
+.ask-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #0c655e;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ask-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ask-question {
+  align-self: flex-end;
+  margin: 0 0 8px auto;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px 12px 4px 12px;
+  background: #0c655e;
+  color: #ffffff;
+  font-size: 13.5px;
+  width: fit-content;
+}
+.ask-thinking,
+.ask-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #71817d;
+  font-size: 13px;
+}
+.ask-error {
+  color: #b5544a;
+}
+.ask-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ask-suggestions button {
+  text-align: start;
+  padding: 10px 12px;
+  border: 1px solid #e3eae6;
+  border-radius: 10px;
+  background: #f8faf9;
+  color: #173330;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.ask-suggestions button:hover:not(:disabled) {
+  border-color: #b9dccd;
+  background: #eef8f3;
+}
+.ask-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid #e3eae6;
+}
+.ask-form input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid #d5dfdb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #173330;
+  font: inherit;
+  font-size: 13.5px;
+}
+.ask-panel footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 14px;
+}
+.ask-panel footer small {
+  color: #71817d;
+  font-size: 11.5px;
+}
+.ask-panel footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #0c655e;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.panel-head .ask-chip,
+.marker-card header .ask-chip {
+  margin-top: 2px;
+}
+.marker-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ask-chip.on-dark {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+.shap-word {
+  font-size: 12px;
+  font-weight: 600;
+}
