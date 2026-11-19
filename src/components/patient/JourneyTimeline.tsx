@@ -337,7 +337,7 @@ function Details({ e, L, ar }: { e: TimelineEvent; L: Strings; ar: boolean }) {
     case "appointment":
       return (
         <div className="timeline-details">
-          <p>{formatAppointmentSlotForDisplay(e.slot, ar ? "ar" : "en")}</p>
+          {e.slot && <p>{formatAppointmentSlotForDisplay(e.slot, ar ? "ar" : "en")}</p>}
         </div>
       );
   }
