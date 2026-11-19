@@ -38,6 +38,9 @@
    light stylesheet by postcss/dark-theme.js; the tokens below cover what CSS rules
    cannot reach: inline SVG charts and inline gradients. */
 :root {
+  --font-dm-sans: "Segoe UI";
+  --font-manrope: "Segoe UI";
+  --font-arabic: Tahoma;
   color-scheme: light;
   --chart-grid: #e9eeeb;
   --chart-axis: #dfe7e3;

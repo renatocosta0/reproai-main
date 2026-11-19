@@ -11,6 +11,7 @@ import {
   suggestSlotByClinician,
   confirmBookingByClinician,
   cancelAppointment,
+  getPatientAppointmentState,
   // backward-compat aliases
   confirmAppointmentByPatient,
   suggestAppointmentByClinician
@@ -84,6 +85,21 @@ describe("Note parsing helpers", () => {
 });
 
 describe("Patient: request appointment", () => {
+  it("shows the clinician recommendation while the alert is open", async () => {
+    (prisma.followUp.findFirst as any).mockResolvedValue({
+      ...baseFollowUp,
+      note: "Please schedule a follow-up consultation to review your care plan."
+    });
+
+    const appointment = await getPatientAppointmentState("user-1");
+
+    expect(appointment).toMatchObject({
+      status: "ALERT",
+      followUpId: "fu-1",
+      note: "Please schedule a follow-up consultation to review your care plan."
+    });
+  });
+
   it("creates CONSULTATION_REQUESTED when no active follow-up exists", async () => {
     (prisma.followUp.findFirst as any).mockResolvedValue(null);
     (prisma.followUp.create as any).mockResolvedValue({

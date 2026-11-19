@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getNotificationsForUser, markNotificationAsRead } from "@/lib/notifications";
+import {
+  getNotificationsForUser,
+  getUnreadNotificationCount,
+  markNotificationAsRead
+} from "@/lib/notifications";
 
 // GET /api/notifications
 // Retrieves in-app care notifications for the authenticated user.
@@ -10,13 +14,17 @@ export async function GET() {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  const notifications = getNotificationsForUser(session.userId);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const [notifications, unreadCount] = await Promise.all([
+    getNotificationsForUser(session.userId),
+    getUnreadNotificationCount(session.userId)
+  ]);
 
   return NextResponse.json({
     ok: true,
     notifications,
     unreadCount
+  }, {
+    headers: { "Cache-Control": "private, no-store, max-age=0" }
   });
 }
 
@@ -35,6 +43,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Notification id required" }, { status: 400 });
   }
 
-  const success = markNotificationAsRead(session.userId, id);
+  const success = await markNotificationAsRead(session.userId, id);
   return NextResponse.json({ ok: success });
 }

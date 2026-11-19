@@ -3,6 +3,7 @@
 
 export type AppointmentStatus =
   | "NONE"
+  | "ALERT"
   | "REQUESTED"
   | "SUGGESTED"
   | "ACCEPTED"

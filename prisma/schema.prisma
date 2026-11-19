@@ -1,7 +1,8 @@
 // ReproAI data model. No seed/mock data is provided; the database starts empty.
-// NOTE: SQLite does not support native enums. Role and FollowUpStatus are stored
-// as plain String columns. Valid values: Role = "PATIENT" | "CLINICIAN";
-// FollowUpStatus = "ALERT_RAISED" | "APPOINTMENT_SCHEDULED" | "IN_FOLLOW_UP" | "CLOSED" | "LOST"
+// Role and FollowUpStatus are stored as plain String columns. Valid values:
+// Role = "PATIENT" | "CLINICIAN";
+// FollowUpStatus = "ALERT_RAISED" | "CONSULTATION_REQUESTED" | "APPOINTMENT_SUGGESTED" |
+//                  "APPOINTMENT_SCHEDULED" | "IN_FOLLOW_UP" | "APPOINTMENT_CANCELLED" | "CLOSED" | "LOST"
 
 generator client {
   provider = "prisma-client-js"
@@ -28,6 +29,7 @@ model User {
   patientProfile      Patient?
   observations        Observation[]
   predictions         Prediction[]
+  careNotifications   CareNotification[]
   sentPairingInvites  PairingInvite[] @relation("SentPairingInvites")
   labResults          LabResult[]
   consents            Consent[]
@@ -43,6 +45,23 @@ model Couple {
   observations Observation[]
   followUps    FollowUp[]
   invitations  Invitation[]
+}
+
+/// Durable in-app notifications. Push subscriptions are intentionally not
+/// modeled until a delivery provider is configured.
+model CareNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  type      String
+  url       String   @default("/patient/overview")
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt, createdAt])
 }
 
 model Patient {
@@ -173,7 +192,8 @@ model FollowUp {
   id        String         @id @default(cuid())
   couple    Couple         @relation(fields: [coupleId], references: [id])
   coupleId  String
-  /// One of: ALERT_RAISED | APPOINTMENT_SCHEDULED | IN_FOLLOW_UP | CLOSED | LOST
+  /// One of: ALERT_RAISED | CONSULTATION_REQUESTED | APPOINTMENT_SUGGESTED |
+  /// APPOINTMENT_SCHEDULED | IN_FOLLOW_UP | APPOINTMENT_CANCELLED | CLOSED | LOST
   status    String @default("ALERT_RAISED")
   note      String?
   updatedAt DateTime       @updatedAt

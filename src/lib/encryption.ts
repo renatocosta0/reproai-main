@@ -85,6 +85,8 @@ export function decrypt(payload: string): string {
 export const SENSITIVE_FIELDS = new Set([
   "historyFlags",
   "clinicianNote",
+  "title",
+  "body",
   "factors",
   "inputs",
   "note",

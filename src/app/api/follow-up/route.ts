@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { FOLLOW_UP_STATUSES } from "@/lib/follow-up";
+import { FOLLOW_UP_STATUSES, canManuallyTransitionFollowUp, type FollowUpStatus } from "@/lib/follow-up";
 import { getSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { clinicianCaseIds, canAccessCase } from "@/lib/clinician-scope";
+import { openFollowUpByClinician } from "@/lib/follow-up-server";
 
 // Closed-loop follow-up records (clinician only). Operates only on persisted
 // data; no records are fabricated.
@@ -60,10 +61,11 @@ export async function POST(req: NextRequest) {
     if (!(await canAccessCase(session.userId, body.coupleId))) {
       return NextResponse.json({ error: "This case is not in your care list" }, { status: 403 });
     }
-    const item = await prisma.followUp.create({
-      data: { coupleId: body.coupleId, note: typeof body.note === "string" ? body.note.trim() || null : null }
-    });
-    await audit(session.userId, "follow_up_opened", `follow_up:${item.id}:couple:${body.coupleId}`);
+    const item = await openFollowUpByClinician(
+      session.userId,
+      body.coupleId,
+      typeof body.note === "string" ? body.note : undefined
+    );
     return NextResponse.json({ item }, { status: 201 });
   } catch (error: any) {
     console.error("[POST /api/follow-up] error:", error);
@@ -83,6 +85,12 @@ export async function PATCH(req: NextRequest) {
     const existing = await prisma.followUp.findUnique({ where: { id: body.id } });
     if (!existing || !(await canAccessCase(session.userId, existing.coupleId))) {
       return NextResponse.json({ error: "Follow-up not found" }, { status: 404 });
+    }
+    if (!canManuallyTransitionFollowUp(existing.status as FollowUpStatus, body.status as FollowUpStatus)) {
+      return NextResponse.json(
+        { error: "This transition must be completed through the appointment workflow." },
+        { status: 409 }
+      );
     }
     const item = await prisma.followUp.update({
       where: { id: body.id },

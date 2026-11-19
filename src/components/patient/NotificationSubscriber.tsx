@@ -11,7 +11,7 @@ export function NotificationSubscriber() {
   const [activeToast, setActiveToast] = useState<CareNotification | null>(null);
   const [lastSeenId, setLastSeenId] = useState<string | null>(null);
 
-  // 1. Register Service Worker and request native Notification permissions
+  // Register the service worker without prompting for notification permission.
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -20,44 +20,35 @@ export function NotificationSubscriber() {
         // Service worker registration optional in non-HTTPS dev
       });
     }
-
-    if ("Notification" in window && Notification.permission === "default") {
-      // Non-blocking permission request
-      Notification.requestPermission().then((perm) => {
-        if (perm === "granted") {
-          void api("/api/notifications/subscribe", {
-            method: "POST",
-            body: JSON.stringify({
-              endpoint: `browser-${Date.now()}`,
-              platform: /iPhone|iPad/.test(navigator.userAgent) ? "ios" : "web"
-            })
-          }).catch(() => {});
-        }
-      });
-    }
   }, []);
 
-  // 2. Poll for real-time care updates (checks every 8s)
+  // Poll while the portal is open. The persistent inbox handles anything a
+  // presenter or user did not see in a toast.
   useEffect(() => {
     let mounted = true;
 
     async function checkNotifications() {
+      if (activeToast) return;
       try {
         const res = await api<{ ok: boolean; notifications: CareNotification[]; unreadCount: number }>("/api/notifications");
         if (!mounted || !res.ok) return;
 
-        const latest = res.notifications[0];
-        if (latest && !latest.read && latest.id !== lastSeenId) {
-          setLastSeenId(latest.id);
-          setActiveToast(latest);
+        const nextUnread = res.notifications.find((notification) => !notification.read && notification.id !== lastSeenId);
+        if (nextUnread) {
+          setLastSeenId(nextUnread.id);
+          setActiveToast(nextUnread);
 
-          // If window is backgrounded or device is locked, fire native notification
+          // Show a browser notification only when the user already granted permission.
           if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && document.hidden) {
-            new Notification(latest.title, {
-              body: latest.body,
-              icon: "/logo.svg",
-              tag: "reproai-update"
-            });
+            const registration = await navigator.serviceWorker?.getRegistration();
+            if (registration) {
+              await registration.showNotification(nextUnread.title, {
+                body: nextUnread.body,
+                icon: "/logo.svg",
+                tag: nextUnread.id,
+                data: { url: nextUnread.url }
+              });
+            }
           }
         }
       } catch {
@@ -65,23 +56,28 @@ export function NotificationSubscriber() {
       }
     }
 
-    const interval = setInterval(checkNotifications, 8000);
+    const interval = setInterval(checkNotifications, 2000);
     void checkNotifications();
 
     return () => {
       mounted = false;
       clearInterval(interval);
     };
-  }, [lastSeenId]);
+  }, [lastSeenId, activeToast?.id]);
 
   if (!activeToast) return null;
 
   async function handleDismiss() {
     if (activeToast) {
-      void api("/api/notifications", {
-        method: "PATCH",
-        body: JSON.stringify({ id: activeToast.id })
-      }).catch(() => {});
+      try {
+        const result = await api<{ ok: boolean }>("/api/notifications", {
+          method: "PATCH",
+          body: JSON.stringify({ id: activeToast.id })
+        });
+        if (!result?.ok) return;
+      } catch {
+        return;
+      }
     }
     setActiveToast(null);
   }
@@ -128,7 +124,7 @@ export function NotificationSubscriber() {
         </div>
         <p style={{ margin: 0, fontSize: 12.5, color: "#cbd5e1", lineHeight: 1.4 }}>{activeToast.body}</p>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 6, fontSize: 11.5, color: "#60a5fa", fontWeight: 500 }}>
-          <Sparkles size={12} /> Tap to view recommendation
+          <Sparkles size={12} /> Open care update
         </span>
       </div>
 

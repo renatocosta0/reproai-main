@@ -1,10 +1,51 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { prisma } from "@/lib/db";
 import {
   dispatchCareNotification,
   getNotificationsForUser,
-  markNotificationAsRead,
-  registerPushSubscription
+  markNotificationAsRead
 } from "./notifications";
+
+const notificationRows = vi.hoisted(() => new Map<string, any>());
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    user: {
+      findFirst: vi.fn(async ({ where }: any) => ({ id: where.id }))
+    },
+    invitation: { findMany: vi.fn().mockResolvedValue([]) },
+    consent: { findMany: vi.fn().mockResolvedValue([]) },
+    careNotification: {
+      create: vi.fn(async ({ data }: any) => {
+        const record = { id: `notif-${notificationRows.size + 1}`, ...data, readAt: null, createdAt: new Date() };
+        notificationRows.set(record.id, record);
+        return record;
+      }),
+      findMany: vi.fn(async ({ where }: any) =>
+        [...notificationRows.values()].filter((row) => row.userId === where.userId)
+      ),
+      count: vi.fn(async ({ where }: any) =>
+        [...notificationRows.values()].filter((row) => row.userId === where.userId && row.readAt === null).length
+      ),
+      findFirst: vi.fn(async ({ where }: any) => {
+        const record = notificationRows.get(where.id);
+        return record?.userId === where.userId ? { readAt: record.readAt } : null;
+      }),
+      updateMany: vi.fn(async ({ where, data }: any) => {
+        const record = notificationRows.get(where.id);
+        if (!record || record.userId !== where.userId || record.readAt !== null) return { count: 0 };
+        record.readAt = data.readAt;
+        return { count: 1 };
+      })
+    },
+    auditLog: { create: vi.fn().mockResolvedValue({}) }
+  }
+}));
+
+beforeEach(() => {
+  notificationRows.clear();
+  vi.clearAllMocks();
+});
 
 describe("Care Notifications Engine", () => {
   it("dispatches privacy-safe care notification to target user", async () => {
@@ -13,17 +54,17 @@ describe("Care Notifications Engine", () => {
       targetUserId: testUserId,
       actorId: "test-clinician-1",
       type: "ASSESSMENT_RELEASED",
-      title: "ReproAI · Dr. Fatima",
-      body: "Your clinician reviewed your fertility results and shared new guidance. Tap to view.",
+      title: "ReproAI · Care update",
+      body: "Your care team has shared an update. Sign in to review it.",
       url: "/patient/assessment"
     });
 
     expect(notifs).toHaveLength(1);
     expect(notifs[0].userId).toBe(testUserId);
-    expect(notifs[0].title).toBe("ReproAI · Dr. Fatima");
+    expect(notifs[0].title).toBe("ReproAI · Care update");
     expect(notifs[0].read).toBe(false);
 
-    const userNotifs = getNotificationsForUser(testUserId);
+    const userNotifs = await getNotificationsForUser(testUserId);
     expect(userNotifs.length).toBeGreaterThanOrEqual(1);
     expect(userNotifs[0].id).toBe(notifs[0].id);
   });
@@ -41,26 +82,10 @@ describe("Care Notifications Engine", () => {
 
     expect(notif.read).toBe(false);
 
-    const success = markNotificationAsRead(testUserId, notif.id);
+    const success = await markNotificationAsRead(testUserId, notif.id);
     expect(success).toBe(true);
 
-    const updated = getNotificationsForUser(testUserId);
+    const updated = await getNotificationsForUser(testUserId);
     expect(updated.find((n) => n.id === notif.id)?.read).toBe(true);
-  });
-
-  it("registers device push subscription without duplicates", () => {
-    const testUserId = "test-patient-user-3";
-    registerPushSubscription(testUserId, {
-      endpoint: "https://fcm.googleapis.com/fcm/send/token-123",
-      platform: "android"
-    });
-
-    // Registering same endpoint again should not duplicate
-    registerPushSubscription(testUserId, {
-      endpoint: "https://fcm.googleapis.com/fcm/send/token-123",
-      platform: "android"
-    });
-
-    expect(true).toBe(true);
   });
 });

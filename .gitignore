@@ -13,10 +13,19 @@ node_modules/
 # env
 .env
 .env*.local
+.env.demo
+.demo-private/
+audios/
+audio_manifest.json
+video_final.mp4
+videos_raw/
+video_stills/
+captions.ass
 
 # prisma
 *.db
 *.db-journal
+*.tsbuildinfo
 
 # python
 __pycache__/

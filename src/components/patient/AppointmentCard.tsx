@@ -24,6 +24,11 @@ const S = {
     noneSub: "Have questions about your trajectory? Request a 15-minute consultation with your care team.",
     requestBtn: "Request Consultation",
     requesting: "Sending request\u2026",
+    // ALERT
+    alertBadge: "Follow-up Recommended",
+    alertTitle: "Your care team recommends a follow-up",
+    alertNote: "Recommendation from your care team:",
+    alertSub: "You can request a consultation whenever you are ready.",
     // REQUESTED
     requestedBadge: "Consultation Requested",
     requestedTitle: "Your request was sent",
@@ -65,6 +70,10 @@ const S = {
     noneSub: "\u0644\u062f\u064a\u0643 \u0627\u0633\u062a\u0641\u0633\u0627\u0631 \u062d\u0648\u0644 \u0645\u0633\u0627\u0631\u0643\u061f \u0627\u0637\u0644\u0628 \u0627\u0633\u062a\u0634\u0627\u0631\u0629 \u0645\u062f\u062a\u0647\u0627 \u0661\u0665 \u062f\u0642\u064a\u0642\u0629.",
     requestBtn: "\u0637\u0644\u0628 \u0627\u0633\u062a\u0634\u0627\u0631\u0629",
     requesting: "\u062c\u0627\u0631\u064d \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0637\u0644\u0628\u2026",
+    alertBadge: "\u064a\u064f\u0646\u0635\u062d \u0628\u0627\u0644\u0645\u062a\u0627\u0628\u0639\u0629",
+    alertTitle: "\u064a\u0648\u0635\u064a \u0641\u0631\u064a\u0642 \u0631\u0639\u0627\u064a\u062a\u0643 \u0628\u0645\u062a\u0627\u0628\u0639\u0629",
+    alertNote: "\u062a\u0648\u0635\u064a\u0629 \u0645\u0646 \u0641\u0631\u064a\u0642 \u0631\u0639\u0627\u064a\u062a\u0643:",
+    alertSub: "\u064a\u0645\u0643\u0646\u0643 \u0637\u0644\u0628 \u0627\u0633\u062a\u0634\u0627\u0631\u0629 \u0639\u0646\u062f\u0645\u0627 \u062a\u0643\u0648\u0646 \u062c\u0627\u0647\u0632\u0627\u064b.",
     requestedBadge: "\u062a\u0645 \u0637\u0644\u0628 \u0627\u0644\u0627\u0633\u062a\u0634\u0627\u0631\u0629",
     requestedTitle: "\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628\u0643",
     requestedSub: "\u0633\u064a\u0631\u0627\u062c\u0639 \u0637\u0628\u064a\u0628\u0643 \u0637\u0644\u0628\u0643 \u0648\u064a\u062d\u062f\u062f \u0645\u0648\u0639\u062f\u0627\u064b. \u0633\u062a\u0635\u0644\u0643 \u0625\u0634\u0639\u0627\u0631 \u0641\u0648\u0631 \u0627\u0644\u062a\u0623\u0643\u064a\u062f.",
@@ -195,6 +204,36 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
   }
 
   const { status } = appointment;
+
+  // ── ALERT ─────────────────────────────────────────────────────────────────
+  if (status === "ALERT") {
+    return (
+      <article className="panel appt-card appt-requested">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <CalendarClock size={15} className="appt-badge" />
+          <span className="appt-badge" style={{ fontSize: 12, fontWeight: 700 }}>{L.alertBadge}</span>
+        </div>
+        <h3 style={{ margin: "0 0 8px", fontSize: 15.5, fontWeight: 700 }}>{L.alertTitle}</h3>
+        {appointment.note && (
+          <p className="appt-sub" style={{ margin: "0 0 8px", fontSize: 13, lineHeight: 1.5 }}>
+            <strong>{L.alertNote}</strong> {appointment.note}
+          </p>
+        )}
+        <p className="appt-sub" style={{ margin: "0 0 12px", fontSize: 13 }}>{L.alertSub}</p>
+        {error && <FormError>{error}</FormError>}
+        <button
+          type="button"
+          className="primary compact"
+          onClick={handleRequest}
+          disabled={busy}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}
+        >
+          {busy ? <Loader2 size={14} className="spin" /> : <CalendarPlus size={14} />}
+          <span>{busy ? L.requesting : L.requestBtn}</span>
+        </button>
+      </article>
+    );
+  }
 
 
 

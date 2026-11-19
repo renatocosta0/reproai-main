@@ -48,6 +48,13 @@ function followUpToState(followUp: any): AppointmentState {
   const cancelNote = parseCancelNoteFromNote(followUp.note) ?? undefined;
 
   switch (followUp.status as FollowUpStatus) {
+    case "ALERT_RAISED":
+      return {
+        status: "ALERT",
+        followUpId: followUp.id,
+        note: followUp.note ?? undefined,
+        isAtRisk: isAtRisk(followUp.status, followUp.createdAt.toISOString())
+      };
     case "CONSULTATION_REQUESTED":
       return {
         status: "REQUESTED",
@@ -139,9 +146,9 @@ export async function requestAppointmentByPatient(
     caseId: coupleId,
     targetRole: "CLINICIAN",
     actorId: userId,
-    type: "APPOINTMENT_SUGGESTED",
+    type: "APPOINTMENT_REQUESTED",
     title: "ReproAI · Patient Request",
-    body: "A patient has requested a follow-up consultation. Please review and schedule a time.",
+    body: "A care case has a follow-up request. Sign in to review it.",
     url: `/clinician/patient/${coupleId}`
   }).catch((e) => console.error("Notification error:", e));
 
@@ -177,9 +184,9 @@ export async function acceptSuggestionByPatient(
     caseId: coupleId,
     targetRole: "CLINICIAN",
     actorId: userId,
-    type: "APPOINTMENT_CONFIRMED",
+    type: "APPOINTMENT_ACCEPTED",
     title: "ReproAI · Patient Accepted",
-    body: "The patient accepted your suggested slot. Please confirm and finalize the appointment.",
+    body: "A care case has accepted the suggested follow-up. Sign in to review it.",
     url: `/clinician/patient/${coupleId}`
   }).catch((e) => console.error("Notification error:", e));
 
@@ -217,9 +224,9 @@ export async function declineSuggestionByPatient(
     caseId: coupleId,
     targetRole: "CLINICIAN",
     actorId: userId,
-    type: "APPOINTMENT_SUGGESTED",
+    type: "APPOINTMENT_DECLINED",
     title: "ReproAI · Patient Declined Slot",
-    body: "The patient declined the suggested slot. Please propose a new time.",
+    body: "A care case needs a new follow-up suggestion. Sign in to review it.",
     url: `/clinician/patient/${coupleId}`
   }).catch((e) => console.error("Notification error:", e));
 
@@ -275,7 +282,7 @@ export async function suggestSlotByClinician(
     actorId: clinicianId,
     type: "APPOINTMENT_SUGGESTED",
     title: "ReproAI · Consultation Suggestion",
-    body: `Your care team suggested a follow-up: ${slot}. Tap to accept or decline.`,
+    body: "Your care team suggested a follow-up. Sign in to review the details.",
     url: "/patient/overview"
   }).catch((e) => console.error("Notification dispatch failed:", e));
 
@@ -323,7 +330,7 @@ export async function confirmBookingByClinician(
     actorId: clinicianId,
     type: "APPOINTMENT_CONFIRMED",
     title: "ReproAI · Appointment Confirmed",
-    body: `Your consultation has been confirmed for ${finalSlot}. Tap to view details.`,
+    body: "Your consultation has been confirmed. Sign in to review the details.",
     url: "/patient/overview"
   }).catch((e) => console.error("Notification error:", e));
 
@@ -363,14 +370,14 @@ export async function cancelAppointment(
   await audit(actorId, "appointment_cancelled", `follow_up:${followUpId}:APPOINTMENT_CANCELLED`);
 
   const isPatient = actorRole === "PATIENT";
-  const otherType = isPatient ? "APPOINTMENT_SUGGESTED" : "APPOINTMENT_CONFIRMED";
   await dispatchCareNotification({
     caseId: followUp.coupleId,
     targetRole: isPatient ? "CLINICIAN" : "PATIENT",
     actorId,
-    type: otherType,
+    type: "APPOINTMENT_CANCELLED",
     title: "ReproAI · Appointment Cancelled",
-    body: `The appointment was cancelled${cancelNote ? `: "${cancelNote}"` : "."}`,
+    // Keep user-entered cancellation details out of notification previews.
+    body: "An appointment was cancelled. Sign in to review the update.",
     url: actorRole === "PATIENT" ? `/clinician/patient/${followUp.coupleId}` : "/patient/overview"
   }).catch((e) => console.error("Notification error:", e));
 

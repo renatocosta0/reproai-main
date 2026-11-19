@@ -37,14 +37,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       });
       await audit(session.userId, "assessment_released", `prediction:${pred.id}`);
 
-      // Dispatch real-time lock screen & in-app notification to the patient
+      // Dispatch an in-app notification to the intended patient recipient(s).
       await dispatchCareNotification({
-        caseId: pred.coupleId,
-        targetUserId: pred.userId ?? undefined,
+        // Individual assessments go only to their owner. Joint assessments are
+        // delivered to the case members (subject to each member's sharing consent).
+        caseId: pred.scope === "COUPLE" ? pred.coupleId : undefined,
+        targetUserId: pred.scope === "INDIVIDUAL" ? pred.userId ?? undefined : undefined,
         actorId: session.userId,
         type: "ASSESSMENT_RELEASED",
-        title: "ReproAI · Dr. Fatima",
-        body: "Your clinician reviewed your fertility results and shared new guidance. Tap to view.",
+        title: "ReproAI · Care update",
+        body: "Your care team has shared an update. Sign in to review it.",
         url: "/patient/assessment"
       }).catch((e) => console.error("Notification dispatch failed:", e));
 

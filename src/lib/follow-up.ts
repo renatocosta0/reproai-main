@@ -25,6 +25,23 @@ export const STATUS_LABELS: Record<FollowUpStatus, string> = {
   LOST: "Lost in the system"
 };
 
+/**
+ * Progression that does not carry a patient-facing appointment action.
+ * Appointment requests, suggestions, confirmations and cancellations must go
+ * through appointment-server.ts so both the audit trail and notification are
+ * kept in sync.
+ */
+const MANUAL_TRANSITIONS: Partial<Record<FollowUpStatus, readonly FollowUpStatus[]>> = {
+  ALERT_RAISED: ["LOST"],
+  CONSULTATION_REQUESTED: ["LOST"],
+  APPOINTMENT_SCHEDULED: ["IN_FOLLOW_UP"],
+  IN_FOLLOW_UP: ["CLOSED", "LOST"]
+};
+
+export function canManuallyTransitionFollowUp(from: FollowUpStatus, to: FollowUpStatus): boolean {
+  return from === to || (MANUAL_TRANSITIONS[from] ?? []).includes(to);
+}
+
 // A follow-up is considered at risk of being "lost" when an alert was raised but
 // no appointment has been scheduled within the threshold.
 export function isAtRisk(status: FollowUpStatus, createdAt: string, thresholdDays = 14): boolean {

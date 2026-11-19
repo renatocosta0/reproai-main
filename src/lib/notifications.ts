@@ -1,18 +1,20 @@
-// Unified Notification Engine for ReproAI.
-// Handles multi-channel dispatch:
-// 1. Mobile Lock Screen Push (Apple APNs / Google FCM / Web Push)
-// 2. In-App Notification Center & Real-time care updates
-// 3. Privacy-safe payload formatting (Zero PHI leakage on locked device screens)
+// In-app care notification dispatch.
 
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { consentingUserIds } from "@/lib/consent";
 
 export type NotificationType =
   | "ASSESSMENT_RELEASED"
+  | "FOLLOW_UP_OPENED"
   | "INSIGHT_UPDATE"
   | "LAB_VERIFIED"
+  | "APPOINTMENT_REQUESTED"
+  | "APPOINTMENT_ACCEPTED"
+  | "APPOINTMENT_DECLINED"
   | "APPOINTMENT_SUGGESTED"
-  | "APPOINTMENT_CONFIRMED";
+  | "APPOINTMENT_CONFIRMED"
+  | "APPOINTMENT_CANCELLED";
 
 export interface CareNotification {
   id: string;
@@ -25,42 +27,56 @@ export interface CareNotification {
   createdAt: string;
 }
 
-export interface PushSubscriptionRecord {
-  endpoint: string;
-  keys?: { p256dh: string; auth: string };
-  deviceToken?: string;
-  platform?: "ios" | "android" | "web";
+function toCareNotification(record: {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  type: string;
+  url: string;
+  readAt: Date | null;
+  createdAt: Date;
+}): CareNotification {
+  return {
+    id: record.id,
+    userId: record.userId,
+    title: record.title,
+    body: record.body,
+    type: record.type as NotificationType,
+    url: record.url,
+    read: record.readAt !== null,
+    createdAt: record.createdAt.toISOString()
+  };
 }
 
-// In-process store for notification queues & device push subscriptions
-// (can be backed by Redis / table in production)
-const notificationStore = new Map<string, CareNotification[]>();
-const subscriptionStore = new Map<string, PushSubscriptionRecord[]>();
-
-/** Register or update a device push token / WebPush subscription. */
-export function registerPushSubscription(userId: string, subscription: PushSubscriptionRecord) {
-  const current = subscriptionStore.get(userId) || [];
-  // Avoid duplicate registrations for the same endpoint
-  const filtered = current.filter((s) => s.endpoint !== subscription.endpoint && s.deviceToken !== subscription.deviceToken);
-  filtered.push(subscription);
-  subscriptionStore.set(userId, filtered);
+/** Retrieve the latest notifications for an authenticated user. */
+export async function getNotificationsForUser(userId: string): Promise<CareNotification[]> {
+  const records = await prisma.careNotification.findMany({
+    where: { userId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 30
+  });
+  return records.map(toCareNotification);
 }
 
-/** Retrieve all notifications for a specific patient. */
-export function getNotificationsForUser(userId: string): CareNotification[] {
-  return notificationStore.get(userId) || [];
+export async function getUnreadNotificationCount(userId: string): Promise<number> {
+  return prisma.careNotification.count({ where: { userId, readAt: null } });
 }
 
-/** Mark a specific notification as read. */
-export function markNotificationAsRead(userId: string, notificationId: string): boolean {
-  const list = notificationStore.get(userId);
-  if (!list) return false;
-  const item = list.find((n) => n.id === notificationId);
-  if (item) {
-    item.read = true;
-    return true;
-  }
-  return false;
+/** Mark a notification as read only for its owner. Repeated calls are safe. */
+export async function markNotificationAsRead(userId: string, notificationId: string): Promise<boolean> {
+  const existing = await prisma.careNotification.findFirst({
+    where: { id: notificationId, userId },
+    select: { readAt: true }
+  });
+  if (!existing) return false;
+  if (existing.readAt) return true;
+
+  await prisma.careNotification.updateMany({
+    where: { id: notificationId, userId, readAt: null },
+    data: { readAt: new Date() }
+  });
+  return true;
 }
 
 export interface DispatchNotificationParams {
@@ -105,29 +121,24 @@ async function findClinicianIdsForCase(caseId: string): Promise<string[]> {
     }
   }
 
-  // Fallback: if no specific assigned clinician (e.g. self-registered or demo), notify all active clinicians
-  if (clinicianIds.size === 0 && prisma.user?.findMany) {
-    const clinicians = await prisma.user.findMany({
-      where: { role: "CLINICIAN" },
-      select: { id: true }
-    });
-    for (const c of clinicians) clinicianIds.add(c.id);
-  }
-
   return Array.from(clinicianIds);
 }
 
-/**
- * Dispatches a privacy-compliant notification to the patient or clinician.
- * Ensures notifications meant for clinicians never route to patients, and vice-versa.
- * Conforms to UAE ADHICS / DoH privacy standards: Lock screen text never reveals sensitive lab values.
- */
+/** Dispatch an in-app notification to role-checked recipients. */
 export async function dispatchCareNotification(params: DispatchNotificationParams): Promise<CareNotification[]> {
-  const { caseId, targetUserId, targetRole = "PATIENT", actorId, type, title, body, url = "/patient/assessment" } = params;
+  const { caseId, targetUserId, targetRole = "PATIENT", actorId, type, title, body, url = "/patient/overview" } = params;
   const recipientIds = new Set<string>();
 
   if (targetUserId) {
-    recipientIds.add(targetUserId);
+    const directRecipient = await prisma.user.findFirst({
+      where: {
+        id: targetUserId,
+        role: targetRole,
+        ...(caseId ? { coupleId: caseId } : {})
+      },
+      select: { id: true }
+    });
+    if (directRecipient) recipientIds.add(directRecipient.id);
   }
 
   if (caseId) {
@@ -143,8 +154,12 @@ export async function dispatchCareNotification(params: DispatchNotificationParam
         where: { coupleId: caseId, role: "PATIENT" },
         select: { id: true }
       });
-      for (const m of members) {
-        recipientIds.add(m.id);
+      const sharingMembers = type === "ASSESSMENT_RELEASED"
+        ? await consentingUserIds(members.map((m) => m.id), "PARTNER_SHARING")
+        : null;
+      const jointAssessmentAllowed = !sharingMembers || sharingMembers.size === members.length;
+      if (jointAssessmentAllowed) {
+        for (const m of members) recipientIds.add(m.id);
       }
     }
   }
@@ -157,25 +172,11 @@ export async function dispatchCareNotification(params: DispatchNotificationParam
   const createdNotifications: CareNotification[] = [];
 
   for (const userId of recipientIds) {
-    const notification: CareNotification = {
-      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      userId,
-      title,
-      body,
-      type,
-      url,
-      read: false,
-      createdAt: new Date().toISOString()
-    };
+    const record = await prisma.careNotification.create({
+      data: { userId, title, body, type, url }
+    });
+    createdNotifications.push(toCareNotification(record));
 
-    // 1. Add to user's in-app notification queue
-    const list = notificationStore.get(userId) || [];
-    list.unshift(notification);
-    // Keep last 30 notifications
-    notificationStore.set(userId, list.slice(0, 30));
-    createdNotifications.push(notification);
-
-    // 2. Audit the notification dispatch for clinical compliance
     await audit(actorId, "notification_dispatched", `type:${type}:recipient:${userId}`);
   }
 

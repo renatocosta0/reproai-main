@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import { caseInitials, daysSince, peopleName, shortReason } from "@/lib/format";
-import { isAtRisk, STATUS_LABELS, type FollowUpStatus } from "@/lib/follow-up";
+import { canManuallyTransitionFollowUp, isAtRisk, STATUS_LABELS, type FollowUpStatus } from "@/lib/follow-up";
 import type { FollowUpItem } from "@/types/clinician";
 import { statusLabel } from "@/lib/i18n-clinician";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
@@ -26,7 +26,6 @@ const COLUMNS: { status: FollowUpStatus; also?: FollowUpStatus[] }[] = [
 const NEXT: Partial<Record<FollowUpStatus, FollowUpStatus>> = {
   ALERT_RAISED: "APPOINTMENT_SCHEDULED",
   CONSULTATION_REQUESTED: "APPOINTMENT_SCHEDULED",
-  APPOINTMENT_SUGGESTED: "APPOINTMENT_SCHEDULED",
   APPOINTMENT_SCHEDULED: "IN_FOLLOW_UP",
   IN_FOLLOW_UP: "CLOSED"
 };
@@ -242,23 +241,16 @@ function CaseModal({
   onRemove: () => void;
 }) {
   const [status, setStatus] = useState<FollowUpStatus>(item.status as FollowUpStatus);
-  const [slot, setSlot] = useState(parseSlotFromNote(item.note) ?? "");
-  const [slotError, setSlotError] = useState("");
   const [note, setNote] = useState(item.note ?? "");
   const name = peopleName(item.patients, item.emails);
   const { L, locale, ago } = useClinicianText();
+  const selectableStatuses = (Object.keys(STATUS_LABELS) as FollowUpStatus[]).filter(
+    (candidate) => canManuallyTransitionFollowUp(item.status as FollowUpStatus, candidate)
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (status === "APPOINTMENT_SCHEDULED" && !slot.trim()) {
-      setSlotError("Date and time is required to schedule an appointment.");
-      return;
-    }
-    const finalNote =
-      status === "APPOINTMENT_SCHEDULED" && slot.trim()
-        ? `[Appointment Confirmed: ${slot.trim()}] ${note}`
-        : note;
-    onSave(status, finalNote);
+    onSave(status, note);
   }
 
   return (
@@ -274,39 +266,15 @@ function CaseModal({
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value as FollowUpStatus);
-                setSlotError("");
               }}
             >
-              {(Object.keys(STATUS_LABELS) as FollowUpStatus[]).map((s) => (
+              {selectableStatuses.map((s) => (
                 <option key={s} value={s}>{statusLabel(locale, s, STATUS_LABELS[s])}</option>
               ))}
             </select>
           </div>
         </label>
 
-        {status === "APPOINTMENT_SCHEDULED" && (
-          <label className="field">
-            <span>Date & Time (Required for Scheduled Appointment) *</span>
-            <input
-              type="text"
-              placeholder="e.g. Thursday 20 Nov, 16:00 (Telehealth)"
-              value={slot}
-              onChange={(e) => {
-                setSlot(e.target.value);
-                setSlotError("");
-              }}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: slotError ? "1.5px solid #ef4444" : "1px solid #cbd5e1",
-                fontSize: 13
-              }}
-              required
-            />
-            {slotError && <small style={{ color: "#ef4444", marginTop: 4, display: "block" }}>{slotError}</small>}
-          </label>
-        )}
 
         <label className="field">
           <span>{L.clinicalNote} <em>{L.changesLogged}</em></span>

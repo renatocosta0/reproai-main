@@ -9,6 +9,7 @@ import { MoreMenu } from "@/components/clinician/MoreMenu";
 import { SuggestConsultationModal } from "@/components/clinician/SuggestConsultationModal";
 import { ConfirmConsultationModal } from "@/components/clinician/ConfirmConsultationModal";
 import { CancelAppointmentModal } from "@/components/clinician/CancelAppointmentModal";
+import { OpenFollowUpModal } from "@/components/clinician/OpenFollowUpModal";
 import { parseSlotFromNote } from "@/lib/appointment";
 import { LabEntry } from "@/components/clinician/LabEntry";
 import { MarkerTrend } from "@/components/charts/MarkerTrend";
@@ -47,6 +48,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   const [suggestModalOpen, setSuggestModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [cancelModalTarget, setCancelModalTarget] = useState<string | null>(null);
+  const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
   const [activeMember, setActiveMember] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -126,7 +128,6 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
   async function openFollowUp() {
     setBusy("followup");
     try {
-      await api("/api/follow-up", { method: "POST", body: JSON.stringify({ coupleId: params.id, note: L.followUpOpenedNote }) });
       setNotice(L.followUpOpened);
       bump();
       await load();
@@ -238,7 +239,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
               </Link>
             )}
             {openFollowUps.length === 0 && !scheduledFollowUp && !requestedFollowUp && !suggestedFollowUp && (
-              <button type="button" role="menuitem" onClick={openFollowUp} disabled={busy === "followup"}>
+              <button type="button" role="menuitem" onClick={() => setFollowUpModalOpen(true)} disabled={busy === "followup"}>
                 <BellPlus size={15} /> {L.openFollowUp}
               </button>
             )}
@@ -296,6 +297,14 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
             bump();
             void load();
           }}
+        />
+      )}
+      {followUpModalOpen && (
+        <OpenFollowUpModal
+          caseId={params.id}
+          patientName={name}
+          onClose={() => setFollowUpModalOpen(false)}
+          onSuccess={() => { void openFollowUp(); }}
         />
       )}
       {error && <div style={{ marginBottom: 14 }}><FormError>{error}</FormError></div>}

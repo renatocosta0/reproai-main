@@ -7,6 +7,7 @@ import { useClinician } from "@/components/clinician/ClinicianContext";
 import { PrescribeModal } from "@/components/clinician/PrescribeModal";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
 import { NotificationSubscriber } from "@/components/patient/NotificationSubscriber";
+import { NotificationInbox } from "@/components/notifications/NotificationInbox";
 
 type NavKey = "navOverview" | "navFollowUp" | "navInsights" | "navCopilot" | "navEvidence";
 
@@ -54,6 +55,7 @@ export function ClinicianShell({ children }: { children: ReactNode }) {
             >
               <Languages size={15} aria-hidden /> {L.switchLanguage}
             </button>
+            <NotificationInbox />
             <button className="primary compact" onClick={openPrescribe}>
               <UserPlus size={16} /> {L.prescribe}
             </button>

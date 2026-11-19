@@ -7,6 +7,7 @@ import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import type { StringKey } from "@/lib/i18n";
 import { firstName, initials, usePatient } from "@/components/patient/PatientContext";
+import { NotificationInbox } from "@/components/notifications/NotificationInbox";
 
 // Primary nav follows the clinical flow; account-type pages sit in a secondary group.
 const NAV: { href: string; key: StringKey; icon: NavItem["icon"]; dividerBefore?: boolean }[] = [
@@ -44,6 +45,7 @@ export function PatientShell({ children }: { children: ReactNode }) {
       >
         <Languages size={15} aria-hidden /> {t("switchLanguage")}
       </button>
+      <NotificationInbox />
       {modeBadge}
     </>
   );
