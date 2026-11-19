@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, CalendarCheck, ChevronDown, ClipboardCheck, FlaskConical, MoonStar, ShieldCheck, Thermometer, TrendingUp, type LucideIcon } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleContext";
+import { formatAppointmentSlotForDisplay } from "@/lib/appointment-format";
 import { AskChip } from "@/components/patient/AskPanel";
 import { ExplainTerms } from "@/components/patient/ExplainTerms";
 import { SourceChip } from "@/components/record/Chips";
@@ -214,7 +215,7 @@ function describe(e: TimelineEvent, L: Strings, ar: boolean): { title: string; s
     case "consent":
       return { title: L.consentTitle(e.purposes.length), summary: e.purposes.map((p) => L.purpose[p]).join(" · ") };
     case "appointment":
-      return { title: L.apptTitle, summary: e.slot };
+      return { title: L.apptTitle, summary: e.slot ? formatAppointmentSlotForDisplay(e.slot, ar ? "ar" : "en") : undefined };
   }
 }
 
@@ -336,7 +337,7 @@ function Details({ e, L, ar }: { e: TimelineEvent; L: Strings; ar: boolean }) {
     case "appointment":
       return (
         <div className="timeline-details">
-          <p>{e.slot}</p>
+          <p>{formatAppointmentSlotForDisplay(e.slot, ar ? "ar" : "en")}</p>
         </div>
       );
   }

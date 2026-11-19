@@ -27,6 +27,8 @@ export interface AppointmentState {
 /** Extract slot from follow-up note text if present. */
 export function parseSlotFromNote(note: string | null | undefined): string | null {
   if (!note) return null;
+  const confirmed = note.match(/Appointment Confirmed: ([^\]]+)/i);
+  if (confirmed) return confirmed[1].trim();
   const match = note.match(/(?:Slot|slot|Appointment Confirmed|Confirmed):\s*([^.\n|\]]+)/i);
   return match ? match[1].trim() : null;
 }

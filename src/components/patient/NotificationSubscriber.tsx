@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Check, Sparkles, X } from "lucide-react";
+import { Bell, Sparkles, X } from "lucide-react";
 import { api } from "@/lib/api-client";
 import type { CareNotification } from "@/lib/notifications";
+import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { notificationCopy } from "@/lib/notification-copy";
+import { publishNotificationsUpdated } from "@/lib/notification-events";
 
 export function NotificationSubscriber() {
   const router = useRouter();
+  const { locale, ar } = useClinicianText();
   const [activeToast, setActiveToast] = useState<CareNotification | null>(null);
-  const [lastSeenId, setLastSeenId] = useState<string | null>(null);
+  const activeToastRef = useRef<CareNotification | null>(null);
+  const knownIdsRef = useRef<Set<string> | null>(null);
 
   // Register the service worker without prompting for notification permission.
   useEffect(() => {
@@ -26,26 +31,52 @@ export function NotificationSubscriber() {
   // presenter or user did not see in a toast.
   useEffect(() => {
     let mounted = true;
+    let checking = false;
 
     async function checkNotifications() {
-      if (activeToast) return;
+      if (checking) return;
+      checking = true;
       try {
         const res = await api<{ ok: boolean; notifications: CareNotification[]; unreadCount: number }>("/api/notifications");
         if (!mounted || !res.ok) return;
 
-        const nextUnread = res.notifications.find((notification) => !notification.read && notification.id !== lastSeenId);
+        // Establish a baseline on page load: old unread items stay in the inbox,
+        // but only events created during this visit produce a toast.
+        if (!knownIdsRef.current) {
+          knownIdsRef.current = new Set(res.notifications.map((notification) => notification.id));
+          publishNotificationsUpdated({ notifications: res.notifications, unreadCount: res.unreadCount });
+          return;
+        }
+
+        const knownIds = knownIdsRef.current;
+        const newlyArrived = res.notifications.filter((notification) => !knownIds.has(notification.id));
+        for (const notification of res.notifications) knownIds.add(notification.id);
+        while (knownIds.size > 300) {
+          const oldestId = knownIds.values().next().value;
+          if (oldestId === undefined) break;
+          knownIds.delete(oldestId);
+        }
+
+        publishNotificationsUpdated({ notifications: res.notifications, unreadCount: res.unreadCount });
+
+        // One toast at a time; additional events remain visible in the inbox.
+        const nextUnread = newlyArrived.find((notification) => !notification.read);
         if (nextUnread) {
-          setLastSeenId(nextUnread.id);
+          knownIds.add(nextUnread.id);
+          if (activeToastRef.current) return;
+          activeToastRef.current = nextUnread;
           setActiveToast(nextUnread);
+          const copy = notificationCopy(nextUnread, locale);
 
           // Show a browser notification only when the user already granted permission.
           if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && document.hidden) {
             const registration = await navigator.serviceWorker?.getRegistration();
             if (registration) {
-              await registration.showNotification(nextUnread.title, {
-                body: nextUnread.body,
+              await registration.showNotification(copy.title, {
+                body: copy.body,
                 icon: "/logo.svg",
                 tag: nextUnread.id,
+                lang: locale,
                 data: { url: nextUnread.url }
               });
             }
@@ -53,19 +84,22 @@ export function NotificationSubscriber() {
         }
       } catch {
         // Silent degrade if offline
+      } finally {
+        checking = false;
       }
     }
 
-    const interval = setInterval(checkNotifications, 2000);
+    const interval = setInterval(checkNotifications, 5000);
     void checkNotifications();
 
     return () => {
       mounted = false;
       clearInterval(interval);
     };
-  }, [lastSeenId, activeToast?.id]);
+  }, [locale]);
 
   if (!activeToast) return null;
+  const copy = notificationCopy(activeToast, locale);
 
   async function handleDismiss() {
     if (activeToast) {
@@ -74,17 +108,19 @@ export function NotificationSubscriber() {
           method: "PATCH",
           body: JSON.stringify({ id: activeToast.id })
         });
-        if (!result?.ok) return;
+        if (!result?.ok) return false;
       } catch {
-        return;
+        return false;
       }
     }
+    activeToastRef.current = null;
     setActiveToast(null);
+    return true;
   }
 
-  function handleOpen() {
+  async function handleOpen() {
     const url = activeToast?.url || "/patient/assessment";
-    void handleDismiss();
+    if (!(await handleDismiss())) return;
     router.push(url);
     router.refresh();
   }
@@ -92,12 +128,14 @@ export function NotificationSubscriber() {
   return (
     <div
       role="alert"
+      lang={locale}
+      dir={ar ? "rtl" : "ltr"}
       style={{
         position: "fixed",
         top: 16,
-        right: 16,
-        left: 16,
+        insetInline: 12,
         maxWidth: 420,
+        boxSizing: "border-box",
         margin: "0 auto",
         zIndex: 9999,
         background: "#0f172a",
@@ -117,21 +155,21 @@ export function NotificationSubscriber() {
 
       <div style={{ flex: 1, cursor: "pointer" }} onClick={handleOpen}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-          <strong style={{ fontSize: 13.5, color: "#f8fafc" }}>{activeToast.title}</strong>
+          <strong style={{ fontSize: 13.5, color: "#f8fafc" }}>{copy.title}</strong>
           <span style={{ fontSize: 10.5, background: "#1e293b", padding: "1px 6px", borderRadius: 8, color: "#94a3b8" }}>
-            Just now
+            {ar ? "الآن" : "Just now"}
           </span>
         </div>
-        <p style={{ margin: 0, fontSize: 12.5, color: "#cbd5e1", lineHeight: 1.4 }}>{activeToast.body}</p>
+        <p style={{ margin: 0, fontSize: 12.5, color: "#cbd5e1", lineHeight: 1.4 }}>{copy.body}</p>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 6, fontSize: 11.5, color: "#60a5fa", fontWeight: 500 }}>
-          <Sparkles size={12} /> Open care update
+          <Sparkles size={12} /> {ar ? "فتح تحديث الرعاية" : "Open care update"}
         </span>
       </div>
 
       <button
         type="button"
         onClick={handleDismiss}
-        aria-label="Dismiss notification"
+        aria-label={ar ? "إغلاق الإشعار" : "Dismiss notification"}
         style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", padding: 4 }}
       >
         <X size={16} />

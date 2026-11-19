@@ -63,9 +63,23 @@
   --gauge-fill: #d7796e;
   --gauge-track: #f2e9e4;
   --text-faint: #9aa5a1;
+  --notification-surface: #ffffff;
+  --notification-border: #dbe3ea;
+  --notification-text: #172b2a;
+  --notification-muted: #64748b;
+  --notification-unread: #eff6ff;
+  --notification-action: #2563eb;
+  --notification-icon-muted: #94a3b8;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --notification-surface: #1d2926;
+  --notification-border: #394844;
+  --notification-text: #e6efec;
+  --notification-muted: #a1b0ab;
+  --notification-unread: #293a35;
+  --notification-action: #8abcf4;
+  --notification-icon-muted: #8c9b97;
   --chart-grid: #2b3633;
   --chart-axis: #34413d;
   --chart-guide: #4a5a55;

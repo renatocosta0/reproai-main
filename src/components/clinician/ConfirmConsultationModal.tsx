@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { localToday, parseAppointmentSlot, serializeAppointmentSlot } from "@/lib/appointment-format";
 
 interface ConfirmConsultationModalProps {
   caseId: string;
@@ -21,7 +22,8 @@ const STRINGS = {
     title: "Confirm & Schedule Consultation",
     sub: "Set the confirmed date, time, and instructions. The patient will be notified immediately.",
     slotLabel: "Confirmed Date & Time",
-    slotPlaceholder: "e.g. Thursday 20 Nov, 16:00 (Telehealth)",
+    dateLabel: "Date",
+    timeLabel: "Time",
     notesLabel: "Instructions / Notes for Patient (Optional)",
     notesPlaceholder: "e.g. Please have your recent cycle log open.",
     confirmBtn: "Confirm & Schedule",
@@ -34,7 +36,8 @@ const STRINGS = {
     title: "تأكيد وجدولة الاستشارة",
     sub: "حدد التاريخ والوقت والتعليمات المؤكدة. سيتم إشعار المريض فوراً.",
     slotLabel: "التاريخ والوقت المؤكد",
-    slotPlaceholder: "مثال: الخميس 20 نوفمبر، 16:00 (استشارة عن بُعد)",
+    dateLabel: "التاريخ",
+    timeLabel: "الوقت",
     notesLabel: "تعليمات / ملاحظات للمريض (اختياري)",
     notesPlaceholder: "مثال: يرجى تجهيز سجل الدورة الأخير.",
     confirmBtn: "تأكيد وجدولة الموعد",
@@ -56,13 +59,15 @@ export function ConfirmConsultationModal({
   const { locale } = useClinicianText();
   const L = STRINGS[locale as keyof typeof STRINGS] ?? STRINGS.en;
 
-  const [slot, setSlot] = useState(defaultSlot ?? "");
+  const initialSlot = parseAppointmentSlot(defaultSlot);
+  const [slotDate, setSlotDate] = useState(initialSlot.date);
+  const [slotTime, setSlotTime] = useState(initialSlot.time);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function handleConfirm() {
-    if (!slot.trim()) {
+    if (!slotDate || !slotTime) {
       setError(L.slotRequired);
       return;
     }
@@ -75,7 +80,7 @@ export function ConfirmConsultationModal({
         body: JSON.stringify({
           action: "confirm",
           followUpId,
-          slot: slot.trim(),
+          slot: serializeAppointmentSlot(slotDate, slotTime),
           notes: notes.trim() || undefined
         })
       });
@@ -111,24 +116,21 @@ export function ConfirmConsultationModal({
         )}
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
+          <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
             {L.slotLabel}
-          </label>
-          <input
-            type="text"
-            value={slot}
-            onChange={(e) => setSlot(e.target.value)}
-            placeholder={L.slotPlaceholder}
-            style={{
-              width: "100%",
-              padding: "9px 12px",
-              borderRadius: 8,
-              border: "1px solid #cbd5e1",
-              fontSize: 13,
-              fontFamily: "inherit",
-              boxSizing: "border-box"
-            }}
-          />
+          </span>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(110px, 1fr)", gap: 8 }}>
+            <label style={{ display: "grid", gap: 4, fontSize: 11.5, color: "var(--muted, #64748b)" }}>
+              {L.dateLabel}
+              <input type="date" value={slotDate} min={localToday()} onChange={(e) => setSlotDate(e.target.value)} required
+                style={{ width: "100%", minWidth: 0, padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+            </label>
+            <label style={{ display: "grid", gap: 4, fontSize: 11.5, color: "var(--muted, #64748b)" }}>
+              {L.timeLabel}
+              <input type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} required
+                style={{ width: "100%", minWidth: 0, padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+            </label>
+          </div>
         </div>
 
         <div style={{ marginBottom: 18 }}>

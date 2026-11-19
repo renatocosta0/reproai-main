@@ -16,6 +16,7 @@ import { useLocale } from "@/components/i18n/LocaleContext";
 import { api, userMessage } from "@/lib/api-client";
 import { FormError } from "@/components/ui/Notice";
 import type { AppointmentState } from "@/lib/appointment";
+import { formatAppointmentSlotForDisplay } from "@/lib/appointment-format";
 
 const S = {
   en: {
@@ -107,6 +108,7 @@ const S = {
 export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => void }) {
   const { locale } = useLocale();
   const L = S[locale as keyof typeof S] ?? S.en;
+  const displaySlot = (slot: string) => formatAppointmentSlotForDisplay(slot, locale === "ar" ? "ar" : "en");
 
   const [appointment, setAppointment] = useState<AppointmentState | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -280,7 +282,7 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
         <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>{L.scheduledTitle}</h3>
         {appointment.slot && (
           <p style={{ margin: "0 0 4px", fontSize: 13.5, display: "flex", alignItems: "center", gap: 6 }}>
-            <Clock size={13} /> {appointment.slot}
+            <Clock size={13} /> {displaySlot(appointment.slot)}
           </p>
         )}
         {appointment.reason && (
@@ -353,7 +355,7 @@ export function AppointmentCard({ onStatusChange }: { onStatusChange?: () => voi
         <h3 style={{ margin: "0 0 8px", fontSize: 15.5, fontWeight: 700 }}>{L.suggestedTitle}</h3>
         {appointment.slot && (
           <p style={{ margin: "0 0 4px", fontSize: 13.5 }}>
-            <strong>{L.suggestedSlot}</strong> {appointment.slot}
+            <strong>{L.suggestedSlot}</strong> {displaySlot(appointment.slot)}
           </p>
         )}
         {appointment.reason && (

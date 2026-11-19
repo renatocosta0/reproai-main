@@ -148,7 +148,7 @@ export async function requestAppointmentByPatient(
     actorId: userId,
     type: "APPOINTMENT_REQUESTED",
     title: "ReproAI · Patient Request",
-    body: "A care case has a follow-up request. Sign in to review it.",
+    body: "A care case has a follow-up request. Open the case to review it.",
     url: `/clinician/patient/${coupleId}`
   }).catch((e) => console.error("Notification error:", e));
 
@@ -186,7 +186,7 @@ export async function acceptSuggestionByPatient(
     actorId: userId,
     type: "APPOINTMENT_ACCEPTED",
     title: "ReproAI · Patient Accepted",
-    body: "A care case has accepted the suggested follow-up. Sign in to review it.",
+    body: "A care case has accepted the suggested follow-up. Open the case to confirm the appointment.",
     url: `/clinician/patient/${coupleId}`
   }).catch((e) => console.error("Notification error:", e));
 
@@ -226,7 +226,7 @@ export async function declineSuggestionByPatient(
     actorId: userId,
     type: "APPOINTMENT_DECLINED",
     title: "ReproAI · Patient Declined Slot",
-    body: "A care case needs a new follow-up suggestion. Sign in to review it.",
+    body: "A care case needs a new follow-up suggestion. Open the case to review next steps.",
     url: `/clinician/patient/${coupleId}`
   }).catch((e) => console.error("Notification error:", e));
 
@@ -282,7 +282,7 @@ export async function suggestSlotByClinician(
     actorId: clinicianId,
     type: "APPOINTMENT_SUGGESTED",
     title: "ReproAI · Consultation Suggestion",
-    body: "Your care team suggested a follow-up. Sign in to review the details.",
+    body: "Your care team suggested a follow-up time. Open your portal to review it.",
     url: "/patient/overview"
   }).catch((e) => console.error("Notification dispatch failed:", e));
 
@@ -330,7 +330,7 @@ export async function confirmBookingByClinician(
     actorId: clinicianId,
     type: "APPOINTMENT_CONFIRMED",
     title: "ReproAI · Appointment Confirmed",
-    body: "Your consultation has been confirmed. Sign in to review the details.",
+    body: "Your consultation has been confirmed. Open your portal to review the details.",
     url: "/patient/overview"
   }).catch((e) => console.error("Notification error:", e));
 
@@ -377,7 +377,7 @@ export async function cancelAppointment(
     type: "APPOINTMENT_CANCELLED",
     title: "ReproAI · Appointment Cancelled",
     // Keep user-entered cancellation details out of notification previews.
-    body: "An appointment was cancelled. Sign in to review the update.",
+    body: "An appointment was cancelled. Open your portal to review the update.",
     url: actorRole === "PATIENT" ? `/clinician/patient/${followUp.coupleId}` : "/patient/overview"
   }).catch((e) => console.error("Notification error:", e));
 

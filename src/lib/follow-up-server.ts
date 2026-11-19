@@ -43,7 +43,7 @@ export async function openFollowUpByClinician(
     actorId: clinicianId,
     type: "FOLLOW_UP_OPENED",
     title: "ReproAI · Care follow-up",
-    body: "Your care team recommends a follow-up. Sign in to request a consultation.",
+    body: "Your care team recommends a follow-up. Open your portal to review it.",
     url: "/patient/overview"
   });
 

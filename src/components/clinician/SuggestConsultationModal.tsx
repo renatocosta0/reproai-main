@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { localToday, serializeAppointmentSlot } from "@/lib/appointment-format";
 
 interface SuggestConsultationModalProps {
   caseId: string;
@@ -20,7 +21,8 @@ const STRINGS = {
     title: "Suggest Follow-up Consultation",
     sub: "Suggest a date and time to the patient. They will need to accept before the appointment is confirmed by you.",
     slotLabel: "Proposed Date & Time",
-    slotPlaceholder: "e.g. Monday 10 Feb, 14:00 (Telehealth)",
+    dateLabel: "Date",
+    timeLabel: "Time",
     reasonLabel: "Clinical Reason",
     reasonPlaceholder: "e.g. Review AMH trajectory and discuss next steps.",
     sendBtn: "Send Suggestion to Patient",
@@ -33,7 +35,8 @@ const STRINGS = {
     title: "\u0627\u0642\u062a\u0631\u0627\u062d \u0645\u0648\u0639\u062f \u0627\u0633\u062a\u0634\u0627\u0631\u0629",
     sub: "\u0627\u0642\u062a\u0631\u062d \u062a\u0627\u0631\u064a\u062e\u0627\u064b \u0648\u0648\u0642\u062a\u0627\u064b \u0644\u0644\u0645\u0631\u064a\u0636. \u064a\u062c\u0628 \u0623\u0646 \u064a\u0648\u0627\u0641\u0642 \u0627\u0644\u0645\u0631\u064a\u0636 \u0642\u0628\u0644 \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0645\u0648\u0639\u062f.",
     slotLabel: "\u0627\u0644\u062a\u0627\u0631\u064a\u062e \u0648\u0627\u0644\u0648\u0642\u062a \u0627\u0644\u0645\u0642\u062a\u0631\u062d",
-    slotPlaceholder: "\u0645\u062b\u0627\u0644: \u0627\u0644\u0627\u062b\u0646\u064a\u0646 10 \u0641\u0628\u0631\u0627\u064a\u0631\u060c 14:00",
+    dateLabel: "\u0627\u0644\u062a\u0627\u0631\u064a\u062e",
+    timeLabel: "\u0627\u0644\u0648\u0642\u062a",
     reasonLabel: "\u0627\u0644\u0633\u0628\u0628 \u0627\u0644\u0633\u0631\u064a\u0631\u064a",
     reasonPlaceholder: "\u0645\u062b\u0627\u0644: \u0645\u0631\u0627\u062c\u0639\u0629 \u0645\u0633\u0627\u0631 AMH.",
     sendBtn: "\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0627\u0642\u062a\u0631\u0627\u062d \u0644\u0644\u0645\u0631\u064a\u0636",
@@ -54,13 +57,14 @@ export function SuggestConsultationModal({
   const { locale } = useClinicianText();
   const L = STRINGS[locale as keyof typeof STRINGS] ?? STRINGS.en;
 
-  const [slot, setSlot] = useState("");
+  const [slotDate, setSlotDate] = useState("");
+  const [slotTime, setSlotTime] = useState("");
   const [reason, setReason] = useState(defaultReason ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSend() {
-    if (!slot.trim()) {
+    if (!slotDate || !slotTime) {
       setError(L.slotRequired);
       return;
     }
@@ -69,7 +73,7 @@ export function SuggestConsultationModal({
     try {
       await api(`/api/clinician/cases/${caseId}/suggest-appointment`, {
         method: "POST",
-        body: JSON.stringify({ slot: slot.trim(), reason: reason.trim() })
+        body: JSON.stringify({ slot: serializeAppointmentSlot(slotDate, slotTime), reason: reason.trim() })
       });
       onSuccess(L.successMsg);
       onClose();
@@ -103,24 +107,21 @@ export function SuggestConsultationModal({
         )}
 
         <div style={{ marginBottom: 14 }}>
-          <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
+          <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
             {L.slotLabel}
-          </label>
-          <input
-            type="text"
-            value={slot}
-            onChange={(e) => setSlot(e.target.value)}
-            placeholder={L.slotPlaceholder}
-            style={{
-              width: "100%",
-              padding: "9px 12px",
-              borderRadius: 8,
-              border: "1px solid #cbd5e1",
-              fontSize: 13,
-              fontFamily: "inherit",
-              boxSizing: "border-box"
-            }}
-          />
+          </span>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(110px, 1fr)", gap: 8 }}>
+            <label style={{ display: "grid", gap: 4, fontSize: 11.5, color: "var(--muted, #64748b)" }}>
+              {L.dateLabel}
+              <input type="date" value={slotDate} min={localToday()} onChange={(e) => setSlotDate(e.target.value)} required
+                style={{ width: "100%", minWidth: 0, padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+            </label>
+            <label style={{ display: "grid", gap: 4, fontSize: 11.5, color: "var(--muted, #64748b)" }}>
+              {L.timeLabel}
+              <input type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} required
+                style={{ width: "100%", minWidth: 0, padding: "9px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+            </label>
+          </div>
         </div>
 
         <div style={{ marginBottom: 18 }}>

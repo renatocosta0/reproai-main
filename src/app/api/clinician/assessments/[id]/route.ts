@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         actorId: session.userId,
         type: "ASSESSMENT_RELEASED",
         title: "ReproAI · Care update",
-        body: "Your care team has shared an update. Sign in to review it.",
+        body: "Your clinician shared an assessment. Open it to review the details.",
         url: "/patient/assessment"
       }).catch((e) => console.error("Notification dispatch failed:", e));
 
