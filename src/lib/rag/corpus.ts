@@ -15,7 +15,7 @@
 // from the ESHRE 2020 preservation guideline). The previous hand-written snippets
 // once kept in src/lib/guidelines-local/ were unverified and have been removed.
 
-export type PassageStatus = "primary" | "summary" | "scope" | "internal";
+export type PassageStatus = "primary" | "summary" | "review" | "scope" | "internal";
 export type Audience = "both" | "clinician";
 
 export interface SourceDoc {
@@ -53,6 +53,34 @@ export const SOURCES: Record<string, SourceDoc> = {
     publisher: "World Health Organization",
     year: 2025,
     url: "https://www.who.int/news/item/28-11-2025-who-issues-first-global-guideline-on-infertility"
+  },
+  WHO25_FULL: {
+    id: "WHO25_FULL",
+    title: "WHO guideline for the prevention, diagnosis and treatment of infertility",
+    publisher: "World Health Organization",
+    year: 2025,
+    url: "https://www.ncbi.nlm.nih.gov/books/n/who383755/pdf/"
+  },
+  SLEEP_SR: {
+    id: "SLEEP_SR",
+    title: "Impact of sleep on female and male reproductive functions: a systematic review",
+    publisher: "Fertility and Sterility",
+    year: 2021,
+    url: "https://pubmed.ncbi.nlm.nih.gov/33054981/"
+  },
+  ACOG_FAM: {
+    id: "ACOG_FAM",
+    title: "Fertility Awareness-Based Methods of Family Planning (FAQ024)",
+    publisher: "American College of Obstetricians and Gynecologists",
+    year: 2025,
+    url: "https://www.acog.org/womens-health/faqs/fertility-awareness-based-methods-of-family-planning"
+  },
+  ACOG_INFERTILITY: {
+    id: "ACOG_INFERTILITY",
+    title: "Evaluating Infertility (FAQ136)",
+    publisher: "American College of Obstetricians and Gynecologists",
+    year: 2026,
+    url: "https://www.acog.org/womens-health/faqs/evaluating-infertility"
   },
   ESHRE_FFP: {
     id: "ESHRE_FFP",
@@ -237,6 +265,34 @@ export const PASSAGES: Passage[] = [
     text: "WHO says future updates will address fertility preservation, third-party reproduction and the effect of existing medical conditions on fertility.",
     terms: ["egg freezing", "preservation", "limitations", "gaps"]
   },
+  {
+    id: "WHO25-7", doc: "WHO25_FULL", section: "Section 4.2: information provision", page: 39, status: "primary", audience: "both",
+    title: "WHO lifestyle advice for people with infertility",
+    text: "WHO suggests low-cost lifestyle advice before and during infertility treatment for individuals and couples with infertility. It may include changes to diet, alcohol intake, smoking, physical activity, and weight management. This is a conditional recommendation based on low-certainty evidence.",
+    terms: ["who recommendation", "who recommend", "lifestyle changes", "lifestyle advice", "change lifestyle", "diet", "exercise", "physical activity", "alcohol", "smoking", "weight management"]
+  },
+
+  // ── Sleep and fertility: systematic-review evidence ───────────────────
+  {
+    id: "SLEEP-1", doc: "SLEEP_SR", section: "Abstract and conclusion", status: "review", audience: "both",
+    title: "What research says about sleep and fertility",
+    text: "A systematic review of 33 studies found that short sleep duration, an evening sleep pattern, or shift or night work may be associated with female and male fertility and IVF outcomes. The studies used different methods and were hard to compare, so more research is needed to understand how sleep and fertility are related and whether changing sleep improves fertility outcomes.",
+    terms: ["sleep", "sleep duration", "how sleep affects fertility", "sleep fertility", "short sleep", "poor sleep", "night shift", "shift work", "sleep quality", "ivf"]
+  },
+
+  // ── ACOG patient guidance on basal body temperature ───────────────────
+  {
+    id: "ACOG-BBT-1", doc: "ACOG_FAM", section: "FAQ024: basal body temperature method", status: "primary", audience: "both",
+    title: "What a basal body temperature rise means and how to measure it",
+    text: "Basal body temperature (BBT) is the body's temperature when fully at rest. In most women it rises slightly, by 0.5 to 1 degree Fahrenheit, around ovulation and remains higher until the end of the menstrual cycle. Measure it every morning after waking, before activity, getting out of bed, eating or drinking, and record it daily. BBT shows only that ovulation has already occurred; it does not predict ovulation. Fever can make a BBT reading unreliable.",
+    terms: ["basal body temperature", "bbt", "rise", "higher", "ovulation", "confirm ovulation", "morning temperature", "measure temperature", "thermometer", "before bed", "after waking"]
+  },
+  {
+    id: "ACOG-BBT-2", doc: "ACOG_INFERTILITY", section: "FAQ136: tracking basal body temperature", status: "primary", audience: "both",
+    title: "What a temperature chart can and cannot show",
+    text: "To track ovulation, take your temperature by mouth every morning before getting out of bed and record it on a chart for two or three menstrual cycles. Charting the monthly temperature changes can confirm ovulation, but it cannot predict it.",
+    terms: ["basal body temperature", "bbt", "confirm ovulation", "can temperature confirm", "chart", "two cycles", "three cycles", "morning temperature", "measure temperature"]
+  },
 
   // ── Scope-only references ───────────────────────────────────────────────
   {
@@ -298,13 +354,13 @@ export const PASSAGES: Passage[] = [
   {
     id: "RAI-8", doc: "REPROAI", section: "Wearables", status: "internal", audience: "both",
     title: "Temperature and sleep data",
-    text: "Basal body temperature and sleep from wearables are shown as trends and are not part of the model's calculation. A temperature pattern without the usual rise after ovulation varies between cycles and is not a diagnosis; it is a reason to talk to your clinician.",
+    text: "ReproAI shows basal body temperature and sleep from wearables as trends. These wearable readings are not inputs to the ReproAI assessment model.",
     terms: ["bbt", "temperature", "sleep", "wearable", "watch", "ovulation", "tracker"]
   },
   {
     id: "RAI-9", doc: "REPROAI", section: "Ovarian reserve explanation", status: "internal", audience: "both",
     title: "What an AMH result means in ReproAI",
-    text: "ReproAI uses AMH, sometimes with an antral follicle count, as a picture of egg reserve for your age, compared against the Thiqa threshold of 1.1 ng/mL. ReproAI does not use AMH to say whether you can get pregnant naturally.",
+    text: "A released ReproAI assessment may display an AMH-for-age comparison. This passage describes an app display only; it does not interpret an AMH value or support clinical advice.",
     terms: ["amh", "egg reserve", "low amh", "what does amh mean", "percentile"]
   }
 ];
@@ -317,6 +373,10 @@ export function citationLabel(p: Passage): string {
   const short =
     p.doc === "THIQA" ? "Thiqa ART guideline v3.6" :
     p.doc === "WHO25" ? "WHO infertility guideline 2025" :
+    p.doc === "WHO25_FULL" ? "WHO infertility guideline 2025" :
+    p.doc === "SLEEP_SR" ? "Sleep and reproductive function review, 2021" :
+    p.doc === "ACOG_FAM" ? "ACOG fertility-awareness FAQ, 2025" :
+    p.doc === "ACOG_INFERTILITY" ? "ACOG infertility-evaluation FAQ, 2026" :
     p.doc === "ESHRE_FFP" ? "ESHRE preservation guideline 2020" :
     p.doc === "WHO_SEMEN" ? "WHO semen manual 2021" : d.title;
   return p.page ? `${short}, p. ${p.page}` : `${short}, ${p.section}`;
@@ -325,6 +385,7 @@ export function citationLabel(p: Passage): string {
 export const STATUS_LABEL: Record<PassageStatus, string> = {
   primary: "Read from the source document",
   summary: "From the publisher's announcement",
+  review: "Systematic review",
   scope: "Scope only",
   internal: "How ReproAI works"
 };

@@ -41,10 +41,16 @@ export const EVAL_SET: EvalItem[] = [
   // ── Answerable from WHO 2025 (announcement) ──
   { q: "How common is infertility?", answerable: true, expect: ["WHO25-1"], kind: "guidance" },
   { q: "What lifestyle changes help when trying to conceive?", answerable: true, expect: ["WHO25-2"], kind: "guidance" },
+  { q: "What lifestyle changes does WHO recommend?", answerable: true, expect: ["WHO25-7"], kind: "guidance" },
   { q: "Does smoking affect fertility?", answerable: true, expect: ["WHO25-2"], kind: "guidance" },
   { q: "Should my husband be tested too?", answerable: true, expect: ["WHO25-3"], kind: "guidance" },
   { q: "Do we have to go straight to IVF?", answerable: true, expect: ["WHO25-4"], kind: "guidance" },
   { q: "I feel anxious and low about not getting pregnant.", answerable: true, expect: ["WHO25-5"], kind: "guidance" },
+  { q: "How does sleep affect fertility?", answerable: true, expect: ["SLEEP-1"], kind: "guidance" },
+  // ── Answerable from ACOG patient guidance ──
+  { q: "What does a rise in basal body temperature mean?", answerable: true, expect: ["ACOG-BBT-1"], kind: "guidance" },
+  { q: "How should I measure my morning temperature?", answerable: true, expect: ["ACOG-BBT-1", "ACOG-BBT-2"], kind: "guidance" },
+  { q: "Can basal body temperature confirm ovulation?", answerable: true, expect: ["ACOG-BBT-1", "ACOG-BBT-2"], kind: "guidance" },
   // ── Answerable: how ReproAI works ──
   { q: "Does ReproAI diagnose infertility?", answerable: true, expect: ["RAI-1"], kind: "product" },
   { q: "How is my estimate calculated?", answerable: true, expect: ["RAI-2"], kind: "product" },

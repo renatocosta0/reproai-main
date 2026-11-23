@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { hashPassword, createSession } from "@/lib/auth";
+import { hashPassword, createMobileAccessToken, createSession } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { resolveInviteToken } from "@/lib/invites";
 import { PURPOSES, PURPOSE_INFO, setConsent } from "@/lib/consent";
@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
         { error: "email, password and a valid role are required" },
         { status: 400 }
       );
+    }
+    const mobileClient = req.headers.get("x-reproai-client") === "capacitor";
+    if (mobileClient && role !== "PATIENT") {
+      return NextResponse.json({ error: "The mobile app is for patient accounts." }, { status: 403 });
     }
 
     // Clinician accounts are provisioned by the organisation, never self-registered.
@@ -126,10 +130,17 @@ export async function POST(req: NextRequest) {
       await prisma.user.update({ where: { id: user.id }, data: { consentAt: new Date() } });
     }
 
-    await createSession({ userId: user.id, role: user.role as Role, coupleId: user.coupleId });
+    const session = { userId: user.id, role: user.role as Role, coupleId: user.coupleId };
+    if (!mobileClient) await createSession(session);
     await audit(user.id, "register", `user:${user.id}`);
 
-    return NextResponse.json({ ok: true, role: user.role, userId: user.id, coupleId: user.coupleId }, { status: 201 });
+    return NextResponse.json({
+      ok: true,
+      role: user.role,
+      userId: user.id,
+      coupleId: user.coupleId,
+      ...(mobileClient ? { accessToken: await createMobileAccessToken(session) } : {})
+    }, { status: 201 });
   } catch (error: any) {
     console.error("[POST /api/auth/register] error:", error);
     return NextResponse.json(

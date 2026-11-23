@@ -26,6 +26,8 @@ export interface Retrieval {
   engine: "bm25-local" | "azure-search";
 }
 
+export type RetrievalScope = "clinical" | "product";
+
 // Abstention thresholds, tuned on the evaluation set (npm run rag:eval).
 export const MIN_SCORE = 2.2;
 export const MIN_COVERAGE = 0.34;
@@ -141,7 +143,7 @@ interface Query {
   groups: string[][];
 }
 
-function bm25(query: Query, audience: Audience): Hit[] {
+function bm25(query: Query, audience: Audience, scope?: RetrievalScope): Hit[] {
   const { docs, df, avgLen } = index();
   const N = docs.length;
   const k1 = 1.2;
@@ -150,6 +152,8 @@ function bm25(query: Query, audience: Audience): Hit[] {
   const hits: Hit[] = [];
   for (const d of docs) {
     if (audience === "both" && d.passage.audience === "clinician") continue;
+    if (scope === "clinical" && d.passage.status === "internal") continue;
+    if (scope === "product" && d.passage.status !== "internal") continue;
     let score = 0;
     for (const [t, w] of queryTerms) {
       const f = d.tf.get(t);
@@ -195,15 +199,19 @@ function parseQuery(query: string): Query {
  * Retrieve passages for a question. `audience: "both"` (patients) excludes
  * clinician-only passages. Abstains when the best match is weak.
  */
-export async function retrieve(query: string, opts: { top?: number; audience?: Audience } = {}): Promise<Retrieval> {
+export async function retrieve(query: string, opts: { top?: number; audience?: Audience; scope?: RetrievalScope } = {}): Promise<Retrieval> {
   const top = opts.top ?? 4;
   const audience = opts.audience ?? "both";
+  const scope = opts.scope;
 
   const azure = getAzureSearchConfig();
   if (azure) {
     try {
-      const hits = await azureSearch(query, top, azure);
-      return { query, hits, abstain: hits.length === 0, reason: hits.length ? undefined : "No passages returned by the search index.", engine: "azure-search" };
+      const hits = await azureSearch(query, top, azure, scope);
+      if (hits.length > 0) {
+        return { query, hits, abstain: false, engine: "azure-search" };
+      }
+      console.warn("[rag] Azure AI Search returned no approved canonical passages; using the local corpus.");
     } catch (e) {
       console.warn("[rag] Azure AI Search failed, using local corpus:", e);
     }
@@ -213,7 +221,7 @@ export async function retrieve(query: string, opts: { top?: number; audience?: A
   if (parsed.groups.length === 0) {
     return { query, hits: [], abstain: true, reason: "The question has no searchable terms.", engine: "bm25-local" };
   }
-  const all = bm25(parsed, audience);
+  const all = bm25(parsed, audience, scope);
   const best = all[0];
   // Keep passages that are reasonably close to the best one.
   const hits = all.filter((h) => best && h.score >= best.score * 0.45).slice(0, top);
@@ -232,31 +240,31 @@ export async function retrieve(query: string, opts: { top?: number; audience?: A
 }
 
 /** Diagnostics for the evaluation script: best raw match even when abstaining. */
-export function rawRanking(query: string, audience: Audience = "clinician"): Hit[] {
-  return bm25(parseQuery(query), audience);
+export function rawRanking(query: string, audience: Audience = "clinician", scope?: RetrievalScope): Hit[] {
+  return bm25(parseQuery(query), audience, scope);
 }
 
-async function azureSearch(query: string, top: number, cfg: { endpoint: string; apiKey: string; index: string }): Promise<Hit[]> {
+async function azureSearch(query: string, top: number, cfg: { endpoint: string; apiKey: string; index: string }, scope?: RetrievalScope): Promise<Hit[]> {
   const url = `${cfg.endpoint}/indexes/${encodeURIComponent(cfg.index)}/docs/search?api-version=2024-07-01`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "api-key": cfg.apiKey },
-    body: JSON.stringify({ search: query, top, queryType: "simple" }),
+    // Ask for extra candidates because the source policy is applied locally
+    // against the canonical corpus before the final top-N is selected.
+    body: JSON.stringify({ search: query, top: Math.min(top * 5, 50), queryType: "simple" }),
     cache: "no-store"
   });
   if (!res.ok) throw new Error(`Azure AI Search error (${res.status})`);
   const data = (await res.json()) as { value?: Array<Record<string, unknown>> };
-  return (data.value ?? []).map((doc, i) => ({
-    passage: {
-      id: String(doc.id ?? `AZ-${i + 1}`),
-      doc: "REPROAI",
-      section: String(doc.section ?? doc.title ?? "Search index"),
-      status: "summary" as const,
-      audience: "both" as const,
-      title: String(doc.title ?? doc.source ?? `Result ${i + 1}`),
-      text: String(doc.content ?? doc.chunk ?? "")
-    },
-    score: Number(doc["@search.score"] ?? 0),
-    coverage: 1
-  }));
+  return (data.value ?? [])
+    .flatMap((doc) => {
+      // Search may rank chunks, but only canonical, reviewed passages from the
+      // app corpus can be sent to the answer model or shown as evidence.
+      const passage = PASSAGES.find((candidate) => candidate.id === String(doc.id ?? ""));
+      if (!passage) return [];
+      if (scope === "clinical" && passage.status === "internal") return [];
+      if (scope === "product" && passage.status !== "internal") return [];
+      return [{ passage, score: Number(doc["@search.score"] ?? 0), coverage: 1 }];
+    })
+    .slice(0, top);
 }

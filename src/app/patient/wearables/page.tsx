@@ -298,6 +298,7 @@ export default function WearablesPage() {
         <HealthConnectModal
           locale={ar ? "ar" : "en"}
           onClose={() => setMode("none")}
+          onManualEntry={() => { setMode("single"); setError(""); }}
           onSaved={(msg) => { setToast(msg); setMode("none"); void refresh(); }}
         />
       )}

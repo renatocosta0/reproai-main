@@ -2,7 +2,7 @@
 // an HTTP-only JWT session cookie signed with AUTH_SECRET. Role-based helpers
 // gate patient vs clinician areas.
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
@@ -31,11 +31,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export async function createSession(payload: SessionPayload): Promise<void> {
-  const token = await new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("8h")
-    .sign(secret());
+  const token = await signSessionToken(payload);
 
   cookies().set(COOKIE, token, {
     httpOnly: true,
@@ -46,15 +42,30 @@ export async function createSession(payload: SessionPayload): Promise<void> {
   });
 }
 
+export async function createMobileAccessToken(payload: SessionPayload): Promise<string> {
+  return signSessionToken(payload, { client: "capacitor", aud: "reproai-mobile" });
+}
+
+async function signSessionToken(payload: SessionPayload, claims: Record<string, string> = {}): Promise<string> {
+  return new SignJWT({ ...payload, ...claims })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("8h")
+    .sign(secret());
+}
+
 export function destroySession(): void {
   cookies().delete(COOKIE);
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
-  const token = cookies().get(COOKIE)?.value;
+  const authorization = headers().get("authorization");
+  const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const token = bearer ?? cookies().get(COOKIE)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
+    if (bearer && (payload.client !== "capacitor" || payload.aud !== "reproai-mobile")) return null;
     return {
       userId: payload.userId as string,
       role: payload.role as Role,

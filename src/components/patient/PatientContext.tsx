@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, userMessage } from "@/lib/api-client";
+import { useRouter } from "next/navigation";
+import { ApiError, api, userMessage } from "@/lib/api-client";
+import { Capacitor } from "@capacitor/core";
 import type { ProfileResponse } from "@/types/patient";
 
 interface PatientContextValue {
@@ -15,6 +17,7 @@ const PatientContext = createContext<PatientContextValue | null>(null);
 
 /** Loads /api/patient/profile once for the whole patient portal; pages call refresh() after changes. */
 export function PatientProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [data, setData] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,10 +29,13 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       setError("");
     } catch (err) {
       setError(userMessage(err, "Could not load your profile."));
+      if (Capacitor.isNativePlatform() && err instanceof ApiError && err.status === 401) {
+        router.replace("/login");
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     void refresh();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticate, createSession, AuthError } from "@/lib/auth";
+import { authenticate, createMobileAccessToken, createSession, AuthError } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
@@ -15,6 +15,15 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await authenticate(email, password);
+    if (req.headers.get("x-reproai-client") === "capacitor") {
+      if (session.role !== "PATIENT") {
+        return NextResponse.json({ error: "The mobile health app is for patient accounts." }, { status: 403 });
+      }
+      const accessToken = await createMobileAccessToken(session);
+      await audit(session.userId, "login", `user:${session.userId}:client:capacitor`);
+      return NextResponse.json({ ok: true, role: session.role, accessToken });
+    }
+
     await createSession(session);
     await audit(session.userId, "login", `user:${session.userId}`);
     return NextResponse.json({ ok: true, role: session.role });

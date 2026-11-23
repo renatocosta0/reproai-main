@@ -2,6 +2,7 @@
 
 import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { Capacitor } from "@capacitor/core";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -9,6 +10,7 @@ import { TourBar } from "@/components/tour/TourBar";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { CLINICIAN_STRINGS } from "@/lib/i18n-clinician";
+import { api, clearMobileAccessToken } from "@/lib/api-client";
 
 export interface NavItem {
   href: string;
@@ -49,7 +51,11 @@ export function PortalShell({ theme, navLabel, nav, user, sidebarFooter, topActi
 
   async function logout() {
     setSigningOut(true);
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
+    if (Capacitor.isNativePlatform()) {
+      clearMobileAccessToken();
+    } else {
+      await api("/api/auth/logout", { method: "POST" }).catch(() => null);
+    }
     router.replace("/login");
     router.refresh();
   }

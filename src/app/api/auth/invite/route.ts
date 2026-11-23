@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
         kind: invite.kind,
         scope: invite.scope,
         email: invite.allowedEmails[0] ?? null,
+        emailHint: invite.allowedEmails.length > 1 ? "couple" : null,
         name: invite.name,
         sex: invite.sex
       });

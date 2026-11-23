@@ -78,7 +78,7 @@ The model is **B2B2C and physician-led**: a clinician prescribes access, the pat
 - **Clinical copilot that explains, never invents.** Answers only from one case's record and the cited guidance library; each sentence is checked against what it cites and flagged if unsupported. A labelled scripted summary appears if the AI is unavailable.
 - **Arabic.** Right-to-left patient experience for the trajectory, options and consent screens (prototype translation, pending clinical review).
 - **Guided demo.** A twelve-step tour at `/tour`, including a missing-data case and a no-consent case.
-- **Longitudinal wearable tracking.** Basal body temperature (LOINC 8310-5) with Roetzer coverline detection of a biphasic shift (≥ 0.30 °C), and sleep duration (LOINC 93832-4) with variability analysis.
+- **Longitudinal readings.** Patients can enter basal body temperature (LOINC 8310-5) and sleep duration (LOINC 93832-4) manually; a supported Bluetooth thermometer can provide temperature readings. The Capacitor app bundles a static export of the existing patient portal screens, including the same wearable page, which calls the native HealthKit/Health Connect plugin when available. Native device access still requires a configured API origin, platform permissions/signing, and real-device validation.
 - **Closed-loop follow-up.** Wearable and assessment signals support the clinician's review; the clinician can open an alert with a patient-facing recommendation, which moves through *alert raised → consultation requested → appointment scheduled → in follow-up → closed* on a board.
 - **Sex-adaptive interface.** Female views focus on ovarian reserve, AFC and temperature; male views on semen parameters against the WHO 2010 reference limits used by the Daman Thiqa guideline; paired views on the joint estimate.
 - **Grounded assistant with citations.** Ask ReproAI retrieves from a cited library (Thiqa ART guideline v3.6 with page numbers, WHO 2025 infertility guideline, ReproAI's own rules) and the patient's released record before answering, cites a source for every sentence, removes any sentence it cannot verify, and says "not in the guidance" rather than guess. It has no tools and cannot compute a score. Azure OpenAI is preferred, Groq is the fallback. Measured with `npm run rag:eval`; results are on the Evidence page.
@@ -105,6 +105,7 @@ Estimates are decision support for a licensed clinician. They do not diagnose in
 - [Prisma 5](https://www.prisma.io) on [PostgreSQL](https://www.postgresql.org) (hosted on [Neon](https://neon.tech))
 - [FastAPI](https://fastapi.tiangolo.com) and [Pydantic 2](https://docs.pydantic.dev) on Python 3.11 for the ML service
 - [jose](https://github.com/panva/jose) JWT sessions in HTTP-only cookies, [bcrypt](https://github.com/dcodeIO/bcrypt.js) password hashing
+- [Capacitor 8](https://capacitorjs.com) static export of the existing patient portal screens with [@capgo/capacitor-health](https://github.com/Cap-go/capacitor-health) for read-only HealthKit and Health Connect imports
 - [Azure OpenAI](https://azure.microsoft.com/products/ai-services/openai-service) / [Groq](https://groq.com) for the assistant, optional [Azure AI Search](https://azure.microsoft.com/products/ai-services/ai-search) and [MCP](https://modelcontextprotocol.io) tools
 
 ### Architecture
@@ -116,6 +117,8 @@ flowchart LR
     C[Clinician portal]
     API[API routes]
   end
+  M[Capacitor bundle of existing patient screens] --> API
+  H[Apple Health / Health Connect] --> M
   P --> API
   C --> API
   API --> DB[(PostgreSQL / Prisma)]
@@ -130,7 +133,7 @@ More detail: [`docs/architecture.md`](docs/architecture.md) · [`docs/data-gover
 
 ### Prerequisites
 
-- Node.js 20 or newer and npm
+- Node.js 20 or newer and npm for the web app; Node.js 22 or newer for Capacitor 8 mobile commands
 - Python 3.11 (see `.python-version`) for the ML service
 - A PostgreSQL database. A free [Neon](https://neon.tech) project works, as does a local Postgres, for example:
 
@@ -139,6 +142,7 @@ More detail: [`docs/architecture.md`](docs/architecture.md) · [`docs/data-gover
   ```
 
 - Optional: an Azure OpenAI deployment or a [Groq](https://console.groq.com) API key for the assistant
+- Optional native builds: Android Studio and Android SDK for Android; macOS and Xcode for iOS
 
 ### Installation
 
@@ -159,6 +163,8 @@ More detail: [`docs/architecture.md`](docs/architecture.md) · [`docs/data-gover
    ```sh
    npx prisma db push
    ```
+
+The Capacitor app bundles a static export of the existing login and patient portal routes; API routes, database access, and authorization remain on the hosted Next.js server. Follow [`mobile/README.md`](mobile/README.md), set `NEXT_PUBLIC_API_BASE_URL` in `.env.mobile`, and configure `CAPACITOR_ALLOWED_ORIGINS` before building the native app.
 
    > The files in `prisma/migrations/` predate the move from SQLite to PostgreSQL, so use `db push` for a fresh database rather than `migrate deploy`.
 
@@ -294,7 +300,7 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 | `/api/patient/ask` | POST | Patient | Grounded assistant: corpus + released record, per-sentence verification, abstention |
 | `/api/patient/what-if` | POST | Patient | Illustrative BMI what-if; nothing is saved |
 | `/api/observations`, `/api/observations/bulk` | GET / POST | Patient | Own readings; manual entry (single or pasted), source `MANUAL`, with pattern analysis |
-| `/api/observations/import` | POST | Patient | Device import: `{ source: BLUETOOTH \| HEALTH_CONNECT \| HEALTHKIT \| ULTRAHUMAN, device?, samples }`, samples in the `@capgo/capacitor-health` HealthSample shape; basal temperature and nightly sleep only; duplicates skipped |
+| `/api/observations/import` | POST | Patient | Accepts device-import payloads `{ source: BLUETOOTH \| HEALTH_CONNECT \| HEALTHKIT \| ULTRAHUMAN, device?, samples }` in the `@capgo/capacitor-health` sample shape; accepts basal temperature and nightly sleep only, skips duplicates. The existing patient wearable screen reads Apple Health/Health Connect in the native bundle and sends only returned samples. |
 | `/api/pairing/invite`, `accept`, `revoke`, `status` | POST / GET | Patient | Partner pairing with revocable consent |
 | `/api/agent` | POST | Clinician | Tool-calling agent, guideline search only |
 | `/api/clinician/invite` | POST / GET | Clinician | Prescribe access; list issued prescriptions |

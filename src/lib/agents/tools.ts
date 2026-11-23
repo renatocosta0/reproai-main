@@ -49,7 +49,7 @@ const predictFertility: Tool = {
 const searchGuidelines: Tool = {
   name: "search_guidelines",
   description:
-    "Search ReproAI's cited guidance library (Thiqa ART guideline v3.6, WHO 2025 infertility guideline, ReproAI rules). Returns passages with IDs and citations, or abstained=true when nothing relevant exists.",
+    "Search the cited external clinical guidance library (Thiqa ART coverage document, WHO infertility guidance summaries, and other approved external sources). ReproAI internal product rules are excluded. Returns passages with IDs and citations, or abstained=true when nothing relevant exists.",
   parameters: {
     type: "object",
     properties: {
@@ -58,7 +58,7 @@ const searchGuidelines: Tool = {
     required: ["query"]
   },
   handler: async (args) => {
-    const r = await retrieve(String(args.query), { audience: "clinician" });
+    const r = await retrieve(String(args.query), { audience: "clinician", scope: "clinical" });
     return {
       abstained: r.abstain,
       reason: r.reason,

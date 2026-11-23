@@ -5,7 +5,7 @@
 
 import { chat } from "@/lib/chat-provider";
 import { PASSAGE_BY_ID, SOURCES, STATUS_LABEL, citationLabel, type Audience, type PassageStatus } from "@/lib/rag/corpus";
-import { retrieve, tokenize, type Retrieval } from "@/lib/rag/retrieve";
+import { retrieve, tokenize, type Retrieval, type RetrievalScope } from "@/lib/rag/retrieve";
 import type { RecordPassage } from "@/lib/rag/record-passages";
 
 export interface SourceRef {
@@ -138,14 +138,34 @@ function toSource(id: string, record: Map<string, RecordPassage>, asker: "patien
   return { id, title: p.title, label: citationLabel(p), kind: "guidance", status: p.status, statusLabel: STATUS_LABEL[p.status], url, text: p.text };
 }
 
-function systemPrompt(o: AskOptions): string {
+function answerScope(question: string): RetrievalScope {
+  const q = question.toLowerCase();
+  const asksProductBehavior =
+    /\b(reproai|this app|the app|application|platform|dashboard|account|consent|privacy|what-if|simulator)\b/i.test(q) ||
+    /\b(who can see|why (?:can'?t|cannot) i see|how (?:do|does) (?:this|the) app|how does reproai|does reproai|is reproai|change my consent|delete my account)\b/i.test(q) ||
+    /\bhow is (?:my )?(?:estimate|score|assessment) calculated\b|\bwhy (?:is there no|can't i see|cannot i see|don't i see) (?:my )?(?:estimate|assessment|result)\b|\bwho can see my (?:data|record|information)\b|\bcan i (?:withdraw|change) my consent\b|\bcan i enter my own (?:lab|test) results\b/i.test(q) ||
+    /\b(?:does|do) (?:my )?(?:sleep|wearable|temperature) data (?:change|affect|inform) my (?:reproai )?(?:result|score|assessment|estimate|model)\b/i.test(q) ||
+    /(?:ريبرواي|التطبيق|المنصة|لوحة التحكم|الحساب|الموافقة|الخصوصية)/.test(q) &&
+      /(?:يعرض|يستخدم|يحسب|يعمل|أرى|أغيّر|تغيير|موافقة|حساب|من يمكنه رؤية|سحب موافقتي)/.test(q) ||
+    /(?:لماذا لا أستطيع رؤية|لماذا لا أرى).*(?:تقييمي|نتيجتي)|من يمكنه رؤية بياناتي|هل يمكنني إدخال نتائج الفحوصات/.test(q);
+
+  // When intent is unclear, use the clinical evidence policy. Product passages
+  // must never enter a patient-specific or medical explanation by default.
+  return asksProductBehavior ? "product" : "clinical";
+}
+
+function systemPrompt(o: AskOptions, scope: RetrievalScope): string {
   const who =
     o.audience === "patient"
       ? "You answer questions from a person using ReproAI, a reproductive-health app in Abu Dhabi. Write in plain, warm, calm language at a reading age of about 12. Never alarm. You are not a doctor: you explain, you do not diagnose or prescribe."
       : "You answer questions from a licensed fertility clinician using ReproAI. Be concise and clinical. You explain and summarise; decisions remain with the clinician.";
+  const sourcePolicy = scope === "product"
+    ? "This is a question about ReproAI product behavior. Use only the internal product passages provided. Explain what the app does, and do not use those passages to make or imply a clinical claim about the person's health."
+    : "This is a clinical or patient-specific health question. Use the person's record only for facts about that person's recorded data, and use only non-internal clinical source passages for medical explanations. Internal ReproAI product rules and documentation are not evidence and must not support any clinical claim. If the clinical passages do not support an explanation, say that clearly instead of using an internal rule.";
   return `${who}
 
 You may use ONLY the PASSAGES given in the user message. Each passage has an ID in square brackets.
+${sourcePolicy}
 Rules:
 1. Every sentence must be supported by the passage(s) it cites. Do not add facts, numbers, percentages, drug names, doses or time frames that are not written in those passages.
 2. Do not calculate or estimate anything. Copy numbers exactly as they appear in the passage. Call a model estimate a "model estimate" and always give its 95% interval; never describe it as a chance of pregnancy, success or live birth.
@@ -205,12 +225,18 @@ export async function groundedAnswer(question: string, o: AskOptions): Promise<G
   }
 
   const audience: Audience = o.audience === "clinician" ? "clinician" : "both";
+  const scope = answerScope(q);
   const searchText = q.split(/\s+/).length < 5 && o.previousQuestion ? `${o.previousQuestion} ${q}` : q;
-  const retrieval = await retrieve(searchText, { audience, top: 4 });
-  const recordHits = relevantRecord(q, o.record ?? []).slice(0, 5);
+  const retrieval = await retrieve(searchText, { audience, top: 4, scope });
+  const recordHits = scope === "clinical" ? relevantRecord(q, o.record ?? []).slice(0, 5) : [];
   const recordMap = new Map((o.record ?? []).map((r) => [r.id, r]));
 
-  const passageIds = [...recordHits.map((r) => r.id), ...retrieval.hits.map((h) => h.passage.id)];
+  const approvedHits = retrieval.hits.filter((hit) => {
+    const canonical = PASSAGE_BY_ID[hit.passage.id];
+    if (!canonical) return false;
+    return scope === "product" ? canonical.status === "internal" : canonical.status !== "internal";
+  });
+  const passageIds = [...recordHits.map((r) => r.id), ...approvedHits.map((h) => h.passage.id)];
   const passageText = new Map<string, string>(passageIds.map((id) => [id, recordMap.get(id)?.text ?? PASSAGE_BY_ID[id]?.text ?? ""]));
   const base = { retrieval: { engine: retrieval.engine, reason: retrieval.reason, candidates: passageIds.length } };
 
@@ -222,7 +248,7 @@ export async function groundedAnswer(question: string, o: AskOptions): Promise<G
   let raw: string | null = null;
   let provider: string | undefined;
   try {
-    const r = await chat([{ role: "system", content: systemPrompt(o) }, { role: "user", content: userMsg }], { temperature: 0, maxTokens: o.audience === "clinician" ? 1800 : 1000 });
+    const r = await chat([{ role: "system", content: systemPrompt(o, scope) }, { role: "user", content: userMsg }], { temperature: 0, maxTokens: o.audience === "clinician" ? 1800 : 1000 });
     raw = r.reply;
     provider = r.provider;
   } catch (e) {

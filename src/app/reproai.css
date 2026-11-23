@@ -3959,6 +3959,47 @@ html[dir="rtl"] .switch.on i { right: 23px; }
 .suggestions button { white-space: normal; text-align: start; max-width: 100%; }
 
 /* Grounded answers: citation chips, sources panel, abstention */
+.health-connect-panel {
+  border: 1px solid #cbd5e1;
+}
+.health-connect-icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+.health-connect-sub {
+  color: #64748b;
+}
+.health-connect-permissions {
+  background: #f8fafc;
+}
+.health-connect-permissions-title {
+  color: #334155;
+}
+.health-connect-privacy {
+  color: #059669;
+}
+
+[data-theme="dark"] .health-connect-panel {
+  border-color: #3b4b49;
+  background: #172321;
+  color: #e6efec;
+}
+[data-theme="dark"] .health-connect-icon {
+  background: #203c38;
+  color: #84d6c4;
+}
+[data-theme="dark"] .health-connect-sub {
+  color: #a8bab5;
+}
+[data-theme="dark"] .health-connect-permissions {
+  background: #202e2b;
+}
+[data-theme="dark"] .health-connect-permissions-title {
+  color: #d4e2de;
+}
+[data-theme="dark"] .health-connect-privacy {
+  color: #73d6ad;
+}
 .grounded { min-width: 0; }
 .grounded-text span.unsupported { background: #fdf0e3; border-radius: 4px; text-decoration: underline dotted #c98a3c; }
 .unsupported-icon { color: #b8742a; margin-left: 2px; vertical-align: -1px; }

@@ -13,7 +13,7 @@ All people are fictional; all data is synthetic. No performance claims, no "fert
 | Technical depth and architecture | 4b device import with provenance · 10 copilot (retrieve, cite, verify) · 11 governed agent · 12 deterministic model with provenance | R2 |
 | Working solution and demo quality | the whole film is the live app, phone and desktop | |
 | Responsible AI, safety and governance | 4 consent · 12 "not validated yet" · 13 refuses to guess · 14 clinician sign-off · 7 alert to the team, not the patient | R2, R5 |
-| Scalability and deployment readiness | 4b Bluetooth, Apple Health and Health Connect import · 17 FHIR export, LLM in the UAE | |
+| Scalability and deployment readiness | 4b manual/Bluetooth readings; native Apple Health and Health Connect client implemented but not device-validated · 17 FHIR export, LLM in the UAE | |
 | Commercial viability and path to pilot | 6 the clinician's panel · 17 measures · 18 pilot ask | R4, R6 |
 
 Requirements: R1 trajectory (15) · R2 plain language and missing data (12, 13, 15) · R3 options (9, 15) · R4 clinician and population view (6–8) · R5 consent and purpose limits (4) · R6 evidence of earlier action (7, 17).
@@ -35,7 +35,7 @@ Requirements: R1 trajectory (15) · R2 plain language and missing data (12, 13, 
 > Then she decides who sees what. Her care team, her lab results, her partner, anonymous statistics: each is her choice, and she can change it at any time. Her data is never used for employment or insurance.
 
 **4b · Her devices** · phone, Health tracking: the Bluetooth thermometer panel, and where each reading came from
-> Her temperature and sleep can come in by hand, or straight from a standard Bluetooth thermometer, and the same import takes Apple Health and Health Connect data. Every reading keeps its source.
+> Her temperature and sleep can be entered by hand or read from a standard Bluetooth thermometer. ReproAI also has a native Apple Health and Health Connect import; if the phone has no readings or access, it offers manual entry. Every saved reading keeps its source.
 
 ## Handover
 

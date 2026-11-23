@@ -1,41 +1,63 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { RegisterInviteGate } from "@/components/auth/InviteGates";
-import { resolveInviteToken } from "@/lib/invites";
+import { api } from "@/lib/api-client";
 
-export const dynamic = "force-dynamic";
+interface InviteDetails {
+  valid: true;
+  kind: "CLINIC" | "PARTNER";
+  email: string | null;
+  emailHint?: "couple" | null;
+  name?: string | null;
+  sex?: string | null;
+  senderName?: string | null;
+}
 
-// Prescription-gated registration. The token is checked on the server before
-// anything renders, so an invalid link never shows the form.
-export default async function RegisterPage({
-  searchParams
-}: {
-  searchParams: { token?: string | string[] };
-}) {
-  const token = typeof searchParams.token === "string" ? searchParams.token : "";
-  const invite = token ? await resolveInviteToken(token) : null;
+export default function RegisterPage() {
+  const [token, setToken] = useState("");
+  const [invite, setInvite] = useState<InviteDetails | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!invite) {
-    return (
-      <AuthShell>
-        <RegisterInviteGate hadToken={Boolean(token)} />
-      </AuthShell>
-    );
-  }
+  useEffect(() => {
+    let active = true;
+    const inviteToken = new URLSearchParams(window.location.search).get("token") ?? "";
+    setToken(inviteToken);
+    if (!inviteToken) {
+      setLoading(false);
+      return () => { active = false; };
+    }
+
+    api<InviteDetails>(`/api/auth/invite?token=${encodeURIComponent(inviteToken)}`)
+      .then((details) => { if (active && details.valid) setInvite(details); })
+      .catch(() => { if (active) setInvite(null); })
+      .finally(() => { if (active) setLoading(false); });
+
+    return () => { active = false; };
+  }, []);
 
   return (
     <AuthShell>
-      <RegisterForm
-        token={token}
-        kind={invite.kind}
-        // A couple prescription is valid for either partner's email, so let them type it.
-        email={invite.allowedEmails.length === 1 ? invite.allowedEmails[0] : ""}
-        // The form shows the couple-email hint in the reader's language.
-        emailHint={invite.allowedEmails.length > 1 ? "couple" : undefined}
-        name={invite.kind === "CLINIC" && invite.allowedEmails.length === 1 ? invite.name : null}
-        sex={invite.kind === "CLINIC" && invite.allowedEmails.length === 1 ? invite.sex : null}
-        senderName={invite.kind === "PARTNER" ? invite.senderName : null}
-      />
+      {loading ? (
+        <div className="gate-card" role="status" aria-live="polite">
+          <Loader2 size={22} className="spin" aria-hidden />
+        </div>
+      ) : invite ? (
+        <RegisterForm
+          token={token}
+          kind={invite.kind}
+          email={invite.email ?? ""}
+          emailHint={invite.kind === "CLINIC" ? invite.emailHint ?? undefined : undefined}
+          name={invite.kind === "CLINIC" ? invite.name ?? null : null}
+          sex={invite.kind === "CLINIC" ? invite.sex ?? null : null}
+          senderName={invite.kind === "PARTNER" ? invite.senderName ?? null : null}
+        />
+      ) : (
+        <RegisterInviteGate hadToken={Boolean(token)} />
+      )}
     </AuthShell>
   );
 }

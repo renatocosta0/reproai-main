@@ -1,6 +1,6 @@
 # ReproAI demo video: 3-minute cut (English)
 
-Same story and recordings as the 4-minute film (`reproai-demo-script.md`), with tighter narration. Beats 7b and 15 reuse lines from the 4-minute film (same voice). Every judging criterion and R1–R6 is still covered: consent (R5), devices with provenance, alerts and triage, population insight (R4), the copilot, the governed next step, the model with its limits (R2), refusing to guess, clinician sign-off, Reem's trajectory and options (R1, R3), FHIR and UAE hosting, measures (R6), and the pilot ask.
+Same story and recordings as the 4-minute film (`reproai-demo-script.md`), with tighter narration. Beats 7b and 15 reuse lines from the 4-minute film (same voice). Every judging criterion and R1–R6 is still covered: consent (R5), manual/Bluetooth readings with provenance, alerts and triage, population insight (R4), the copilot, the governed next step, the model with its limits (R2), refusing to guess, clinician sign-off, Reem's trajectory and options (R1, R3), FHIR and UAE hosting, measures (R6), and the pilot ask. Native Apple Health / Health Connect access is integrated in code but must be validated on real devices before filming it as a live flow.
 
 All people are fictional; all data is synthetic. Each `> ` line is one narration paragraph.
 
@@ -16,7 +16,7 @@ All people are fictional; all data is synthetic. Each `> ` line is one narration
 > Then she decides who sees what, and she can change it at any time. Her data is never used for employment or insurance.
 
 **4 · Her devices** · Health tracking, Bluetooth thermometer, sources
-> Her temperature and sleep can come in by hand or from a Bluetooth thermometer, and the import takes Apple Health and Health Connect data. Every reading keeps its source.
+> Her temperature and sleep can be entered by hand or read from a Bluetooth thermometer. The native app can also read Apple Health or Health Connect with her permission; if no readings are available, it offers manual entry. Every saved reading keeps its source.
 
 **5 · Handover** · phone to desktop
 > All of it travels, with her choices, to her doctor.

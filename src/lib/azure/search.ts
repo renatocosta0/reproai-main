@@ -10,6 +10,6 @@ export interface SearchSnippet {
 }
 
 export async function retrieveGrounding(query: string, top = 3): Promise<SearchSnippet[]> {
-  const r = await retrieve(query, { top, audience: "clinician" });
+  const r = await retrieve(query, { top, audience: "clinician", scope: "clinical" });
   return r.hits.map((h) => ({ content: h.passage.text, source: `${h.passage.id} · ${citationLabel(h.passage)}` }));
 }

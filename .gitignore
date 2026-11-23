@@ -9,11 +9,25 @@ node_modules/
 
 # production
 /build
+/mobile/dist/
+/mobile/.next-source/
+/mobile/.env.mobile
+/android/.gradle/
+/android/local.properties
+/android/build/
+/android/app/build/
+/ios/App/DerivedData/
+/ios/App/Pods/
+/ios/App/CapApp-SPM/.build/
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
 
 # env
 .env
 .env*.local
 .env.demo
+/.env.mobile
 .demo-private/
 audios/
 audio_manifest.json
