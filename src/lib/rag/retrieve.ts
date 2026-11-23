@@ -27,13 +27,14 @@ export interface Retrieval {
 }
 
 export type RetrievalScope = "clinical" | "product";
+type SourceDocs = readonly string[] | undefined;
 
 // Abstention thresholds, tuned on the evaluation set (npm run rag:eval).
 export const MIN_SCORE = 2.2;
 export const MIN_COVERAGE = 0.34;
 
 const STOP = new Set(
-  "a an the and or but if of to in on at by for with from as is are was were be been being do does did have has had i me my we our you your he she it they them this that these those what which who whom how when where why can could should would will may might must not no yes so than then there here about into over under after before again any all some more most very just also only own same too please tell explain know want need get mean means".split(" ")
+  "a an the and or but if of to in on at by for with from as is are was were be been being do does did have has had i me my we our you your he she it they them this that these those what which who whom how when where why can could should would will may might must not no yes so than then there here about into over under after before again any all some more most very just also only own same too please tell explain know want need get mean means say says matter matters much".split(" ")
 );
 
 // Lay word → clinical words. Expansion terms are added to the query with lower weight.
@@ -110,7 +111,8 @@ export function tokenize(text: string): string[] {
     .replace(/[^a-z0-9؀-ۿ\s]/g, " ")
     .split(/\s+/)
     .filter((w) => w && !STOP.has(w))
-    .map(stem);
+    .map(stem)
+    .filter((w) => w && !STOP.has(w));
 }
 
 interface Indexed {
@@ -143,7 +145,7 @@ interface Query {
   groups: string[][];
 }
 
-function bm25(query: Query, audience: Audience, scope?: RetrievalScope): Hit[] {
+function bm25(query: Query, audience: Audience, scope?: RetrievalScope, sourceDocs?: SourceDocs): Hit[] {
   const { docs, df, avgLen } = index();
   const N = docs.length;
   const k1 = 1.2;
@@ -154,6 +156,7 @@ function bm25(query: Query, audience: Audience, scope?: RetrievalScope): Hit[] {
     if (audience === "both" && d.passage.audience === "clinician") continue;
     if (scope === "clinical" && d.passage.status === "internal") continue;
     if (scope === "product" && d.passage.status !== "internal") continue;
+    if (sourceDocs && !sourceDocs.includes(d.passage.doc)) continue;
     let score = 0;
     for (const [t, w] of queryTerms) {
       const f = d.tf.get(t);
@@ -184,15 +187,33 @@ function parseQuery(query: string): Query {
     else raw.push(...piece.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/));
   }
   for (const w of raw) {
-    if (!w || w.length <= 1 || STOP.has(w)) continue;
+    if (!w || w.length <= 1 || STOP.has(w) || /^(thiqa|daman|who|acog|eshre)$/i.test(w)) continue;
     const t = stem(w);
-    if (!t) continue;
+    if (!t || STOP.has(t)) continue;
     weights.set(t, 1);
     const syns = (SYNONYMS[w] ?? SYNONYMS[t] ?? []).map(stem);
     for (const st of syns) if (!weights.has(st)) weights.set(st, 0.5);
     if (!groups.some((g) => g[0] === t)) groups.push([t, ...syns]);
   }
   return { weights, groups };
+}
+
+/**
+ * A named publisher in a question is a request to answer from that publisher,
+ * rather than a keyword to match in unrelated passages.
+ */
+function requestedSourceDocs(query: string): SourceDocs {
+  const q = query.toLowerCase();
+  if (/\b(?:thiqa|daman)\b/.test(q)) return ["THIQA"];
+  if (/\bacog\b/.test(q)) return ["ACOG_FAM", "ACOG_INFERTILITY"];
+  if (/\beshre\b/.test(q)) return ["ESHRE_FFP"];
+  // Keep the ordinary interrogative “Who can …?” separate from WHO, the
+  // publisher. Phrases such as “What does WHO say …?” select WHO sources.
+  const asksWHO = /\bwho\b/.test(q) && !/^\s*who\s+(?:can|should|is|are|do|does|will|would)\b/.test(q);
+  if (asksWHO) return ["WHO25", "WHO25_FULL"];
+  // This asks for a clinical explanation, rather than a payer's age rule.
+  if (/\bwhy\b.*\bage\b|\bage\b.*\b(?:matter|important|affect)/.test(q)) return ["WHO25_FULL"];
+  return undefined;
 }
 
 /**
@@ -203,11 +224,12 @@ export async function retrieve(query: string, opts: { top?: number; audience?: A
   const top = opts.top ?? 4;
   const audience = opts.audience ?? "both";
   const scope = opts.scope;
+  const sourceDocs = scope === "clinical" ? requestedSourceDocs(query) : undefined;
 
   const azure = getAzureSearchConfig();
   if (azure) {
     try {
-      const hits = await azureSearch(query, top, azure, scope);
+      const hits = await azureSearch(query, top, azure, scope, sourceDocs);
       if (hits.length > 0) {
         return { query, hits, abstain: false, engine: "azure-search" };
       }
@@ -221,10 +243,12 @@ export async function retrieve(query: string, opts: { top?: number; audience?: A
   if (parsed.groups.length === 0) {
     return { query, hits: [], abstain: true, reason: "The question has no searchable terms.", engine: "bm25-local" };
   }
-  const all = bm25(parsed, audience, scope);
+  const all = bm25(parsed, audience, scope, sourceDocs);
   const best = all[0];
-  // Keep passages that are reasonably close to the best one.
-  const hits = all.filter((h) => best && h.score >= best.score * 0.45).slice(0, top);
+  // Keep passages that are close to the best result and cover enough of the
+  // question to stand as evidence on their own. A weak secondary match should
+  // not dilute a focused answer or become the extractive fallback.
+  const hits = all.filter((h) => best && h.score >= best.score * 0.45 && h.coverage >= MIN_COVERAGE).slice(0, top);
   const abstain = !best || best.score < MIN_SCORE || best.coverage < MIN_COVERAGE;
   return {
     query,
@@ -241,10 +265,10 @@ export async function retrieve(query: string, opts: { top?: number; audience?: A
 
 /** Diagnostics for the evaluation script: best raw match even when abstaining. */
 export function rawRanking(query: string, audience: Audience = "clinician", scope?: RetrievalScope): Hit[] {
-  return bm25(parseQuery(query), audience, scope);
+  return bm25(parseQuery(query), audience, scope, scope === "clinical" ? requestedSourceDocs(query) : undefined);
 }
 
-async function azureSearch(query: string, top: number, cfg: { endpoint: string; apiKey: string; index: string }, scope?: RetrievalScope): Promise<Hit[]> {
+async function azureSearch(query: string, top: number, cfg: { endpoint: string; apiKey: string; index: string }, scope?: RetrievalScope, sourceDocs?: SourceDocs): Promise<Hit[]> {
   const url = `${cfg.endpoint}/indexes/${encodeURIComponent(cfg.index)}/docs/search?api-version=2024-07-01`;
   const res = await fetch(url, {
     method: "POST",
@@ -264,6 +288,7 @@ async function azureSearch(query: string, top: number, cfg: { endpoint: string; 
       if (!passage) return [];
       if (scope === "clinical" && passage.status === "internal") return [];
       if (scope === "product" && passage.status !== "internal") return [];
+      if (sourceDocs && !sourceDocs.includes(passage.doc)) return [];
       return [{ passage, score: Number(doc["@search.score"] ?? 0), coverage: 1 }];
     })
     .slice(0, top);

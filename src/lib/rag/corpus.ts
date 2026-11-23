@@ -271,6 +271,12 @@ export const PASSAGES: Passage[] = [
     text: "WHO suggests low-cost lifestyle advice before and during infertility treatment for individuals and couples with infertility. It may include changes to diet, alcohol intake, smoking, physical activity, and weight management. This is a conditional recommendation based on low-certainty evidence.",
     terms: ["who recommendation", "who recommend", "lifestyle changes", "lifestyle advice", "change lifestyle", "diet", "exercise", "physical activity", "alcohol", "smoking", "weight management"]
   },
+  {
+    id: "WHO25-8", doc: "WHO25_FULL", section: "Chapter 3; Section 5.3", page: 4, status: "primary", audience: "both",
+    title: "Why age matters in fertility care",
+    text: "WHO describes age-related fertility decline as an important consideration, particularly for females. The number of oocytes in the ovaries decreases progressively over time, and fecundity decreases as age increases. WHO calls age the most important predictor of ovarian reserve, while noting that people of the same chronological age can differ in oocyte quantity and quality.",
+    terms: ["why age matters", "why age matter", "age fertility", "age-related fertility decline", "age ovarian reserve", "older age", "reproductive age", "oocytes", "egg reserve"]
+  },
 
   // ── Sleep and fertility: systematic-review evidence ───────────────────
   {

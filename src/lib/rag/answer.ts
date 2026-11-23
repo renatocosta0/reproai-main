@@ -209,9 +209,12 @@ async function judgeSentences(sentences: AnswerSentence[], passages: Map<string,
 function relevantRecord(question: string, record: RecordPassage[]): RecordPassage[] {
   const clinicalRecord = record.filter((r) => r.clinical !== false);
   if (clinicalRecord.length === 0) return [];
-  // “I” alone should not make every record passage relevant to a general
-  // clinical question such as when to see a specialist.
-  const personal = /\b(my|mine|our|we|this case|the case|this patient|summar|her|his|their|couple|consultation)\b/i.test(question);
+  const personal =
+    /\b(my|mine|our|we|this case|the case|this patient|summar|her|his|their|couple|consultation)\b/i.test(question) ||
+    /\bi\s+(?:have|am|was|received|got|was told)\b/i.test(question);
+  // General clinical questions should start from clinical literature, never
+  // from coincidental words in a personal record such as age or AMH.
+  if (!personal) return [];
   const q = new Set(tokenize(question));
   const scored = clinicalRecord
     .map((r) => ({ r, n: tokenize(`${r.title} ${r.text}`).filter((t) => q.has(t)).length }))

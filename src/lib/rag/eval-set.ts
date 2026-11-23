@@ -41,6 +41,9 @@ export const EVAL_SET: EvalItem[] = [
   { q: "What treatments count as assisted reproduction?", answerable: true, expect: ["THQ-1"], kind: "guidance" },
   // ── Answerable from WHO 2025 (announcement) ──
   { q: "How common is infertility?", answerable: true, expect: ["WHO25-1"], kind: "guidance" },
+  { q: "Why does age matter so much?", answerable: true, expect: ["WHO25-8"], kind: "guidance" },
+  { q: "What does Thiqa say about age?", answerable: true, expect: ["THQ-7"], kind: "guidance" },
+  { q: "What does WHO say about age?", answerable: true, expect: ["WHO25-8"], kind: "guidance" },
   { q: "What lifestyle changes help when trying to conceive?", answerable: true, expect: ["WHO25-2"], kind: "guidance" },
   { q: "What lifestyle changes does WHO recommend?", answerable: true, expect: ["WHO25-7"], kind: "guidance" },
   { q: "Does smoking affect fertility?", answerable: true, expect: ["WHO25-2"], kind: "guidance" },
