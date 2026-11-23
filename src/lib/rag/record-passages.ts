@@ -13,6 +13,8 @@ export interface RecordPassage {
   text: string;
   /** In-app page showing this information (set server-side; never from the model). */
   url?: string;
+  /** False for app rules and workflow explanations that are not clinical evidence. */
+  clinical?: boolean;
 }
 
 const day = (iso: string) => iso.slice(0, 10);
@@ -81,6 +83,7 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
       id: "REC-OPTIONS",
       title: "Your options to discuss",
       url: "/patient/assessment",
+      clinical: false,
       text: rec.options.slice(0, 6).map((o) => `${o.title} (rule ${o.ruleId}; ${o.source}): ${o.patientText} Why: ${o.reason}`).join(" ")
     });
   }
@@ -128,6 +131,7 @@ export function casePassages(facts: CaseFacts): RecordPassage[] {
         id: `CASE-M${n}-RULES`,
         title: `${m.name}: triggered rules`,
         url: caseUrl,
+        clinical: false,
         text: m.triggeredRules.map((r) => `Rule ${r.id}, ${r.title}: ${r.reason} (${r.source})`).join(" ")
       });
     }

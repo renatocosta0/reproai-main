@@ -16,6 +16,7 @@ export interface EvalItem {
 export const EVAL_SET: EvalItem[] = [
   // ── Answerable from Thiqa v3.6 ──
   { q: "How long should a couple try before treatment is considered necessary?", answerable: true, expect: ["THQ-3"], kind: "guidance" },
+  { q: "When should I see a specialist?", answerable: true, expect: ["THQ-3"], kind: "guidance" },
   { q: "What are reasons to be assessed before a full year of trying?", answerable: true, expect: ["THQ-4"], kind: "guidance" },
   { q: "My periods are irregular. Should I wait a year before seeing someone?", answerable: true, expect: ["THQ-4"], kind: "guidance" },
   { q: "I'm 37 and have been trying for 7 months. Is that a reason to be assessed earlier?", answerable: true, expect: ["THQ-4"], kind: "guidance" },

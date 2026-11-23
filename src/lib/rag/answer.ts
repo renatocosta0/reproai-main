@@ -162,6 +162,9 @@ function systemPrompt(o: AskOptions, scope: RetrievalScope): string {
   const sourcePolicy = scope === "product"
     ? "This is a question about ReproAI product behavior. Use only the internal product passages provided. Explain what the app does, and do not use those passages to make or imply a clinical claim about the person's health."
     : "This is a clinical or patient-specific health question. Use the person's record only for facts about that person's recorded data, and use only non-internal clinical source passages for medical explanations. Internal ReproAI product rules and documentation are not evidence and must not support any clinical claim. If the clinical passages do not support an explanation, say that clearly instead of using an internal rule.";
+  const attributionPolicy = scope === "product"
+    ? "Attribute each point to where it comes from: a clinician note is the clinician's view, a rule is a ReproAI rule, and only guidance passages are guidelines."
+    : "Attribute clinician notes as the clinician's view. Do not mention, cite or rely on a ReproAI rule in a clinical answer; only external guidance passages may be called guidelines.";
   return `${who}
 
 You may use ONLY the PASSAGES given in the user message. Each passage has an ID in square brackets.
@@ -169,7 +172,7 @@ ${sourcePolicy}
 Rules:
 1. Every sentence must be supported by the passage(s) it cites. Do not add facts, numbers, percentages, drug names, doses or time frames that are not written in those passages.
 2. Do not calculate or estimate anything. Copy numbers exactly as they appear in the passage. Call a model estimate a "model estimate" and always give its 95% interval; never describe it as a chance of pregnancy, success or live birth.
-   Attribute each point to where it comes from: a clinician note is the clinician's view, a rule is a ReproAI rule, and only guidance passages are "guidelines".
+   ${attributionPolicy}
 3. If the passages do not answer the question, set "answerable" to false and return no sentences. Do not answer from general knowledge.
 4. Answer in at most ${o.audience === "patient" ? 5 : 8} short sentences.${o.locale === "ar" ? " Write the sentences in Arabic; keep numbers as digits." : ""}
 5. Reply with JSON only, no other text, in this shape:
@@ -204,10 +207,13 @@ async function judgeSentences(sentences: AnswerSentence[], passages: Map<string,
 
 /** Record passages that share terms with the question, or all of them for a personal question. */
 function relevantRecord(question: string, record: RecordPassage[]): RecordPassage[] {
-  if (record.length === 0) return [];
-  const personal = /\b(my|me|mine|i|i'm|am i|our|we|this case|the case|this patient|summar|her|his|their|couple|consultation)\b/i.test(question);
+  const clinicalRecord = record.filter((r) => r.clinical !== false);
+  if (clinicalRecord.length === 0) return [];
+  // “I” alone should not make every record passage relevant to a general
+  // clinical question such as when to see a specialist.
+  const personal = /\b(my|mine|our|we|this case|the case|this patient|summar|her|his|their|couple|consultation)\b/i.test(question);
   const q = new Set(tokenize(question));
-  const scored = record
+  const scored = clinicalRecord
     .map((r) => ({ r, n: tokenize(`${r.title} ${r.text}`).filter((t) => q.has(t)).length }))
     .filter((x) => x.n > 0 || personal);
   return scored.sort((a, b) => b.n - a.n).map((x) => x.r);
@@ -284,6 +290,9 @@ export async function groundedAnswer(question: string, o: AskOptions): Promise<G
       const sp = support(text, cited);
       if (!sp.numbersOk) issues.push(`number not in cited passage: ${sp.missingNumbers.join(", ")}`);
       issues.push(...claimIssues(text, cited, valid));
+      if (scope === "clinical" && /\b(?:reproai\s+rule|rule\s+[A-Z][A-Z0-9-]*)\b/i.test(text)) {
+        issues.push("clinical answer attributes a claim to an internal ReproAI rule");
+      }
       // Lexical overlap is checked for English only; Arabic answers rely on numbers and the judge.
       if (locale === "en" && sp.overlap < MIN_OVERLAP) issues.push(`wording not found in cited passage (${sp.unsupportedTerms.slice(0, 4).join(", ")})`);
       for (const quote of text.match(/"([^"]{8,})"/g) ?? []) {
