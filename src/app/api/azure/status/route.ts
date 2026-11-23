@@ -23,7 +23,7 @@ export async function GET() {
       malaffi: azure.malaffi,
       mcp: azure.mcp
     },
-    // Health Interoperability (Azure UAE North / Malaffi)
+    // Health interoperability: Azure FHIR (not available in UAE North) and Malaffi HIE
     healthInteroperability: {
       azureFhirEndpoint: fhirCfg?.endpoint ?? null,
       malaffiGateway: malaffiCfg?.gatewayUrl ?? null,
