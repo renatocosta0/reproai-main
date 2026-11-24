@@ -10,7 +10,9 @@ import {
   ArrowRight,
   BookOpenCheck,
   ClipboardCheck,
+  ExternalLink,
   FileLock2,
+  Github,
   HeartHandshake,
   Languages,
   LineChart,
@@ -57,6 +59,10 @@ const STRINGS = {
     coverage: "See what runs in the demo, what is simulated and what is proposed",
     askLink: "Have a general question? Ask the guidance assistant, no account needed",
     navAsk: "Ask a question",
+    navGithub: "GitHub",
+    githubCta: "Source Code (GitHub)",
+    githubInspect: "Inspect the repository and source code on GitHub (renatocosta0/reproai-main)",
+    githubFooter: "Challenge evaluation repository: renatocosta0/reproai-main",
     whoTitle: "Who it's for",
     who: [
       { title: "Women", text: "Ovarian reserve (AMH, antral follicle count) over time, cycle and basal temperature patterns, and egg-freezing options." },
@@ -113,6 +119,10 @@ const STRINGS = {
     coverage: "اطّلع على ما يعمل في العرض التوضيحي وما هو محاكى وما هو مقترح",
     askLink: "لديك سؤال عام؟ اسأل مساعد الإرشادات دون الحاجة إلى حساب",
     navAsk: "اطرح سؤالاً",
+    navGithub: "GitHub",
+    githubCta: "رمز المصدر (GitHub)",
+    githubInspect: "اطّلع على المستودع ورمز المصدر على GitHub (renatocosta0/reproai-main)",
+    githubFooter: "مستودع تقييم التحدي: renatocosta0/reproai-main",
     whoTitle: "لمن صُمّم",
     who: [
       { title: "النساء", text: "مخزون المبيض (AMH وعدد الجريبات الغارية) عبر الزمن، وأنماط الدورة ودرجة الحرارة الأساسية، وخيارات تجميد البويضات." },
@@ -157,8 +167,27 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
           <a href="#who">{t.navWho}</a>
           <a href="#safety">{t.navSafety}</a>
           <Link href="/ask">{t.navAsk}</Link>
+          <a
+            href="https://github.com/renatocosta0/reproai-main"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+          >
+            <Github size={14} aria-hidden /> {t.navGithub}
+          </a>
         </nav>
         <div className="landing-nav-actions">
+          <a
+            href="https://github.com/renatocosta0/reproai-main"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="secondary compact"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
+            title="GitHub: renatocosta0/reproai-main"
+          >
+            <Github size={15} aria-hidden />
+            <span>GitHub</span>
+          </a>
           <button type="button" className="secondary" onClick={() => setLocale(locale === "ar" ? "en" : "ar")} lang={locale === "ar" ? "en" : "ar"}>
             <Languages size={15} aria-hidden /> {t.lang}
           </button>
@@ -187,6 +216,15 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
                 </Link>
               </>
             )}
+            <a
+              className="secondary"
+              href="https://github.com/renatocosta0/reproai-main"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
+              <Github size={16} aria-hidden /> {t.githubCta}
+            </a>
           </div>
           <p className="landing-invite">
             <ShieldCheck size={15} aria-hidden /> {t.invite}
@@ -231,6 +269,16 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
             <Link href="/coverage">
               {t.coverage} <ArrowRight size={15} aria-hidden className="flip-rtl" />
             </Link>
+          </p>
+          <p className="landing-coverage">
+            <a
+              href="https://github.com/renatocosta0/reproai-main"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              <Github size={15} aria-hidden /> {t.githubInspect} <ExternalLink size={14} aria-hidden />
+            </a>
           </p>
         </section>
 
@@ -282,6 +330,18 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
       </main>
 
       <footer className="landing-footer">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+          <a
+            href="https://github.com/renatocosta0/reproai-main"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#0c655e", fontWeight: 600, fontSize: 13.5, textDecoration: "none" }}
+          >
+            <Github size={16} aria-hidden />
+            <span>{t.githubFooter}</span>
+            <ExternalLink size={13} aria-hidden />
+          </a>
+        </div>
         <p>{t.footer}</p>
       </footer>
     </div>
