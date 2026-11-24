@@ -177,17 +177,6 @@ export function Landing({ demoEnabled }: { demoEnabled: boolean }) {
           </a>
         </nav>
         <div className="landing-nav-actions">
-          <a
-            href="https://github.com/renatocosta0/reproai-main"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="secondary compact"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
-            title="GitHub: renatocosta0/reproai-main"
-          >
-            <Github size={15} aria-hidden />
-            <span>GitHub</span>
-          </a>
           <button type="button" className="secondary" onClick={() => setLocale(locale === "ar" ? "en" : "ar")} lang={locale === "ar" ? "en" : "ar"}>
             <Languages size={15} aria-hidden /> {t.lang}
           </button>
