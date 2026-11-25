@@ -138,7 +138,7 @@ export default function TrajectoryPage() {
               <h2>{t("shapedTitle")}</h2>
               <p>{t("shapedSubtitle")}</p>
             </div>
-            <AskChip topic={{ title: t("shapedTitle"), questions: ["What shaped my latest assessment?", "Which of these factors can I change?", "Why does age matter so much?"] }} />
+            <AskChip topic={{ title: t("shapedTitle"), context: "latest released assessment factors", autoExplain: "What shaped my latest assessment?", questions: ["What shaped my latest assessment?", "Which of these factors can I change?", "Why does age matter so much?"] }} />
           </div>
           <ShapChart factors={latest.factors} audience="patient" />
         </section>
@@ -175,6 +175,8 @@ function Headline({ a, sex }: { a: AssessmentView; sex: string | null }) {
             className="on-dark"
             topic={{
               title: sex === "female" ? t("eggReserve") : t("semenHealth"),
+              context: sex === "female" ? "AMH ovarian reserve assessment" : "semen sperm concentration assessment",
+              autoExplain: sex === "female" ? "What does my AMH result mean?" : "Is my sperm concentration in the normal range?",
               questions:
                 sex === "female"
                   ? ["What does my AMH result mean?", "Does AMH tell me whether I can get pregnant?", "When should I see a specialist?"]

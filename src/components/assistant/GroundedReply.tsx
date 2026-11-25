@@ -10,6 +10,10 @@ const T = {
     notFound: "Not in ReproAI's guidance",
     notFoundBody: "I couldn't find this in the guidance library or your record, so I won't guess. Your clinician is the best person to ask.",
     notFoundClin: "No passage in the guidance library or the case record supports an answer. Nothing was generated.",
+    outOfScope: "Outside what I can help with",
+    outOfScopeBody: "I can answer questions about fertility guidance, your own record and how ReproAI works. I can't diagnose, prescribe or give doses, so please ask your clinician about this.",
+    outOfScopeClin: "Outside the assistant's scope (not reproductive health or ReproAI, or a request to diagnose, prescribe or dose). Nothing was generated.",
+    noRecordBody: "This question is about a personal record, and there is no record to answer from here.",
     sources: (n: number) => `${n} source${n === 1 ? "" : "s"}`,
     checked: "Every sentence checked against its source",
     removed: (n: number) => `${n} sentence${n === 1 ? "" : "s"} removed: not supported by the sources`,
@@ -25,6 +29,10 @@ const T = {
     notFound: "غير موجود في إرشادات ReproAI",
     notFoundBody: "لم أجد هذا في مكتبة الإرشادات أو في سجلك، لذلك لن أخمّن. طبيبك هو أفضل من تسأله.",
     notFoundClin: "لا يوجد مقطع في مكتبة الإرشادات أو في سجل الحالة يدعم إجابة، ولم يُولَّد أي نص.",
+    outOfScope: "خارج نطاق ما أستطيع المساعدة فيه",
+    outOfScopeBody: "أستطيع الإجابة عن أسئلة حول إرشادات الخصوبة وسجلك وطريقة عمل ReproAI. لا أستطيع التشخيص أو وصف الأدوية أو تحديد الجرعات، لذا يُرجى سؤال طبيبك عن ذلك.",
+    outOfScopeClin: "خارج نطاق المساعد (ليس عن الصحة الإنجابية أو ReproAI، أو طلب تشخيص أو وصف دواء أو جرعة). لم يُولَّد أي نص.",
+    noRecordBody: "هذا السؤال يتعلق بسجل شخصي، ولا يوجد سجل هنا للإجابة منه.",
     sources: (n: number) => (n === 1 ? "مصدر واحد" : n === 2 ? "مصدران" : n % 100 >= 3 && n % 100 <= 10 ? `${n} مصادر` : `${n} مصدرًا`),
     checked: "تم التحقق من كل جملة مقابل مصدرها",
     removed: (n: number) => `حُذفت ${n} جملة لأنها غير مدعومة بالمصادر`,
@@ -54,10 +62,17 @@ export function GroundedReply({ answer, audience, locale = "en" }: { answer: Gro
   }
 
   if (answer.status === "abstained") {
+    const outOfScope = answer.intent?.name === "out_of_scope";
+    const noRecord = answer.intent?.name === "patient_data" && answer.retrieval.candidates === 0;
+    const body = outOfScope
+      ? audience === "patient" ? t.outOfScopeBody : t.outOfScopeClin
+      : noRecord
+        ? t.noRecordBody
+        : audience === "patient" ? t.notFoundBody : t.notFoundClin;
     return (
       <div className="grounded abstained">
-        <span className="abstain-title"><SearchX size={15} /> {t.notFound}</span>
-        <p>{audience === "patient" ? t.notFoundBody : t.notFoundClin}</p>
+        <span className="abstain-title"><SearchX size={15} /> {outOfScope ? t.outOfScope : t.notFound}</span>
+        <p>{body}</p>
         {answer.note && audience === "clinician" && <small className="muted-note">{answer.note}{answer.retrieval.reason ? ` ${answer.retrieval.reason}` : ""}</small>}
         {answer.sources.length > 0 && audience === "clinician" && <SourceList answer={answer} num={num} title={t.closest} t={t} />}
       </div>

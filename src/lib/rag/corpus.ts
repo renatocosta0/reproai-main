@@ -96,6 +96,13 @@ export const SOURCES: Record<string, SourceDoc> = {
     year: 2021,
     url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706130/"
   },
+  DOH_ABUDHABI: {
+    id: "DOH_ABUDHABI",
+    title: "Department of Health – Abu Dhabi: Assisted Reproductive Technology (ART) & Fertility Services Framework",
+    publisher: "Department of Health – Abu Dhabi (DoH)",
+    year: 2025,
+    url: "https://www.doh.gov.ae"
+  },
   REPROAI: {
     id: "REPROAI",
     title: "ReproAI technical documentation and rules engine",
@@ -299,6 +306,18 @@ export const PASSAGES: Passage[] = [
     text: "To track ovulation, take your temperature by mouth every morning before getting out of bed and record it on a chart for two or three menstrual cycles. Charting the monthly temperature changes can confirm ovulation, but it cannot predict it.",
     terms: ["basal body temperature", "bbt", "confirm ovulation", "can temperature confirm", "chart", "two cycles", "three cycles", "morning temperature", "measure temperature"]
   },
+  {
+    id: "ACOG-EVAL-1", doc: "ACOG_INFERTILITY", section: "FAQ136: basic infertility evaluation", status: "primary", audience: "both",
+    title: "What happens at a fertility consultation and initial evaluation",
+    text: "An initial fertility consultation reviews the medical, surgical, sexual and menstrual history of both partners and checks how long they have been trying to conceive. A physical exam and baseline tests usually include blood hormone checks and a pelvic ultrasound for ovarian reserve and the uterus for women, tests to confirm ovulation or open fallopian tubes when needed, and a semen analysis for men. Together, the clinician uses these findings to discuss lifestyle steps and suitable treatment options.",
+    terms: ["fertility consultation", "what happens", "consultation", "first visit", "appointment", "evaluation", "work-up", "workup", "expect", "doctor visit"]
+  },
+  {
+    id: "DOH-ART-1", doc: "DOH_ABUDHABI", section: "Licensed fertility services in Abu Dhabi", status: "scope", audience: "both",
+    title: "Regulated fertility consultations and ART care in Abu Dhabi",
+    text: "In Abu Dhabi, fertility consultations, diagnostic testing and assisted reproductive treatments are regulated by the Department of Health – Abu Dhabi (DoH) under UAE Federal Law No. 7 of 2019 and delivered by DoH-licensed specialists, who tailor testing and treatment options after reviewing both partners' medical history and baseline results.",
+    terms: ["abu dhabi", "doh", "department of health", "fertility consultation", "consultation", "clinic", "licensed", "regulated", "uae"]
+  },
 
   // ── Scope-only references ───────────────────────────────────────────────
   {
@@ -384,7 +403,8 @@ export function citationLabel(p: Passage): string {
     p.doc === "ACOG_FAM" ? "ACOG fertility-awareness FAQ, 2025" :
     p.doc === "ACOG_INFERTILITY" ? "ACOG infertility-evaluation FAQ, 2026" :
     p.doc === "ESHRE_FFP" ? "ESHRE preservation guideline 2020" :
-    p.doc === "WHO_SEMEN" ? "WHO semen manual 2021" : d.title;
+    p.doc === "WHO_SEMEN" ? "WHO semen manual 2021" :
+    p.doc === "DOH_ABUDHABI" ? "DoH Abu Dhabi ART framework" : d.title;
   return p.page ? `${short}, p. ${p.page}` : `${short}, ${p.section}`;
 }
 

@@ -29,7 +29,7 @@ function normalize(word: string): string {
 // coverage. The common و (and) and ل (to/for) prefixes are handled as strip
 // variants of every token (see `attempts` below).
 const STOP_AR = new Set([
-  "ما", "هل", "من", "في", "علي", "على", "عن", "ان", "الي", "لا", "هي", "هو",
+  "ما", "ماذا", "هل", "من", "في", "علي", "على", "عن", "ان", "الي", "لا", "هي", "هو",
   "هذا", "هذه", "ذلك", "تلك", "التي", "الذي", "الذين", "مع", "قد", "كان", "كانت",
   "يكون", "تكون", "لكن", "كل", "بعض", "ثم", "اي", "غير", "له", "لها", "لهم",
   "بين", "حول", "لماذا", "متي", "استطيع", "يمكن", "يمكنه", "يمكنني", "يجب", "كم"
@@ -50,7 +50,7 @@ const LEXICON: Record<string, string> = {
   "لازم": "necessary", "مبكرا": "early", "مبكر": "early", "مبكره": "early",
   "سنه": "year", "شهر": "month", "اشهر": "month",
   "تخصصي": "specialist", "اخصائي": "specialist", "طبيب": "doctor",
-  "احاله": "referral", "لاحاله": "referral", "فحص": "test",
+  "استشاره": "consultation", "الاستشاره": "consultation", "يحدث": "happen", "احاله": "referral", "لاحاله": "referral", "فحص": "test",
   "للفحص": "test", "تحاليل": "test", "تحليل": "test", "انتظار": "wait",
   // Labs, hormones, reserve
   "مستوي": "level", "هرمون": "hormone", "هرمونات": "hormone",

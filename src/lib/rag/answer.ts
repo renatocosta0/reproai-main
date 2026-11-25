@@ -1,12 +1,15 @@
-// Grounded answering: retrieve → abstain or generate from passages only →
-// verify every sentence against the passages it cites → return the answer with
-// its sources. Used by the patient assistant, the clinician copilot and the
+// Grounded answering: route the question (src/lib/rag/intent.ts) → retrieve
+// only from the sources that intent allows → abstain or generate from passages
+// only → verify every sentence against the passages it cites → return the
+// answer with its sources. Used by the patient assistant, the clinician copilot and the
 // search_guidelines tool, so all three follow the same rules.
 
 import { chat } from "@/lib/chat-provider";
 import { PASSAGE_BY_ID, SOURCES, STATUS_LABEL, citationLabel, type Audience, type PassageStatus } from "@/lib/rag/corpus";
 import { retrieve, tokenize, type Retrieval, type RetrievalScope } from "@/lib/rag/retrieve";
 import type { RecordPassage } from "@/lib/rag/record-passages";
+import { hasArabic, translateQueryPiece } from "@/lib/rag/arabic";
+import { classifyIntent, URGENT, type Intent, type IntentDecision } from "@/lib/rag/intent";
 
 export interface SourceRef {
   id: string;
@@ -40,6 +43,8 @@ export interface GroundedAnswer {
   note?: string;
   /** Verification outcome for every generated sentence, including removed ones (no text). */
   checks?: { supported: boolean; issues: string[] }[];
+  /** How the question was routed, which decides the sources it may use. */
+  intent?: { name: Intent; source: IntentDecision["source"]; confidence: number };
 }
 
 export interface AskOptions {
@@ -47,13 +52,15 @@ export interface AskOptions {
   record?: RecordPassage[];
   /** Previous user question, used to expand very short follow-ups. */
   previousQuestion?: string;
+  /** Active UI card/chart context so generic questions ("Explain this") resolve to it. */
+  context?: string;
   locale?: "en" | "ar";
   /** Run a second LLM pass that checks each sentence (default from RAG_JUDGE env). */
   judge?: boolean;
 }
 
 // ── Safety pre-check ──────────────────────────────────────────────────────────
-const URGENT = /\b(heavy bleeding|bleeding heavily|severe (pain|abdominal pain|cramp)|faint(ed|ing)?|suicid|kill myself|self[- ]harm|ectopic|can'?t breathe|chest pain)\b/i;
+// URGENT (English) lives in intent.ts; the router also catches Arabic wording.
 
 export function urgentMessage(locale: "en" | "ar" = "en"): string {
   return locale === "ar"
@@ -138,30 +145,21 @@ function toSource(id: string, record: Map<string, RecordPassage>, asker: "patien
   return { id, title: p.title, label: citationLabel(p), kind: "guidance", status: p.status, statusLabel: STATUS_LABEL[p.status], url, text: p.text };
 }
 
-function answerScope(question: string): RetrievalScope {
-  const q = question.toLowerCase();
-  const asksProductBehavior =
-    /\b(reproai|this app|the app|application|platform|dashboard|account|consent|privacy|what-if|simulator)\b/i.test(q) ||
-    /\b(who can see|why (?:can'?t|cannot) i see|how (?:do|does) (?:this|the) app|how does reproai|does reproai|is reproai|change my consent|delete my account)\b/i.test(q) ||
-    /\bhow is (?:my )?(?:estimate|score|assessment) calculated\b|\bwhy (?:is there no|can't i see|cannot i see|don't i see) (?:my )?(?:estimate|assessment|result)\b|\bwho can see my (?:data|record|information)\b|\bcan i (?:withdraw|change) my consent\b|\bcan i enter my own (?:lab|test) results\b/i.test(q) ||
-    /\b(?:does|do) (?:my )?(?:sleep|wearable|temperature) data (?:change|affect|inform) my (?:reproai )?(?:result|score|assessment|estimate|model)\b/i.test(q) ||
-    /(?:ريبرواي|التطبيق|المنصة|لوحة التحكم|الحساب|الموافقة|الخصوصية)/.test(q) &&
-      /(?:يعرض|يستخدم|يحسب|يعمل|أرى|أغيّر|تغيير|موافقة|حساب|من يمكنه رؤية|سحب موافقتي)/.test(q) ||
-    /(?:لماذا لا أستطيع رؤية|لماذا لا أرى).*(?:تقييمي|نتيجتي)|من يمكنه رؤية بياناتي|هل يمكنني إدخال نتائج الفحوصات/.test(q);
-
-  // When intent is unclear, use the clinical evidence policy. Product passages
-  // must never enter a patient-specific or medical explanation by default.
-  return asksProductBehavior ? "product" : "clinical";
-}
-
-function systemPrompt(o: AskOptions, scope: RetrievalScope): string {
+function systemPrompt(o: AskOptions, intent: Intent): string {
+  const scope: RetrievalScope = intent === "product" ? "product" : "clinical";
+  const whose = o.audience === "clinician" ? "the patient case" : "the person";
   const who =
     o.audience === "patient"
       ? "You answer questions from a person using ReproAI, a reproductive-health app in Abu Dhabi. Write in plain, warm, calm language at a reading age of about 12. Never alarm. You are not a doctor: you explain, you do not diagnose or prescribe."
       : "You answer questions from a licensed fertility clinician using ReproAI. Be concise and clinical. You explain and summarise; decisions remain with the clinician.";
-  const sourcePolicy = scope === "product"
-    ? "This is a question about ReproAI product behavior. Use only the internal product passages provided. Explain what the app does, and do not use those passages to make or imply a clinical claim about the person's health."
-    : "This is a clinical or patient-specific health question. Use the person's record only for facts about that person's recorded data, and use only non-internal clinical source passages for medical explanations. Internal ReproAI product rules and documentation are not evidence and must not support any clinical claim. If the clinical passages do not support an explanation, say that clearly instead of using an internal rule.";
+  const sourcePolicy =
+    intent === "product"
+      ? "This is a question about ReproAI product behavior. Use only the internal product passages provided. Explain what the app does, and do not use those passages to make or imply a clinical claim about the person's health."
+      : intent === "patient_data"
+        ? `This is a question about what is recorded for ${whose}. Use only the record passages. Report what is recorded, in plain words; do not add medical explanations, interpretation or guidance.`
+        : intent === "clinical_general"
+          ? `This is a general clinical question. It is not about ${whose}, and no personal record is provided: do not mention or guess anyone's results. Use only the clinical source passages. Internal ReproAI product rules and documentation are not evidence and must not support any clinical claim.`
+          : `This question is about ${whose}'s own situation. Use the record only for facts about ${whose}'s recorded data, and use only non-internal clinical source passages for medical explanations. Internal ReproAI product rules and documentation are not evidence and must not support any clinical claim. If the clinical passages do not support an explanation, say that clearly instead of using an internal rule.`;
   const attributionPolicy = scope === "product"
     ? "Attribute each point to where it comes from: a clinician note is the clinician's view, a rule is a ReproAI rule, and only guidance passages are guidelines."
     : "Attribute clinician notes as the clinician's view. Do not mention, cite or rely on a ReproAI rule in a clinical answer; only external guidance passages may be called guidelines.";
@@ -173,7 +171,7 @@ Rules:
 1. Every sentence must be supported by the passage(s) it cites. Do not add facts, numbers, percentages, drug names, doses or time frames that are not written in those passages.
 2. Do not calculate or estimate anything. Copy numbers exactly as they appear in the passage. Call a model estimate a "model estimate" and always give its 95% interval; never describe it as a chance of pregnancy, success or live birth.
    ${attributionPolicy}
-3. If the passages do not answer the question, set "answerable" to false and return no sentences. Do not answer from general knowledge.
+3. The first sentence must directly answer the question that was asked. If the passages do not answer that question (for example, they are about a different topic), set "answerable" to false and return no sentences. Do not answer from general knowledge, and do not fill the answer with loosely related passages.
 4. Answer in at most ${o.audience === "patient" ? 5 : 8} short sentences.${o.locale === "ar" ? " Write the sentences in Arabic; keep numbers as digits." : ""}
 5. Reply with JSON only, no other text, in this shape:
 {"answerable": true, "sentences": [{"text": "...", "cites": ["PASSAGE-ID"]}]}`;
@@ -205,40 +203,87 @@ async function judgeSentences(sentences: AnswerSentence[], passages: Map<string,
   }
 }
 
-/** Record passages that share terms with the question, or all of them for a personal question. */
-function relevantRecord(question: string, record: RecordPassage[]): RecordPassage[] {
+/** Clinical record passages ranked by the terms they share with the question (Arabic mapped to English corpus terms). */
+function rankRecord(question: string, record: RecordPassage[]): RecordPassage[] {
   const clinicalRecord = record.filter((r) => r.clinical !== false);
-  if (clinicalRecord.length === 0) return [];
-  const personal =
-    /\b(my|mine|our|we|this case|the case|this patient|summar|her|his|their|couple|consultation)\b/i.test(question) ||
-    /\bi\s+(?:have|am|was|received|got|was told)\b/i.test(question);
-  // General clinical questions should start from clinical literature, never
-  // from coincidental words in a personal record such as age or AMH.
-  if (!personal) return [];
-  const q = new Set(tokenize(question));
-  const scored = clinicalRecord
-    .map((r) => ({ r, n: tokenize(`${r.title} ${r.text}`).filter((t) => q.has(t)).length }))
-    .filter((x) => x.n > 0 || personal);
-  return scored.sort((a, b) => b.n - a.n).map((x) => x.r);
+  const terms = new Set(tokenize(question));
+  for (const piece of question.split(/\s+/)) if (hasArabic(piece)) for (const t of translateQueryPiece(piece)) for (const k of tokenize(t)) terms.add(k);
+  return clinicalRecord
+    .map((r, i) => ({ r, i, n: tokenize(`${r.title} ${r.text}`).filter((t) => terms.has(t)).length }))
+    .sort((a, b) => b.n - a.n || a.i - b.i)
+    .map((x) => x.r);
+}
+
+const GENERIC_CONTEXT_RE =
+  /^(?:please\s+)?(?:explain|clarify|interpret|elaborate|tell me(?: more)? about|help me understand|what (?:is|does|are)|what'?s|explica|explique|o que [eé]|entender|me explica|اشرح|وضح|ما هو|ما هي|ماذا يعني)(?:\s+(?:this|that|it|these|here|my result|my data|this chart|this graph|isso|isto|aqui|هذا|هذه))?[\s?!.]*$/i;
+
+function isGenericContextQuestion(q: string): boolean {
+  const trimmed = q.trim();
+  if (GENERIC_CONTEXT_RE.test(trimmed)) return true;
+  if (/\b(isso|isto|this|that|aqui)\b/i.test(trimmed) && tokenize(trimmed).length <= 3) return true;
+  return false;
 }
 
 // ── Main entry point ──────────────────────────────────────────────────────────
 export async function groundedAnswer(question: string, o: AskOptions): Promise<GroundedAnswer> {
   const locale = o.locale ?? "en";
   const q = question.trim().slice(0, 1000);
-  if (URGENT.test(q)) {
+  const urgentReply = (intent?: GroundedAnswer["intent"]): GroundedAnswer => ({
+    status: "urgent", mode: "none", sentences: [{ text: urgentMessage(locale), cites: [], supported: true, issues: [] }],
+    sources: [], removed: 0, flagged: 0, retrieval: { engine: "bm25-local", candidates: 0 }, intent
+  });
+  // Deterministic check first, so an urgent message never waits on an LLM call.
+  if (URGENT.test(q)) return urgentReply({ name: "urgent", source: "rules", confidence: 1 });
+
+  const ctx = o.context?.trim().slice(0, 300) || undefined;
+  const genericWithCtx = Boolean(ctx && isGenericContextQuestion(q));
+  const intentInput = genericWithCtx ? `Explain my ${ctx}` : q;
+
+  // ── Route: the intent decides which sources this question may use ──
+  const decision = await classifyIntent(intentInput, { audience: o.audience, previousQuestion: o.previousQuestion });
+  let intent = decision.intent;
+  if (genericWithCtx && o.record?.length && intent === "clinical_general") {
+    intent = "clinical_personal";
+  }
+  const intentInfo: GroundedAnswer["intent"] = { name: intent, source: decision.source, confidence: decision.confidence };
+  if (intent === "urgent") return urgentReply(intentInfo);
+  if (intent === "out_of_scope") {
     return {
-      status: "urgent", mode: "none", sentences: [{ text: urgentMessage(locale), cites: [], supported: true, issues: [] }],
-      sources: [], removed: 0, flagged: 0, retrieval: { engine: "bm25-local", candidates: 0 }
+      status: "abstained", mode: "none", sentences: [], sources: [], removed: 0, flagged: 0,
+      retrieval: { engine: "bm25-local", candidates: 0 }, intent: intentInfo,
+      note: "Outside what this assistant can answer: it covers fertility guidance, the person's own record and how ReproAI works, and it does not diagnose, prescribe or give doses."
+    };
+  }
+
+  const scope: RetrievalScope = intent === "product" ? "product" : "clinical";
+  const useRecord = intent === "patient_data" || intent === "clinical_personal";
+  const useGuidance = intent !== "patient_data";
+  const recordQuery = genericWithCtx && ctx ? `${ctx} ${q}` : q;
+  let recordHits = useRecord ? rankRecord(recordQuery, o.record ?? []).slice(0, 5) : [];
+  if (useRecord && ctx && recordHits.length === 0 && o.record?.length) {
+    recordHits = rankRecord(ctx, o.record).slice(0, 5);
+  }
+  const recordMap = new Map((o.record ?? []).map((r) => [r.id, r]));
+  if (intent === "patient_data" && recordHits.length === 0) {
+    return {
+      status: "abstained", mode: "none", sentences: [], sources: [], removed: 0, flagged: 0,
+      retrieval: { engine: "bm25-local", candidates: 0 }, intent: intentInfo,
+      note: "This question is about a personal record, and no record is available here."
     };
   }
 
   const audience: Audience = o.audience === "clinician" ? "clinician" : "both";
-  const scope = answerScope(q);
-  const searchText = q.split(/\s+/).length < 5 && o.previousQuestion ? `${o.previousQuestion} ${q}` : q;
-  const retrieval = await retrieve(searchText, { audience, top: 4, scope });
-  const recordHits = scope === "clinical" ? relevantRecord(q, o.record ?? []).slice(0, 5) : [];
-  const recordMap = new Map((o.record ?? []).map((r) => [r.id, r]));
+  const searchText =
+    genericWithCtx && ctx
+      ? ctx
+      : q.split(/\s+/).length < 5 && o.previousQuestion
+        ? `${o.previousQuestion} ${q}`
+        : ctx && q.split(/\s+/).length < 6
+          ? `${ctx} ${q}`
+          : q;
+  const retrieval: Retrieval = useGuidance
+    ? await retrieve(searchText, { audience, top: 4, scope })
+    : { query: searchText, hits: [], abstain: false, engine: "bm25-local", reason: "Record-only question: guidance was not searched." };
 
   const approvedHits = retrieval.hits.filter((hit) => {
     const canonical = PASSAGE_BY_ID[hit.passage.id];
@@ -247,17 +292,19 @@ export async function groundedAnswer(question: string, o: AskOptions): Promise<G
   });
   const passageIds = [...recordHits.map((r) => r.id), ...approvedHits.map((h) => h.passage.id)];
   const passageText = new Map<string, string>(passageIds.map((id) => [id, recordMap.get(id)?.text ?? PASSAGE_BY_ID[id]?.text ?? ""]));
-  const base = { retrieval: { engine: retrieval.engine, reason: retrieval.reason, candidates: passageIds.length } };
+  const base = { retrieval: { engine: retrieval.engine, reason: retrieval.reason, candidates: passageIds.length }, intent: intentInfo };
 
   if (passageIds.length === 0) {
     return { status: "abstained", mode: "none", sentences: [], sources: [], removed: 0, flagged: 0, ...base, note: "Not covered by ReproAI's guidance library." };
   }
 
-  const userMsg = `PASSAGES:\n${passageIds.map((id) => `[${id}] ${passageText.get(id)}`).join("\n\n")}\n\nQUESTION: ${q}`;
+  const questionForLlm = genericWithCtx && ctx ? `Explain ${ctx} (${q})` : q;
+  const contextLine = ctx ? `VIEW_CONTEXT: ${ctx}\n` : "";
+  const userMsg = `PASSAGES:\n${passageIds.map((id) => `[${id}] ${passageText.get(id)}`).join("\n\n")}\n\n${contextLine}QUESTION: ${questionForLlm}`;
   let raw: string | null = null;
   let provider: string | undefined;
   try {
-    const r = await chat([{ role: "system", content: systemPrompt(o, scope) }, { role: "user", content: userMsg }], { temperature: 0, maxTokens: o.audience === "clinician" ? 1800 : 1000 });
+    const r = await chat([{ role: "system", content: systemPrompt(o, intent) }, { role: "user", content: userMsg }], { temperature: 0, maxTokens: o.audience === "clinician" ? 1800 : 1000 });
     raw = r.reply;
     provider = r.provider;
   } catch (e) {
@@ -336,6 +383,7 @@ export async function groundedAnswer(question: string, o: AskOptions): Promise<G
 
 /** Plain-text rendering for API clients that only read `reply`. */
 export function answerText(a: GroundedAnswer): string {
+  if (a.status === "abstained" && a.intent?.name === "out_of_scope") return "That is outside what I can help with. I can answer questions about fertility guidance, your own record and how ReproAI works, but I can't diagnose, prescribe or give doses. Please ask your clinician.";
   if (a.status === "abstained") return "I can't answer that from ReproAI's guidance library or your record. Please ask your clinician.";
   return a.sentences.map((s) => `${s.text}${s.cites.length ? ` [${s.cites.join(", ")}]` : ""}${s.supported ? "" : " (unverified)"}`).join(" ");
 }

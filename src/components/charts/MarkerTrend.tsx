@@ -63,7 +63,7 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
         </div>
         <div className="marker-actions">
           <SourceChip source={last.source} audience={audience} />
-          {audience === "patient" && <AskChip topic={{ title: label, questions: markerQuestions(code, def.label) }} />}
+          {audience === "patient" && <AskChip topic={{ title: label, context: `${def.label} ${code} lab result`, autoExplain: markerQuestions(code, def.label)[0], questions: markerQuestions(code, def.label) }} />}
         </div>
       </header>
       <div className="marker-plot">

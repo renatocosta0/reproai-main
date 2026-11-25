@@ -18,7 +18,8 @@ for (const f of [".env.local", ".env"]) {
   }
 }
 
-import { EVAL_SET } from "@/lib/rag/eval-set";
+import { EVAL_SET, INTENT_SET } from "@/lib/rag/eval-set";
+import { classifyIntent, ruleIntent } from "@/lib/rag/intent";
 import { retrieve, MIN_COVERAGE, MIN_SCORE } from "@/lib/rag/retrieve";
 import { PASSAGES } from "@/lib/rag/corpus";
 import type { GroundedAnswer } from "@/lib/rag/answer";
@@ -122,6 +123,30 @@ async function main() {
   }
   process.stdout.write("\n");
 
+  // ── Intent routing accuracy ──
+  const routeRules = { en: 0, ar: 0 };
+  const routeLlm = { en: 0, ar: 0, runs: 0 };
+  const routeMisses: { q: string; expected: string; rules: string; llm?: string }[] = [];
+  const nEn = INTENT_SET.filter((x) => (x.lang ?? "en") === "en").length;
+  const nAr = INTENT_SET.length - nEn;
+  for (const item of INTENT_SET) {
+    const lang = item.lang ?? "en";
+    const audienceFor = item.audience ?? "patient";
+    const byRules = ruleIntent(item.q, { audience: audienceFor }).intent;
+    if (byRules === item.intent) routeRules[lang]++;
+    let byLlm: string | undefined;
+    if (!retrievalOnly) {
+      const d = await classifyIntent(item.q, { audience: audienceFor });
+      if (d.source === "llm") {
+        routeLlm.runs++;
+        byLlm = d.intent;
+        if (d.intent === item.intent) routeLlm[lang]++;
+      }
+      await sleep(Number(process.env.RAG_EVAL_DELAY_MS ?? 6000) / 3);
+    }
+    if (byRules !== item.intent || (byLlm && byLlm !== item.intent)) routeMisses.push({ q: item.q, expected: item.intent, rules: byRules, llm: byLlm });
+  }
+
   const result = {
     generatedAt: new Date().toISOString(),
     corpus: {
@@ -141,6 +166,12 @@ async function main() {
       }
     },
     thresholds: { minScore: MIN_SCORE, minCoverage: MIN_COVERAGE },
+    routing: {
+      questions: { en: nEn, ar: nAr },
+      rules: { en: wilson(routeRules.en, nEn), ar: wilson(routeRules.ar, nAr) },
+      llm: routeLlm.runs > 0 ? { en: wilson(routeLlm.en, nEn), ar: wilson(routeLlm.ar, nAr), runs: routeLlm.runs } : null,
+      misses: routeMisses
+    },
     retrieval: {
       hitAt4: wilson(hit, answerable.length),
       falseAbstention: wilson(falseAbstain, answerable.length),
@@ -178,6 +209,7 @@ async function main() {
   }
   const a = result.byLanguage.ar;
   console.log(`Arabic: retrieval hit@4 ${pct(a.retrieval.hitAt4)} · false abstention ${pct(a.retrieval.falseAbstention)} · correct abstention ${pct(a.retrieval.correctAbstention)}${a.endToEnd ? ` · answered ${pct(a.endToEnd.answered)} · correct abstention ${pct(a.endToEnd.correctAbstention)}` : ""}`);
+  console.log(`Routing (rules): en ${pct(result.routing.rules.en)} · ar ${pct(result.routing.rules.ar)}${result.routing.llm ? ` · (LLM) en ${pct(result.routing.llm.en)} · ar ${pct(result.routing.llm.ar)}` : ""}`);
   console.log(`Wrote ${out}`);
 }
 

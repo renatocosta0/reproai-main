@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     const question = typeof body?.question === "string" ? body.question.trim() : "";
     if (!question) return NextResponse.json({ error: "question is required" }, { status: 400 });
     const previousQuestion = typeof body?.previousQuestion === "string" ? body.previousQuestion.slice(0, 500) : undefined;
+    const context = typeof body?.context === "string" ? body.context.trim().slice(0, 300) : undefined;
     const locale = body?.locale === "ar" ? "ar" : "en";
 
     const record = await loadPersonRecord(session.userId, "PATIENT");
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     });
     const passages = record ? patientRecordPassages(record, pending > 0) : [];
 
-    const answer = await groundedAnswer(question, { audience: "patient", record: passages, previousQuestion, locale });
+    const answer = await groundedAnswer(question, { audience: "patient", record: passages, previousQuestion, context, locale });
     await audit(session.userId, "patient_ask", `status:${answer.status};mode:${answer.mode};removed:${answer.removed}`);
     const reply = answerText(answer);
     const conversationId = await recordTurn({

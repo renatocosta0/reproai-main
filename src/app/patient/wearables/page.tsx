@@ -372,7 +372,7 @@ export default function WearablesPage() {
             </div>
             <div className="panel-actions">
               <RangeButtons value={range} onChange={setRange} ar={ar} />
-              <AskChip topic={{ title: L.bbtTitle, questions: ["What does a rise in basal body temperature mean?", "How should I measure my morning temperature?", "Can basal body temperature confirm ovulation?"] }} />
+              <AskChip topic={{ title: L.bbtTitle, context: "basal body temperature wearable temperature readings ovulation", autoExplain: "Explain my basal body temperature readings and what a temperature rise means.", questions: ["What does a rise in basal body temperature mean?", "How should I measure my morning temperature?", "Can basal body temperature confirm ovulation?"] }} />
             </div>
           </div>
           {loading ? (
@@ -427,7 +427,7 @@ export default function WearablesPage() {
           </div>
           <div className="panel-actions">
             <RangeButtons value={range} onChange={setRange} ar={ar} />
-            <AskChip topic={{ title: L.sleepTitle, questions: ["How does sleep affect fertility?", "What lifestyle changes does WHO recommend?"] }} />
+            <AskChip topic={{ title: L.sleepTitle, context: "wearable sleep nights sleep duration fertility", autoExplain: "Explain my wearable sleep data and how sleep affects fertility.", questions: ["How does sleep affect fertility?", "What lifestyle changes does WHO recommend?"] }} />
           </div>
         </div>
         {loading ? (

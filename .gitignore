@@ -25,7 +25,7 @@ mobile/.env.*
 
 # env
 .env
-.env*.local
+.env*.local.bak
 .env.demo
 /.env.mobile
 .demo-private/

@@ -20,6 +20,10 @@ export interface AskTopic {
   title: string;
   /** Suggested questions for this result (English: the guidance library is English). */
   questions: string[];
+  /** Active data/card context sent to /api/patient/ask so generic questions ("Explain this") resolve to it. */
+  context?: string;
+  /** Automatically asks an initial explanation as soon as the panel opens. */
+  autoExplain?: boolean | string;
 }
 
 interface Turn {
@@ -75,13 +79,46 @@ export function AskProvider({ children }: { children: ReactNode }) {
   const endRef = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
 
+  const runAsk = useCallback(async (question: string, activeTopic: AskTopic | null, reset = false) => {
+    const q = question.trim();
+    if (!q || (!reset && busy)) return;
+    const previousQuestion = reset ? undefined : turns[turns.length - 1]?.question;
+    const activeConvId = reset ? null : conversationId;
+    setTurns((t) => (reset ? [{ question: q }] : [...t, { question: q }]));
+    setText("");
+    setBusy(true);
+    try {
+      const res = await api<{ answer: GroundedAnswer; conversationId: string | null }>("/api/patient/ask", {
+        method: "POST",
+        body: JSON.stringify({
+          question: q,
+          previousQuestion,
+          context: activeTopic?.context ?? activeTopic?.title,
+          locale,
+          conversationId: activeConvId
+        })
+      });
+      if (res.conversationId) setConversationId(res.conversationId);
+      setTurns((t) => t.map((x, i) => (i === t.length - 1 ? { ...x, answer: res.answer } : x)));
+    } catch (err) {
+      const error = err instanceof ApiError && err.status === 503 ? L.unavailable : L.failed;
+      setTurns((t) => t.map((x, i) => (i === t.length - 1 ? { ...x, error } : x)));
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, turns, conversationId, locale, L.unavailable, L.failed]);
+
   const open = useCallback((t: AskTopic) => {
     opener.current = document.activeElement as HTMLElement | null;
     setTopic(t);
     setTurns([]);
     setText("");
     setConversationId(null);
-  }, []);
+    if (t.autoExplain) {
+      const initialQ = typeof t.autoExplain === "string" ? t.autoExplain : t.questions[0];
+      if (initialQ) void runAsk(initialQ, t, true);
+    }
+  }, [runAsk]);
 
   const close = useCallback(() => {
     setTopic(null);
@@ -100,26 +137,8 @@ export function AskProvider({ children }: { children: ReactNode }) {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [turns, busy]);
 
-  async function ask(question: string) {
-    const q = question.trim();
-    if (!q || busy) return;
-    const previousQuestion = turns[turns.length - 1]?.question;
-    setTurns((t) => [...t, { question: q }]);
-    setText("");
-    setBusy(true);
-    try {
-      const res = await api<{ answer: GroundedAnswer; conversationId: string | null }>("/api/patient/ask", {
-        method: "POST",
-        body: JSON.stringify({ question: q, previousQuestion, locale, conversationId })
-      });
-      if (res.conversationId) setConversationId(res.conversationId);
-      setTurns((t) => t.map((x, i) => (i === t.length - 1 ? { ...x, answer: res.answer } : x)));
-    } catch (err) {
-      const error = err instanceof ApiError && err.status === 503 ? L.unavailable : L.failed;
-      setTurns((t) => t.map((x, i) => (i === t.length - 1 ? { ...x, error } : x)));
-    } finally {
-      setBusy(false);
-    }
+  function ask(question: string) {
+    return runAsk(question, topic, false);
   }
 
   function submit(e: FormEvent) {
