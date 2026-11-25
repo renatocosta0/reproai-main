@@ -1,5 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildInvitationEmail, getEmailConfig, RESEND_TEST_SENDER, sendEmail } from "./index";
+
+const { sendMailMock, createTransportMock } = vi.hoisted(() => {
+  const sendMailMock = vi.fn();
+  const createTransportMock = vi.fn(() => ({ sendMail: sendMailMock }));
+  return { sendMailMock, createTransportMock };
+});
+
+vi.mock("nodemailer", () => ({
+  default: {
+    createTransport: createTransportMock
+  }
+}));
+
+import { buildInvitationEmail, DEFAULT_SENDER, getEmailConfig, sendEmail } from "./index";
 
 const URL = "https://app.example/register?token=repro_inv_abc";
 
@@ -28,40 +41,70 @@ describe("buildInvitationEmail", () => {
   });
 });
 
-describe("sendEmail", () => {
+describe("sendEmail (Nodemailer)", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    vi.clearAllMocks();
     vi.unstubAllEnvs();
   });
 
-  it("is off without an API key", async () => {
-    vi.stubEnv("RESEND_API_KEY", "");
+  it("is off without SMTP_HOST", async () => {
+    vi.stubEnv("SMTP_HOST", "");
     expect(getEmailConfig()).toBeNull();
     expect(await sendEmail({ to: "a@b.c", subject: "s", text: "t", html: "h" })).toMatchObject({ ok: false });
   });
 
-  it("posts to Resend with the key, sender and idempotency key", async () => {
-    vi.stubEnv("RESEND_API_KEY", "re_test");
+  it("sends via Nodemailer SMTP with credentials, sender and idempotency header", async () => {
+    vi.stubEnv("SMTP_HOST", "smtp.clinic.ae");
+    vi.stubEnv("SMTP_PORT", "587");
+    vi.stubEnv("SMTP_USER", "invites@clinic.ae");
+    vi.stubEnv("SMTP_PASS", "secret");
     vi.stubEnv("EMAIL_FROM", "");
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "msg_1" }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
+    sendMailMock.mockResolvedValue({ messageId: "<msg_1@clinic.ae>" });
 
     const res = await sendEmail({ to: "a@b.c", subject: "s", text: "t", html: "h", idempotencyKey: "invitation-email/inv1-primary" });
 
-    expect(res).toEqual({ ok: true, id: "msg_1" });
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://api.resend.com/emails");
-    expect(init.headers.Authorization).toBe("Bearer re_test");
-    expect(init.headers["Idempotency-Key"]).toBe("invitation-email/inv1-primary");
-    expect(JSON.parse(init.body)).toMatchObject({ from: RESEND_TEST_SENDER, to: ["a@b.c"] });
+    expect(res).toEqual({ ok: true, id: "<msg_1@clinic.ae>" });
+    expect(createTransportMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: "smtp.clinic.ae",
+        port: 587,
+        secure: false,
+        auth: { user: "invites@clinic.ae", pass: "secret" }
+      })
+    );
+    expect(sendMailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: "invites@clinic.ae",
+        to: "a@b.c",
+        subject: "s",
+        text: "t",
+        html: "h",
+        headers: { "X-Idempotency-Key": "invitation-email/inv1-primary" }
+      })
+    );
   });
 
-  it("reports provider errors and network failures without throwing", async () => {
-    vi.stubEnv("RESEND_API_KEY", "re_test");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "domain not verified" }), { status: 403 })));
-    expect(await sendEmail({ to: "a@b.c", subject: "s", text: "t", html: "h" })).toEqual({ ok: false, error: "domain not verified" });
+  it("uses secure=true automatically for port 465 and falls back to DEFAULT_SENDER when unauthenticated", async () => {
+    vi.stubEnv("SMTP_HOST", "smtp.internal.local");
+    vi.stubEnv("SMTP_PORT", "465");
+    vi.stubEnv("SMTP_SECURE", "");
+    vi.stubEnv("SMTP_USER", "");
+    vi.stubEnv("SMTP_PASS", "");
+    vi.stubEnv("EMAIL_FROM", "");
+    sendMailMock.mockResolvedValue({ messageId: "<msg_2@internal.local>" });
 
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-    expect(await sendEmail({ to: "a@b.c", subject: "s", text: "t", html: "h" })).toEqual({ ok: false, error: "network down" });
+    const res = await sendEmail({ to: "a@b.c", subject: "s", text: "t", html: "h" });
+    expect(res).toEqual({ ok: true, id: "<msg_2@internal.local>" });
+    expect(createTransportMock).toHaveBeenCalledWith(
+      expect.objectContaining({ host: "smtp.internal.local", port: 465, secure: true })
+    );
+    expect(sendMailMock).toHaveBeenCalledWith(expect.objectContaining({ from: DEFAULT_SENDER }));
+  });
+
+  it("reports SMTP errors without throwing", async () => {
+    vi.stubEnv("SMTP_HOST", "smtp.clinic.ae");
+    sendMailMock.mockRejectedValue(new Error("Invalid login"));
+
+    expect(await sendEmail({ to: "a@b.c", subject: "s", text: "t", html: "h" })).toEqual({ ok: false, error: "Invalid login" });
   });
 });

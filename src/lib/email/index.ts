@@ -1,56 +1,75 @@
 // Outbound email behind one small adapter, so the provider can be swapped in one
-// file. Today: Resend (https://resend.com), via its REST API, no extra package.
-//
-// Before real patient data: Resend is not hosted in the UAE. An invitation reveals
-// that a clinic invited this email address, so a pilot should swap this adapter to
-// a UAE-hosted sender (e.g. Azure Communication Services, UAE North) or the clinic's
-// own mail system. See docs/data-governance.md.
+// file. Uses Nodemailer over SMTP (clinic mail relay, UAE-hosted SMTP, or any
+// standard SMTP server).
 //
 // Sending never blocks care: callers treat a failed send as "share the link by
 // hand", exactly as before email existed.
+
+import nodemailer from "nodemailer";
 
 export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
   html: string;
-  /** Lets the provider drop accidental duplicates (e.g. a retried request). */
+  /** Lets the receiver or relay identify retried requests. */
   idempotencyKey?: string;
 }
 
 export type SendResult = { ok: true; id: string | null } | { ok: false; error: string };
 
-interface EmailConfig {
-  provider: "resend";
-  apiKey: string;
+export interface EmailConfig {
+  provider: "nodemailer";
+  host: string;
+  port: number;
+  secure: boolean;
+  user?: string;
+  pass?: string;
   from: string;
 }
 
-/** Resend's shared test sender delivers only to the Resend account owner's address. */
-export const RESEND_TEST_SENDER = "ReproAI <onboarding@resend.dev>";
+export const DEFAULT_SENDER = "ReproAI <noreply@reproai.local>";
 
 export function getEmailConfig(): EmailConfig | null {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  if (!apiKey) return null;
-  return { provider: "resend", apiKey, from: process.env.EMAIL_FROM?.trim() || RESEND_TEST_SENDER };
+  const host = process.env.SMTP_HOST?.trim();
+  if (!host) return null;
+
+  const parsedPort = Number(process.env.SMTP_PORT?.trim() || "587");
+  const port = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 587;
+
+  const secureEnv = process.env.SMTP_SECURE?.trim().toLowerCase();
+  const secure = secureEnv === "true" ? true : secureEnv === "false" ? false : port === 465;
+
+  const user = process.env.SMTP_USER?.trim() || undefined;
+  const pass = process.env.SMTP_PASS?.trim() || undefined;
+  const from = process.env.EMAIL_FROM?.trim() || user || DEFAULT_SENDER;
+
+  return { provider: "nodemailer", host, port, secure, user, pass, from };
 }
 
 export async function sendEmail(message: EmailMessage, config = getEmailConfig()): Promise<SendResult> {
-  if (!config) return { ok: false, error: "Email is not configured (RESEND_API_KEY is not set)." };
+  if (!config) return { ok: false, error: "Email is not configured (SMTP_HOST is not set)." };
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
-        ...(message.idempotencyKey ? { "Idempotency-Key": message.idempotencyKey } : {})
-      },
-      body: JSON.stringify({ from: config.from, to: [message.to], subject: message.subject, text: message.text, html: message.html }),
-      signal: AbortSignal.timeout(10_000)
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      ...(config.user && config.pass ? { auth: { user: config.user, pass: config.pass } } : {}),
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 10_000
     });
-    const data = (await res.json().catch(() => null)) as { id?: string; message?: string } | null;
-    if (!res.ok) return { ok: false, error: data?.message ?? `Email provider returned ${res.status}.` };
-    return { ok: true, id: data?.id ?? null };
+
+    const info = await transporter.sendMail({
+      from: config.from,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+      ...(message.idempotencyKey ? { headers: { "X-Idempotency-Key": message.idempotencyKey } } : {})
+    });
+
+    return { ok: true, id: info.messageId ?? null };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Email could not be sent." };
   }
