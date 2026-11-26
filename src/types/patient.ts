@@ -101,6 +101,12 @@ export interface BulkObservationResponse {
     mean_sleep_hours: number;
     sleep_disruption_flag: boolean;
     total_longitudinal_records: number;
+    /** P1 opens a clinician follow-up; P2 is advice only. */
+    alert_level?: "P1" | "P2" | "NONE";
+    bbt_basis?: "CURRENT_CYCLE" | "LAST_COMPLETED_CYCLE" | null;
+    consecutive_monophasic_cycles?: number;
+    excluded_fever_readings?: number;
+    alert_resolved?: boolean;
   };
 }
 

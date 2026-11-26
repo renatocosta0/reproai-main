@@ -14,7 +14,7 @@ import { SourceChip } from "@/components/record/Chips";
 import { FormError } from "@/components/ui/Notice";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
 import { api, userMessage } from "@/lib/api-client";
-import { LABS, type LabCode } from "@/lib/labs";
+import { LABS, isAboveLimit, isOutsideReference, referenceText, type LabCode } from "@/lib/labs";
 import { LAB_AR } from "@/lib/i18n";
 import type { CaseDetail } from "@/types/clinician";
 
@@ -109,13 +109,13 @@ export default function CaseReportPage({ params }: { params: { id: string } }) {
                 <tbody>
                   {labs.map((l) => {
                     const def = LABS[l.code as LabCode];
-                    const below = def?.lowerLimit !== undefined && l.value < def.lowerLimit;
+                    const below = def ? isOutsideReference(l.code as LabCode, l.value) : false;
                     return (
                       <tr key={l.id}>
                         <td>{ar ? LAB_AR[l.code] ?? def?.label ?? l.code : def?.label ?? l.code}</td>
                         <td>
                           <bdi>{l.value} {l.unit}</bdi>
-                          {below && <small className="muted-note"> · {L.rptBelowRef} (<bdi>{def!.lowerLimit} {def!.unit}</bdi>)</small>}
+                          {below && <small className="muted-note"> · {isAboveLimit(l.code as LabCode, l.value) ? L.rptAboveRef : L.rptBelowRef} (<bdi>{referenceText(l.code as LabCode)}</bdi>)</small>}
                         </td>
                         <td>{date(l.collectedAt)}</td>
                         <td><SourceChip source={l.source} audience="clinician" /></td>

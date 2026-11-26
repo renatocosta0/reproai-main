@@ -13,6 +13,7 @@ import { prisma } from "@/lib/db";
 import { predictBatch } from "@/lib/ml-client";
 import { evaluatePathways } from "@/lib/pathways";
 import type { LabPoint } from "@/lib/labs";
+import { PASSIVE_CODES, analyzeBbt, isSleep, isTemperature, sleepStats, type Point } from "@/lib/observation-analysis";
 
 // ── Statistics ────────────────────────────────────────────────────────────────
 
@@ -78,9 +79,27 @@ function ageBand(age: number | null): string {
 export async function liveMetrics(caseIds: string[]): Promise<LiveMetrics> {
   const users = await prisma.user.findMany({
     where: { coupleId: { in: caseIds }, role: "PATIENT" },
-    include: { patientProfile: true, labResults: true }
+    include: {
+      patientProfile: true,
+      labResults: true,
+      observations: { where: { code: { notIn: [...PASSIVE_CODES] } }, orderBy: { effectiveAt: "desc" }, take: 240 },
+      predictions: { where: { scope: "INDIVIDUAL", status: "RELEASED" }, orderBy: { createdAt: "desc" }, take: 1 }
+    }
   });
-  const followUps = await prisma.followUp.findMany({ where: { coupleId: { in: caseIds } } });
+  // Alerts closed automatically by the wearable analysis are not clinician
+  // action, so they are left out of the signal → action metrics.
+  const allFollowUps = await prisma.followUp.findMany({ where: { coupleId: { in: caseIds } } });
+  const autoResolved = allFollowUps.length
+    ? new Set(
+        (
+          await prisma.auditLog.findMany({
+            where: { action: "follow_up_auto_resolved", OR: allFollowUps.map((f) => ({ resource: { startsWith: `follow_up:${f.id}:` } })) },
+            select: { resource: true }
+          })
+        ).map((a) => a.resource.split(":")[1])
+      )
+    : new Set<string>();
+  const followUps = allFollowUps.filter((f) => !autoResolved.has(f.id));
   const transitions = followUps.length
     ? await prisma.auditLog.findMany({
         where: { action: "status_transition", OR: followUps.map((f) => ({ resource: { startsWith: `follow_up:${f.id}:` } })) },
@@ -111,6 +130,10 @@ export async function liveMetrics(caseIds: string[]): Promise<LiveMetrics> {
     const sex = p?.sex === "female" || p?.sex === "male" ? p.sex : null;
     const hasBaseline =
       sex === "female" ? labs.some((l) => l.code === "AMH") || p?.amh != null : sex === "male" ? labs.some((l) => l.code === "SPERM_CONCENTRATION") || p?.spermCount != null : false;
+    const oldestFirst = [...u.observations].reverse();
+    const toPoint = (o: { effectiveAt: Date; value: number }): Point => ({ date: new Date(o.effectiveAt), value: o.value });
+    const bbt = analyzeBbt(oldestFirst.filter((o) => isTemperature(o.code)).map(toPoint));
+    const sleep = sleepStats(oldestFirst.filter((o) => isSleep(o.code)).map(toPoint));
     const options = evaluatePathways({
       sex,
       age: p?.age ?? null,
@@ -119,14 +142,14 @@ export async function liveMetrics(caseIds: string[]): Promise<LiveMetrics> {
       tryingToConceive: p?.tryingToConceive ?? null,
       monthsTrying: p?.infertilityDurationMonths ?? null,
       cycleRegularity: p?.cycleRegularity ?? null,
-      historyFlags: p?.historyFlags ? JSON.parse(p.historyFlags) : [],
+      historyFlags: [...(p?.historyFlags ? (JSON.parse(p.historyFlags) as string[]) : []), ...(p?.pcosHistory ? ["PCOS"] : [])],
       familyEarlyMenopause: p?.familyEarlyMenopause ?? null,
       smoking: p?.smoking ?? null,
       preservationIntent: p?.preservationIntent ?? null,
       labs,
-      amhPercentile: null,
-      meanSleepHours: null,
-      bbtMonophasic: false
+      amhPercentile: u.predictions[0]?.percentile ?? null,
+      meanSleepHours: sleep?.mean ?? null,
+      bbtMonophasic: bbt.status === "MONOPHASIC"
     });
     const flagged = options.some((o) => o.priority === 1 && (o.kind === "REFER" || o.kind === "RED_FLAG"));
     const caseFollowUps = followUps.filter((f) => f.coupleId === u.coupleId);

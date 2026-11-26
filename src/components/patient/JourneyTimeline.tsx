@@ -8,7 +8,7 @@ import { formatAppointmentSlotForDisplay } from "@/lib/appointment-format";
 import { AskChip } from "@/components/patient/AskPanel";
 import { ExplainTerms } from "@/components/patient/ExplainTerms";
 import { SourceChip } from "@/components/record/Chips";
-import { LABS } from "@/lib/labs";
+import { LABS, isAboveLimit, referenceText } from "@/lib/labs";
 import { LAB_AR, TIER_AR } from "@/lib/i18n";
 import { tierCopy } from "@/lib/tiers";
 import type { EventCategory, TimelineEvent } from "@/lib/journey";
@@ -29,6 +29,8 @@ const S = {
     resultsTitle: (n: number) => `${n} results recorded`,
     belowRef: "Below the reference limit used by clinicians",
     aboveRef: "At or above the reference limit used by clinicians",
+    inRef: "Within the reference range used by clinicians",
+    overRef: "Above the reference limit used by clinicians",
     reviewTitle: (joint: boolean) => (joint ? "Joint estimate released by your clinician" : "Assessment released by your clinician"),
     fromClinician: "From your clinician:",
     seeResults: "See your results",
@@ -47,6 +49,7 @@ const S = {
       CLINICIAN_ACCESS: "your clinician can see your record",
       LAB_RESULTS: "lab results can be added to your record",
       WEARABLES: "tracking readings are shared with your clinic",
+      CYCLE_TRACKING: "your cycle log is kept",
       PARTNER_SHARING: "sharing with your linked partner",
       POPULATION_ANALYTICS: "anonymous population statistics"
     } as Record<Purpose, string>
@@ -65,6 +68,8 @@ const S = {
     resultsTitle: (n: number) => `سُجّلت ${n} نتائج`,
     belowRef: "أقل من الحد المرجعي الذي يستخدمه الأطباء",
     aboveRef: "عند الحد المرجعي الذي يستخدمه الأطباء أو أعلى منه",
+    inRef: "ضمن النطاق المرجعي الذي يستخدمه الأطباء",
+    overRef: "أعلى من الحد المرجعي الذي يستخدمه الأطباء",
     reviewTitle: (joint: boolean) => (joint ? "اعتمد طبيبك تقديركما المشترك" : "اعتمد طبيبك تقييمك"),
     fromClinician: "من طبيبك:",
     seeResults: "عرض نتائجك",
@@ -83,6 +88,7 @@ const S = {
       CLINICIAN_ACCESS: "اطلاع طبيبك على سجلك",
       LAB_RESULTS: "إضافة نتائج المختبر إلى سجلك",
       WEARABLES: "مشاركة قراءات المتابعة مع عيادتك",
+      CYCLE_TRACKING: "حفظ سجل دورتك",
       PARTNER_SHARING: "المشاركة مع شريكك المرتبط",
       POPULATION_ANALYTICS: "إحصاءات سكانية مجهولة الهوية"
     } as Record<Purpose, string>
@@ -234,15 +240,18 @@ function Details({ e, L, ar }: { e: TimelineEvent; L: Strings; ar: boolean }) {
                   <b dir="ltr">
                     {it.value} {def.unit}
                   </b>
-                  <small className={it.below ? "below" : ""}>
-                    {it.below ? L.belowRef : L.aboveRef}
-                    {def.lowerLimit !== undefined && (
-                      <>
-                        {" "}
-                        (<span dir="ltr">{def.lowerLimit} {def.unit}</span>)
-                      </>
-                    )}
-                  </small>
+                  {(def.lowerLimit !== undefined || def.upperLimit !== undefined) && (
+                    <small className={it.below ? "below" : ""}>
+                      {!it.below
+                        ? def.lowerLimit !== undefined && def.upperLimit === undefined
+                          ? L.aboveRef
+                          : L.inRef
+                        : isAboveLimit(it.code, it.value)
+                          ? L.overRef
+                          : L.belowRef}{" "}
+                      (<span dir="ltr">{referenceText(it.code)}</span>)
+                    </small>
+                  )}
                 </li>
               );
             })}

@@ -3,6 +3,7 @@ import "./globals.css";
 import "./reproai.css";
 import "./landing.css";
 import "./chat-history.css";
+import "./cycle.css";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 export const metadata: Metadata = {

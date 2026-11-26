@@ -74,6 +74,7 @@ const S = {
     monoText: (n: number, shift: string, thr: string) => `Across ${n} readings the largest rise is ${shift}°C, below the ${thr}°C usually seen after ovulation. Single cycles vary; your care team looks at this over time.`,
     buildTitle: "Building your pattern",
     buildText: (n: number, min: number) => `${n} of ${min} readings so far. A rise can be assessed once there are at least ${min} consecutive mornings.`,
+    earlyText: (n: number) => `${n} readings in this cycle so far. It is still early in the cycle; a rise is usually seen later, so keep logging each morning.`,
     noTempTitle: "No temperature readings yet",
     noTempText: "Log your basal temperature each morning, or import readings from your thermometer or wearable app.",
     sleepTitle: "Sleep duration",
@@ -132,6 +133,7 @@ const S = {
     monoText: (n: number, shift: string, thr: string) => `عبر ${n} قراءة، أكبر ارتفاع هو ${shift}°م، وهو أقل من ${thr}°م الذي يُلاحظ عادة بعد الإباضة. تختلف الدورات من واحدة لأخرى، ويتابع فريق رعايتك ذلك مع الوقت.`,
     buildTitle: "جارٍ بناء نمطك",
     buildText: (n: number, min: number) => `القراءات حتى الآن: ${n} من ${min}. يمكن تقييم الارتفاع بعد ${min} صباحات متتالية على الأقل.`,
+    earlyText: (n: number) => `${n} قراءة في هذه الدورة حتى الآن. ما زال الوقت مبكراً في الدورة، وعادةً ما يظهر الارتفاع لاحقاً، لذا استمري في التسجيل كل صباح.`,
     noTempTitle: "لا توجد قراءات حرارة بعد",
     noTempText: "سجّل حرارتك الأساسية كل صباح، أو استورد القراءات من مقياس الحرارة أو تطبيق جهازك.",
     sleepTitle: "مدة النوم",
@@ -404,7 +406,7 @@ export default function WearablesPage() {
                   {bbt.status === "INSUFFICIENT_DATA" && (
                     <>
                       <strong>{L.buildTitle}</strong>
-                      {L.buildText(bbt.readings, MIN_BBT_READINGS)}
+                      {bbt.readings >= MIN_BBT_READINGS ? L.earlyText(bbt.readings) : L.buildText(bbt.readings, MIN_BBT_READINGS)}
                     </>
                   )}
                 </span>

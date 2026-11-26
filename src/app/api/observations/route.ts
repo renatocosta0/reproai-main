@@ -3,7 +3,10 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { hasConsent } from "@/lib/consent";
 import { canAccessCase, canAccessUser } from "@/lib/clinician-scope";
-import { normaliseObservation } from "@/lib/observation-analysis";
+import { PASSIVE_CODES, normaliseObservation } from "@/lib/observation-analysis";
+import { analyseAndAlert } from "@/lib/observation-alerts";
+import { audit } from "@/lib/audit";
+import { resolveObservationSubject } from "@/lib/observation-subject";
 
 // FHIR-aligned observations (wearables or manually entered vitals).
 // Patients only ever see their own records (individual-first privacy, even when
@@ -29,10 +32,15 @@ export async function GET(req: NextRequest) {
       where = queryUserId ? { userId: queryUserId } : { coupleId: queryCoupleId! };
     }
 
+    // Default: basal temperature and sleep (the charts). ?codes=a,b selects other
+    // signals, e.g. passive wearable summaries; ?take= up to 400.
+    const codesParam = req.nextUrl.searchParams.get("codes");
+    const codes = codesParam ? codesParam.split(",").map((c) => c.trim()).filter(Boolean).slice(0, 12) : null;
+    const take = Math.min(400, Math.max(1, Number(req.nextUrl.searchParams.get("take")) || 50));
     const observations = await prisma.observation.findMany({
-      where,
+      where: { ...where, ...(codes ? { code: { in: codes } } : { code: { notIn: [...PASSIVE_CODES] } }) },
       orderBy: { effectiveAt: "desc" },
-      take: 50
+      take
     });
     return NextResponse.json({ observations });
   } catch (error: any) {
@@ -58,24 +66,29 @@ export async function POST(req: NextRequest) {
     if (!checked.ok) {
       return NextResponse.json({ error: checked.error }, { status: 400 });
     }
-    // Patients always write into their own record; only clinicians may target a couple.
-    const coupleId = session.role === "CLINICIAN" ? body.coupleId ?? null : session.coupleId ?? null;
-    // Clinicians may write only into cases in their scope (prescribed or assigned).
-    if (session.role === "CLINICIAN" && (!coupleId || !(await canAccessCase(session.userId, String(coupleId))))) {
-      return NextResponse.json({ error: "Forbidden: this case is not in your scope" }, { status: 403 });
+    // Patients always write into their own record. A clinician must name the
+    // patient (userId) in a case in their scope; the reading is stored under that
+    // patient, never under the clinician.
+    const subject = await resolveObservationSubject(session, body.coupleId, body.userId);
+    if (!subject.ok) {
+      return NextResponse.json({ error: subject.error }, { status: subject.status });
     }
 
     const observation = await prisma.observation.create({
       data: {
-        coupleId,
-        userId: session.userId,
+        coupleId: subject.coupleId,
+        userId: subject.userId,
         code: checked.code,
         value: checked.value,
         unit: checked.unit,
         source: "MANUAL"
       }
     });
-    return NextResponse.json({ observation }, { status: 201 });
+
+    // Same longitudinal analysis and clinician-side alert as every other ingestion path.
+    const { alertTriggered, analytics } = await analyseAndAlert(subject.userId, subject.coupleId);
+    await audit(session.userId, "observation_recorded", `user:${subject.userId}:code:${checked.code}`);
+    return NextResponse.json({ observation, alertTriggered, analytics }, { status: 201 });
   } catch (error: any) {
     console.error("[POST /api/observations] error:", error);
     return NextResponse.json({ error: error?.message ?? "Failed to create observation" }, { status: 500 });

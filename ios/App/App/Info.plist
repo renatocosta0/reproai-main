@@ -23,7 +23,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>ReproAI reads sleep and basal body temperature only when you choose to import those readings into your care record.</string>
+	<string>ReproAI reads sleep, basal body temperature and, if you allow it, resting heart rate, heart rate variability, sleeping wrist temperature, steps, exercise minutes and water, only when you choose to import them. Passive signals are kept as one daily summary and are never sold or used for advertising.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>ReproAI does not write readings to Apple Health. This app uses read-only health access for the readings you choose to import.</string>
 	<key>LSRequiresIPhoneOS</key>

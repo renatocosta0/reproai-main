@@ -92,7 +92,11 @@ export const SENSITIVE_FIELDS = new Set([
   "note",
   "notes",
   "question",
-  "reply"
+  "reply",
+  // Cycle log (DailyCycleLog): symptoms, mood and the private intimacy log
+  "symptoms",
+  "mood",
+  "intimacy"
 ]);
 
 function inferModel(parentModel?: string, key?: string): string | undefined {

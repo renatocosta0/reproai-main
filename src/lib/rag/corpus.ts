@@ -103,6 +103,27 @@ export const SOURCES: Record<string, SourceDoc> = {
     year: 2025,
     url: "https://www.doh.gov.ae"
   },
+  ASRM_OVULATION: {
+    id: "ASRM_OVULATION",
+    title: "Optimizing Natural Fertility & Luteal Phase Deficiency Committee Opinions",
+    publisher: "American Society for Reproductive Medicine (ASRM)",
+    year: 2022,
+    url: "https://www.reproductivefacts.org"
+  },
+  FIGO_2018: {
+    id: "FIGO_2018",
+    title: "FIGO classification system (PALM-COEIN) and normal menstrual parameters (AUB System 1)",
+    publisher: "International Federation of Gynecology and Obstetrics (FIGO)",
+    year: 2018,
+    url: "https://obgyn.onlinelibrary.wiley.com/doi/10.1002/ijgo.12666"
+  },
+  ACOG_PMS: {
+    id: "ACOG_PMS",
+    title: "Premenstrual Syndrome (PMS) & Premenstrual Disorders Clinical Guidance",
+    publisher: "American College of Obstetricians and Gynecologists (ACOG)",
+    year: 2023,
+    url: "https://www.acog.org/womens-health/faqs"
+  },
   REPROAI: {
     id: "REPROAI",
     title: "ReproAI technical documentation and rules engine",
@@ -319,6 +340,43 @@ export const PASSAGES: Passage[] = [
     terms: ["abu dhabi", "doh", "department of health", "fertility consultation", "consultation", "clinic", "licensed", "regulated", "uae"]
   },
 
+  {
+    id: "ACOG-FERT-1", doc: "ACOG_FAM", section: "FAQ024: fertile window and fertility awareness", status: "primary", audience: "both",
+    title: "How the fertile window works",
+    text: "Sperm can survive in the female reproductive tract for up to 5 days, and an egg survives for about 12 to 24 hours after ovulation. Together, this creates a fertile window of roughly 6 days ending shortly after ovulation, when unprotected intercourse is most likely to result in pregnancy. Fertility awareness estimates are not a reliable form of contraception without strict training and adherence.",
+    terms: ["fertile window", "window", "when am i fertile", "conception window", "sperm survive", "egg survive", "cycle phase", "fertile"]
+  },
+  {
+    id: "ACOG-MUCUS-1", doc: "ACOG_FAM", section: "FAQ024: cervical mucus method", status: "primary", audience: "both",
+    title: "What cervical mucus changes mean",
+    text: "Rising oestrogen before ovulation changes cervical mucus from dry, sticky or creamy to clear, watery, slippery and stretchy like raw egg white. Watery or egg-white cervical mucus signals the most fertile days because it helps sperm survive and travel toward the egg. After ovulation, progesterone dries or thickens the mucus again.",
+    terms: ["cervical mucus", "mucus", "discharge", "egg white", "egg-white", "watery", "creamy", "sticky", "dry", "fertile mucus", "what does cervical mucus tell me"]
+  },
+  {
+    id: "ASRM-LH-1", doc: "ASRM_OVULATION", section: "Optimizing natural fertility: LH testing", status: "primary", audience: "both",
+    title: "When to take a urinary ovulation (LH) test and what it shows",
+    text: "Ovulation predictor kits detect a rapid rise in luteinizing hormone (LH) in urine, called the LH surge, which triggers egg release about 36 to 40 hours later. Start testing daily a few days before your expected fertile window, usually around cycle day 10 in a 28-day cycle; a positive or peak result signals your most fertile 1 to 2 days, though people with PCOS or irregular cycles can have multiple LH surges.",
+    terms: ["ovulation test", "lh", "lh test", "lh surge", "opk", "predictor kit", "when should i take", "positive lh", "peak", "urine test"]
+  },
+  {
+    id: "ASRM-LUT-1", doc: "ASRM_OVULATION", section: "Luteal phase deficiency guidance", status: "primary", audience: "both",
+    title: "Luteal phase length and short luteal phases",
+    text: "The luteal phase is the time from ovulation until the day before the next period starts, typically lasting around 11 to 17 days (about 14 days on average). A luteal phase of 10 days or less is considered short; if a short luteal phase occurs across two or more confirmed ovulatory cycles, a clinician may evaluate progesterone levels or thyroid and ovulatory function.",
+    terms: ["luteal", "luteal phase", "short luteal", "10 days", "progesterone", "second half", "after ovulation"]
+  },
+  {
+    id: "FIGO-REG-1", doc: "FIGO_2018", section: "Table 1: normal menstrual parameters", status: "primary", audience: "both",
+    title: "Normal menstrual cycle limits (FIGO 2018)",
+    text: "Under the 2018 FIGO normal menstrual parameters, a typical adult cycle occurs every 24 to 38 days, lasts up to 8 days of bleeding, and varies by no more than 7 to 9 days between the shortest and longest cycles. Cycles shorter than 24 days, longer than 38 days, bleeding over 8 days, or no period for more than 90 days (amenorrhoea) are outside the usual range and worth discussing with a clinician.",
+    terms: ["cycle length", "regularity", "irregular", "figo", "normal cycle", "24", "38", "variation", "prolonged bleeding", "amenorrhoea", "late period"]
+  },
+  {
+    id: "ACOG-PMS-1", doc: "ACOG_PMS", section: "Premenstrual syndrome pattern", status: "primary", audience: "both",
+    title: "Understanding premenstrual (PMS) symptom patterns",
+    text: "Premenstrual syndrome (PMS) describes physical and mood symptoms—such as bloating, breast tenderness, cramps, fatigue, irritability or anxiety—that appear during the luteal phase after ovulation and ease within a few days of bleeding starting. Tracking symptoms across at least two cycles helps distinguish cyclical luteal patterns from other causes.",
+    terms: ["pms", "premenstrual", "mood", "bloating", "cramps", "breast tenderness", "headache", "symptoms", "cycle symptoms"]
+  },
+
   // ── Scope-only references ───────────────────────────────────────────────
   {
     id: "ESHRE-1", doc: "ESHRE_FFP", section: "Guideline scope", status: "scope", audience: "both",
@@ -387,6 +445,12 @@ export const PASSAGES: Passage[] = [
     title: "What an AMH result means in ReproAI",
     text: "A released ReproAI assessment may display an AMH-for-age comparison. This passage describes an app display only; it does not interpret an AMH value or support clinical advice.",
     terms: ["amh", "egg reserve", "low amh", "what does amh mean", "percentile"]
+  },
+  {
+    id: "RAI-10", doc: "REPROAI", section: "Cycle and ovulation estimation", status: "internal", audience: "both",
+    title: "How ReproAI estimates your cycle phase and fertile window",
+    text: "ReproAI estimates cycle length from up to your last six logged cycles, uses your personal median luteal length (or 14 days when fewer than two ovulations are confirmed) for a calendar baseline, adjusts the fertile window when fertile cervical mucus or a positive LH test is logged, and confirms ovulation retrospectively using the Roetzer 3-over-6 basal temperature rule. When cycles vary widely or PCOS is recorded, ReproAI switches to variable mode instead of pinning a calendar date, and predictions pause during hormonal contraception, postpartum or perimenopause. Passive watch signals such as resting heart rate, HRV and wrist temperature are shown for context only and never confirm ovulation.",
+    terms: ["estimate", "how reproai estimates", "cycle phase", "fertile window", "variable mode", "paused", "passive signals", "wrist temperature", "resting heart rate", "hrv", "roetzer", "calendar"]
   }
 ];
 
@@ -404,7 +468,10 @@ export function citationLabel(p: Passage): string {
     p.doc === "ACOG_INFERTILITY" ? "ACOG infertility-evaluation FAQ, 2026" :
     p.doc === "ESHRE_FFP" ? "ESHRE preservation guideline 2020" :
     p.doc === "WHO_SEMEN" ? "WHO semen manual 2021" :
-    p.doc === "DOH_ABUDHABI" ? "DoH Abu Dhabi ART framework" : d.title;
+    p.doc === "DOH_ABUDHABI" ? "DoH Abu Dhabi ART framework" :
+    p.doc === "ASRM_OVULATION" ? "ASRM fertility & luteal guidance" :
+    p.doc === "FIGO_2018" ? "FIGO normal menstrual parameters, 2018" :
+    p.doc === "ACOG_PMS" ? "ACOG PMS guidance" : d.title;
   return p.page ? `${short}, p. ${p.page}` : `${short}, ${p.section}`;
 }
 

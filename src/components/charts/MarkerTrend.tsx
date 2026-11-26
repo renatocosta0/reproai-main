@@ -3,7 +3,7 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { LAB_AR } from "@/lib/i18n";
-import { LABS, isBelowLimit, type LabCode, type LabPoint } from "@/lib/labs";
+import { LABS, isAboveLimit, isOutsideReference, type LabCode, type LabPoint } from "@/lib/labs";
 import { shortDate } from "@/lib/observation-analysis";
 import { SourceChip } from "@/components/record/Chips";
 import { CLINICIAN_STRINGS, shortDateL } from "@/lib/i18n-clinician";
@@ -25,12 +25,12 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
   const pts = [...points].sort((a, b) => +new Date(a.collectedAt) - +new Date(b.collectedAt));
   const last = pts[pts.length - 1];
   const first = pts[0];
-  const below = isBelowLimit(code, last.value);
+  const below = isOutsideReference(code, last.value);
 
   const width = 320;
   const height = 90;
   const pad = 10;
-  const lim = def.lowerLimit;
+  const lim = def.lowerLimit ?? def.upperLimit;
   const values = pts.map((p) => p.value).concat(lim !== undefined ? [lim] : []);
   const lo = Math.max(0, Math.min(...values) * 0.8);
   const hi = Math.max(...values) * 1.2 || 1;
@@ -78,7 +78,7 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
           <polyline points={pts.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} fill="none" style={{ stroke: "var(--chart-line)" }} strokeWidth="2" />
         )}
         {pts.map((p, i) => (
-          <circle key={p.id} cx={x(i)} cy={y(p.value)} r="4" style={{ fill: "var(--chart-dot-fill)", stroke: isBelowLimit(code, p.value) ? "var(--chart-risk)" : "var(--chart-line)" }} strokeWidth="2" />
+          <circle key={p.id} cx={x(i)} cy={y(p.value)} r="4" style={{ fill: "var(--chart-dot-fill)", stroke: isOutsideReference(code, p.value) ? "var(--chart-risk)" : "var(--chart-line)" }} strokeWidth="2" />
         ))}
       </svg>
       <ChartHover
@@ -104,7 +104,7 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
         {lim !== undefined && (
           <>
             {" "}· {ar ? "الحد المرجعي" : "reference limit"} <span dir="ltr">{lim} {def.unit}</span>
-            {below ? (ar ? " (أقل)" : " (below)") : ""}
+            {below ? (isAboveLimit(code, last.value) ? (ar ? " (أعلى)" : " (above)") : ar ? " (أقل)" : " (below)") : ""}
           </>
         )}
       </small>

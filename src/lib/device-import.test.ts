@@ -46,7 +46,7 @@ describe("mapDeviceSamples (Capgo HealthSample shape)", () => {
   it("rejects unused types, future dates and implausible values", () => {
     const { rows, skipped } = mapDeviceSamples(
       [
-        { dataType: "steps", value: 9000, startDate: t("2026-11-10T00:00:00Z") },
+        { dataType: "heartRate", value: 72, startDate: t("2026-11-10T00:00:00Z") },
         { dataType: "basalBodyTemperature", value: 36.5, startDate: t("2099-01-01T00:00:00Z") },
         { dataType: "basalBodyTemperature", value: 42, unit: "celsius", startDate: t("2026-11-10T06:00:00Z") }
       ],
@@ -82,5 +82,31 @@ describe("Bluetooth Health Thermometer decoding", () => {
     buf.setUint8(0, 0x01); // Fahrenheit
     buf.setUint32(1, float(977, -1) >>> 0, true);
     expect(parseTemperatureMeasurement(buf)).toMatchObject({ celsius: 36.5, takenAt: null });
+  });
+});
+
+describe("passive daily summaries", () => {
+  it("reduces resting heart rate to a daily mean and steps to a daily sum", () => {
+    const { rows } = mapDeviceSamples(
+      [
+        { dataType: "restingHeartRate", value: 60, unit: "bpm", startDate: "2026-11-01T06:00:00Z" },
+        { dataType: "restingHeartRate", value: 64, unit: "bpm", startDate: "2026-11-01T18:00:00Z" },
+        { dataType: "steps", value: 3000, unit: "count", startDate: "2026-11-01T09:00:00Z", endDate: "2026-11-01T10:00:00Z" },
+        { dataType: "steps", value: 4500, unit: "count", startDate: "2026-11-01T15:00:00Z", endDate: "2026-11-01T16:00:00Z" }
+      ],
+      "HEALTHKIT"
+    );
+    const rhr = rows.find((r) => r.code === "40443-4");
+    const steps = rows.find((r) => r.code === "55423-8");
+    expect(rhr?.value).toBe(62);
+    expect(steps?.value).toBe(7500);
+    expect(steps?.externalId).toBe("55423-8:day:2026-11-01");
+    expect(rows.every((r) => r.kind === "daily")).toBe(true);
+  });
+
+  it("keeps wrist temperature separate from basal temperature", () => {
+    const { rows } = mapDeviceSamples([{ dataType: "appleSleepingWristTemperature", value: 35.9, unit: "celsius", startDate: "2026-11-01T00:30:00Z", endDate: "2026-11-01T06:30:00Z" }], "HEALTHKIT");
+    expect(rows[0].code).toBe("wrist-temperature");
+    expect(rows[0].code).not.toBe("8310-5");
   });
 });

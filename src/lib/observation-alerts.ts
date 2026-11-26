@@ -1,10 +1,21 @@
 // Longitudinal analysis of temperature and sleep readings, and the clinician-side
-// follow-up alert it may raise. Shared by every ingestion path (manual bulk entry,
-// device import) so they all behave the same. Alerts go only to the care team,
-// never to the patient, and are worded "not a diagnosis".
+// follow-up alert it may raise. Shared by every ingestion path (single reading,
+// manual bulk entry, device import) so they all behave the same. Escalations go
+// only to the care team, never to the patient, and are worded "not a diagnosis".
+//
+// Levels (see assessWearableSignals in observation-analysis.ts):
+//  - P1 opens or refreshes one wearable follow-up per case and notifies the
+//    responsible clinicians (in-app CareNotification, no clinical details).
+//  - P2 is advice only: it reaches the patient through the pathway options
+//    (BBT-MONO, OPT-SLEEP) and never opens a follow-up.
+//  - When the signal settles (a confirmed rise in the latest cycle), an open
+//    wearable alert that no clinician has acted on yet is closed automatically,
+//    with an audit record. Follow-ups opened by clinicians are never touched.
 
 import { prisma } from "@/lib/db";
-import { isSleep, isTemperature } from "@/lib/observation-analysis";
+import { PAUSED_MODES } from "@/lib/cycle";
+import { PASSIVE_CODES, assessWearableSignals, isSleep, isTemperature, type Point, type WearableAlertLevel } from "@/lib/observation-analysis";
+import { belongsTo, syncSignalFollowUp, type SignalSource } from "@/lib/signal-follow-up";
 
 export interface ObservationAnalytics {
   alertTriggered: boolean;
@@ -14,73 +25,87 @@ export interface ObservationAnalytics {
     mean_sleep_hours: number;
     sleep_disruption_flag: boolean;
     total_longitudinal_records: number;
+    alert_level: WearableAlertLevel;
+    bbt_basis: "CURRENT_CYCLE" | "LAST_COMPLETED_CYCLE" | null;
+    consecutive_monophasic_cycles: number;
+    excluded_fever_readings: number;
+    alert_resolved: boolean;
   };
 }
 
-const WINDOW = 60; // most recent readings per signal
+/** Marks follow-ups opened by this analysis (so clinician-opened ones are never overwritten). */
+export const WEARABLE_ALERT_PREFIX = "[Wearable signal] ";
+/** Notes written by earlier versions of this analysis. */
+const LEGACY_PREFIXES = ["Temperature:", "Sleep:"];
+const WINDOW = 120; // most recent readings per signal (about 3–4 cycles of daily readings)
 
-/** Analyse one person's most recent readings and raise or refresh the case's follow-up alert. */
+export const WEARABLE_SOURCE: SignalSource = {
+  prefix: WEARABLE_ALERT_PREFIX,
+  legacyPrefixes: LEGACY_PREFIXES,
+  notificationType: "WEARABLE_ALERT",
+  title: "ReproAI · Wearable signal to review",
+  body: "A patient's home readings meet a follow-up rule. Open the follow-up board to review.",
+  actor: "system:wearable-analysis"
+};
+
+export function isWearableAlertNote(note: string | null | undefined): boolean {
+  return belongsTo(WEARABLE_SOURCE, note);
+}
+
+/** Analyse one person's most recent readings and raise, refresh or resolve the case's wearable alert. */
 export async function analyseAndAlert(userId: string, coupleId: string | null): Promise<ObservationAnalytics> {
-  // Most recent readings for this person only (a partner's readings are their own),
-  // newest first from the database, then put back in time order.
-  const recent = (
-    await prisma.observation.findMany({ where: { userId }, orderBy: { effectiveAt: "desc" }, take: WINDOW * 2 })
+  // Readings of this person only (a partner's readings are their own).
+  const rows = (
+    await prisma.observation.findMany({ where: { userId, code: { notIn: [...PASSIVE_CODES] } }, orderBy: { effectiveAt: "desc" }, take: WINDOW * 2 })
   ).reverse();
+  const toPoint = (o: { effectiveAt: Date; value: number }): Point => ({ date: new Date(o.effectiveAt), value: o.value });
+  const temps = rows.filter((o) => isTemperature(o.code)).slice(-WINDOW).map(toPoint);
+  const sleep = rows.filter((o) => isSleep(o.code)).slice(-WINDOW).map(toPoint);
 
-  let alertReason: string | null = null;
-  let bbtProfile: ObservationAnalytics["analytics"]["bbt_profile"] = "INSUFFICIENT_DATA";
-  let thermalShiftDelta = 0;
-  let meanSleepDuration = 0;
-  let sleepDisruptionDetected = false;
+  // Recorded period starts are the most reliable cycle boundaries for the curve.
+  const [cycles, profile] = await Promise.all([
+    prisma.menstrualCycle.findMany({ where: { userId }, select: { startDate: true }, orderBy: { startDate: "asc" } }),
+    prisma.patient.findUnique({ where: { userId }, select: { trackingMode: true } })
+  ]);
+  const signals = assessWearableSignals(temps, sleep, cycles.map((c) => c.startDate));
+  // Hormonal contraception, postpartum and perimenopause: no anovulation alerts.
+  const paused = Boolean(profile?.trackingMode && (PAUSED_MODES as string[]).includes(profile.trackingMode));
+  const level = paused && signals.level === "P1" ? "P2" : signals.level;
+  let resolved = false;
 
-  // 1. Basal body temperature: 6-reading baseline vs the next 3 readings.
-  const bbt = recent.filter((o) => isTemperature(o.code)).slice(-WINDOW).map((o) => o.value);
-  if (bbt.length >= 10) {
-    let maxShift = 0;
-    for (let i = 6; i < bbt.length - 2; i++) {
-      const baseline = bbt.slice(i - 6, i).reduce((a, b) => a + b, 0) / 6;
-      const post = bbt.slice(i, i + 3).reduce((a, b) => a + b, 0) / 3;
-      maxShift = Math.max(maxShift, post - baseline);
-    }
-    thermalShiftDelta = Number(maxShift.toFixed(2));
-    if (maxShift >= 0.28) {
-      bbtProfile = "BIPHASIC_OVULATORY";
-    } else {
-      bbtProfile = "MONOPHASIC_SUSPECTED_ANOVULATORY";
-      alertReason = `Temperature: no sustained rise across ${bbt.length} readings (largest shift ${thermalShiftDelta} °C; a typical post-ovulation rise is about 0.3 °C). Not a diagnosis: BBT varies between cycles; consider ovulation confirmation (e.g. mid-luteal progesterone).`;
-    }
+  if (coupleId) {
+    const legacySleepOnly = (
+      await prisma.followUp.findMany({ where: { coupleId, status: "ALERT_RAISED" }, orderBy: { createdAt: "desc" } })
+    ).find((f) => isWearableAlertNote(f.note))?.note?.startsWith("Sleep:") ?? false;
+    const result = await syncSignalFollowUp({
+      source: WEARABLE_SOURCE,
+      coupleId,
+      userId,
+      reason: level === "P1" ? signals.clinicianReason : null,
+      settled: signals.temperatureResolved || paused || (legacySleepOnly && signals.sleepSettled),
+      settledWhy: signals.temperatureResolved
+        ? "a confirmed temperature rise (Roetzer 3-over-6) in the latest cycle"
+        : paused
+          ? "cycle tracking is paused (contraception, postpartum or perimenopause)"
+          : "sleep is now handled as advice, not a follow-up"
+    });
+    resolved = result.resolved;
   }
 
-  // 2. Sleep: low average or very irregular nights.
-  const sleep = recent.filter((o) => isSleep(o.code)).slice(-WINDOW).map((o) => o.value);
-  if (sleep.length >= 3) {
-    meanSleepDuration = Number((sleep.reduce((a, b) => a + b, 0) / sleep.length).toFixed(1));
-    const sd = Math.sqrt(sleep.reduce((s, v) => s + (v - meanSleepDuration) ** 2, 0) / sleep.length);
-    if (meanSleepDuration < 5.0 || sd > 2.8) {
-      sleepDisruptionDetected = true;
-      const note = `Sleep: mean ${meanSleepDuration} h per night (variability ${sd.toFixed(1)} h) over ${sleep.length} nights. Worth discussing; thresholds are team choices, not guideline values.`;
-      alertReason = alertReason ? `${alertReason} | ${note}` : note;
-    }
-  }
-
-  // 3. Clinician-side follow-up: one open alert per case, refreshed with the latest reason.
-  if (coupleId && alertReason) {
-    const existing = await prisma.followUp.findFirst({ where: { coupleId, status: "ALERT_RAISED" } });
-    if (existing) {
-      await prisma.followUp.update({ where: { id: existing.id }, data: { note: alertReason } });
-    } else {
-      await prisma.followUp.create({ data: { coupleId, status: "ALERT_RAISED", note: alertReason } });
-    }
-  }
-
+  const { bbt } = signals;
   return {
-    alertTriggered: Boolean(alertReason),
+    alertTriggered: level === "P1",
     analytics: {
-      bbt_profile: bbtProfile,
-      thermal_shift_detected_celsius: thermalShiftDelta,
-      mean_sleep_hours: meanSleepDuration,
-      sleep_disruption_flag: sleepDisruptionDetected,
-      total_longitudinal_records: recent.length
+      bbt_profile: bbt.status === "BIPHASIC" ? "BIPHASIC_OVULATORY" : bbt.status === "MONOPHASIC" ? "MONOPHASIC_SUSPECTED_ANOVULATORY" : "INSUFFICIENT_DATA",
+      thermal_shift_detected_celsius: bbt.shift,
+      mean_sleep_hours: signals.sleep?.recentMean !== null && signals.sleep?.recentMean !== undefined ? Number(signals.sleep.recentMean.toFixed(1)) : 0,
+      sleep_disruption_flag: signals.sleep?.disrupted ?? false,
+      total_longitudinal_records: rows.length,
+      alert_level: level,
+      bbt_basis: bbt.basis,
+      consecutive_monophasic_cycles: bbt.consecutiveMonophasicCycles,
+      excluded_fever_readings: bbt.excludedFever,
+      alert_resolved: resolved
     }
   };
 }

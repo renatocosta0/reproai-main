@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { Health, type HealthSample } from "@capgo/capacitor-health";
-import { Activity, Loader2, MoonStar, ShieldCheck, Thermometer, X } from "lucide-react";
+import { Health, type HealthDataType } from "@capgo/capacitor-health";
+import { Activity, HeartPulse, Loader2, MoonStar, ShieldCheck, Thermometer, X } from "lucide-react";
 import { FormError } from "@/components/ui/Notice";
 import { api, userMessage } from "@/lib/api-client";
 import type { DeviceSample } from "@/lib/device-import";
@@ -24,6 +24,8 @@ const T = {
     permSleepDesc: "Daily asleep duration and stage data",
     permTemp: "Basal body temperature (LOINC 8310-5)",
     permTempDesc: "Morning waking temperature for ovulation tracking",
+    permPassive: "Heart, wrist temperature & activity (optional)",
+    permPassiveDesc: "Resting heart rate, HRV, sleeping wrist temperature (Apple Watch), steps, exercise and water — one summary per day, shown as context only",
     syncBtnGeneral: "Sync mobile health data",
     syncing: "Syncing from device…",
     unavailable: "Apple Health or Health Connect is not available in this browser or on this device. No data was imported. Enter readings manually instead.",
@@ -44,6 +46,8 @@ const T = {
     permSleepDesc: "مدة النوم اليومية وبيانات المراحل",
     permTemp: "درجة حرارة الجسم الأساسية (LOINC 8310-5)",
     permTempDesc: "حرارة الاستيقاظ الصباحية لتتبع التبويض",
+    permPassive: "القلب وحرارة المعصم والنشاط (اختياري)",
+    permPassiveDesc: "نبض الراحة وتقلب النبض وحرارة المعصم أثناء النوم (Apple Watch) والخطوات والتمارين والماء — ملخص واحد لكل يوم، للسياق فقط",
     syncBtnGeneral: "مزامنة بيانات الصحة من الهاتف",
     syncing: "جارٍ المزامنة من الجهاز…",
     unavailable: "Apple Health أو Health Connect غير متاح على هذا المتصفح أو الجهاز. لم يتم استيراد أي بيانات. أدخل القراءات يدويًا.",
@@ -78,45 +82,31 @@ export function HealthConnectModal({ locale, onClose, onManualEntry, onSaved }: 
       const consent = await api<{ consents?: Record<string, { granted?: boolean }> }>("/api/patient/consent");
       if (!consent.consents?.WEARABLES?.granted) throw new Error(L.consentRequired);
 
-      const permission = await Health.requestAuthorization({
-        read: ["sleep", "basalBodyTemperature"],
-        write: []
-      });
+      // Passive signals are read as context; the server keeps one summary per day.
+      const passive: HealthDataType[] = ["restingHeartRate", "heartRateVariability", "steps", "exerciseTime", "dietaryWater", ...(platform === "ios" ? (["appleSleepingWristTemperature"] as HealthDataType[]) : [])];
+      const types: HealthDataType[] = ["sleep", "basalBodyTemperature", ...passive];
+      const permission = await Health.requestAuthorization({ read: types, write: [] });
       const end = new Date();
       const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
       const query = { startDate: start.toISOString(), endDate: end.toISOString(), limit: 2000 };
-      const [sleepResult, temperatureResult] = await Promise.allSettled([
-        Health.readSamples({ ...query, dataType: "sleep" }),
-        Health.readSamples({ ...query, dataType: "basalBodyTemperature" })
-      ]);
-
-      const sleepSamples = sleepResult.status === "fulfilled" ? sleepResult.value.samples : [];
-      const temperatureSamples = temperatureResult.status === "fulfilled" ? temperatureResult.value.samples : [];
+      const results = await Promise.allSettled(types.map((dataType) => Health.readSamples({ ...query, dataType })));
       const source = platform === "ios" ? "HEALTHKIT" : "HEALTH_CONNECT";
-      const samples: DeviceSample[] = [
-        ...sleepSamples.map((sample) => ({
-          dataType: "sleep",
+      const store = platform === "ios" ? "Apple Health" : "Health Connect";
+      const samples: DeviceSample[] = results.flatMap((r, i) => {
+        if (r.status !== "fulfilled") return [];
+        const dataType = types[i];
+        return r.value.samples.map((sample) => ({
+          dataType,
           value: sample.value,
-          unit: sample.unit || "minute",
+          unit: sample.unit || (dataType === "sleep" ? "minute" : dataType === "basalBodyTemperature" ? "celsius" : undefined),
           startDate: sample.startDate,
           endDate: sample.endDate,
-          sourceName: sample.sourceName || (platform === "ios" ? "Apple Health" : "Health Connect"),
+          sourceName: sample.sourceName || store,
           deviceType: sample.deviceType,
-          platformId: sample.platformId || sample.sourceId || `sleep:${sample.startDate}:${sample.endDate}`,
-          sleepState: sample.sleepState,
-          stages: sample.stages
-        })),
-        ...temperatureSamples.map((sample) => ({
-          dataType: "basalBodyTemperature",
-          value: sample.value,
-          unit: sample.unit || "celsius",
-          startDate: sample.startDate,
-          endDate: sample.endDate,
-          sourceName: sample.sourceName || (platform === "ios" ? "Apple Health" : "Health Connect"),
-          deviceType: sample.deviceType,
-          platformId: sample.platformId || sample.sourceId || `basalBodyTemperature:${sample.startDate}`
-        }))
-      ];
+          platformId: sample.platformId || sample.sourceId || `${dataType}:${sample.startDate}:${sample.endDate ?? ""}`,
+          ...(dataType === "sleep" ? { sleepState: sample.sleepState, stages: sample.stages } : {})
+        }));
+      });
 
       if (samples.length === 0) {
         const denied = typeof permission === "object" && permission !== null &&
@@ -125,7 +115,7 @@ export function HealthConnectModal({ locale, onClose, onManualEntry, onSaved }: 
       }
 
       // Send to ReproAI device import API
-      const res = await api<{ temperatureAdded: number; temperatureDuplicates: number; sleepNightsSaved: number }>("/api/observations/import", {
+      const res = await api<{ temperatureAdded: number; temperatureDuplicates: number; sleepNightsSaved: number; dailySummariesSaved?: number }>("/api/observations/import", {
         method: "POST",
         body: JSON.stringify({
           source,
@@ -134,7 +124,7 @@ export function HealthConnectModal({ locale, onClose, onManualEntry, onSaved }: 
         })
       });
 
-      const importedCount = res.temperatureAdded + res.sleepNightsSaved;
+      const importedCount = res.temperatureAdded + res.sleepNightsSaved + (res.dailySummariesSaved ?? 0);
       if (importedCount === 0) throw new Error(L.noData);
       onSaved(L.saved(importedCount));
       onClose();
@@ -182,6 +172,13 @@ export function HealthConnectModal({ locale, onClose, onManualEntry, onSaved }: 
               <div>
                 <strong style={{ fontSize: 13 }}>{L.permTemp}</strong>
                 <small className="health-connect-sub" style={{ display: "block", fontSize: 11.5 }}>{L.permTempDesc}</small>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <HeartPulse size={16} color="#0c655e" />
+              <div>
+                <strong style={{ fontSize: 13 }}>{L.permPassive}</strong>
+                <small className="health-connect-sub" style={{ display: "block", fontSize: 11.5 }}>{L.permPassiveDesc}</small>
               </div>
             </div>
           </div>

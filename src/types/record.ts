@@ -27,7 +27,7 @@ export interface AssessmentView {
   createdAt: string;
 }
 
-export type Purpose = "CLINICIAN_ACCESS" | "LAB_RESULTS" | "WEARABLES" | "PARTNER_SHARING" | "POPULATION_ANALYTICS";
+export type Purpose = "CLINICIAN_ACCESS" | "LAB_RESULTS" | "WEARABLES" | "CYCLE_TRACKING" | "PARTNER_SHARING" | "POPULATION_ANALYTICS";
 export type ConsentMap = Record<Purpose, { granted: boolean; updatedAt: string | null }>;
 export type PurposeInfo = Record<Purpose, { title: string; description: string; defaultGranted: boolean }>;
 

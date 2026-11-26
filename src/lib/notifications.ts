@@ -14,7 +14,12 @@ export type NotificationType =
   | "APPOINTMENT_DECLINED"
   | "APPOINTMENT_SUGGESTED"
   | "APPOINTMENT_CONFIRMED"
-  | "APPOINTMENT_CANCELLED";
+  | "APPOINTMENT_CANCELLED"
+  | "WEARABLE_ALERT"
+  | "CYCLE_ALERT"
+  | "CYCLE_REMINDER"
+  | "LAB_REVIEW_DUE"
+  | "WEEKLY_SUMMARY";
 
 export interface CareNotification {
   id: string;

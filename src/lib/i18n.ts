@@ -11,6 +11,7 @@ export const STRINGS = {
   navTrajectory: { en: "My trajectory", ar: "مساري" },
   navAbout: { en: "About me", ar: "معلوماتي" },
   navTracking: { en: "Health tracking", ar: "متابعة صحتي" },
+  navCycle: { en: "My cycle", ar: "دورتي" },
   navAssistant: { en: "Ask ReproAI", ar: "اسأل ReproAI" },
   navCouple: { en: "Couple link", ar: "ربط الزوجين" },
   navPrivacy: { en: "Privacy & consent", ar: "الخصوصية والموافقة" },
@@ -132,6 +133,7 @@ export const PURPOSE_AR: Record<string, { title: string; description: string }> 
   CLINICIAN_ACCESS: { title: "مشاركة ملفي مع فريق الرعاية", description: "يستطيع الطبيب الذي وصف لك الخدمة رؤية ملفك ونتائجك وقراءاتك لدعم رعايتك. بدون ذلك يرى فقط أنك مسجّل." },
   LAB_RESULTS: { title: "استخدام نتائج تحاليلي والأشعة", description: "تُحفظ نتائج مثل AMH وعدد الجريبات الغارية وتحليل السائل المنوي وتُستخدم في تقييماتك." },
   WEARABLES: { title: "حفظ قراءات الحرارة والنوم", description: "تُحفظ القراءات التي تسجّلها أو تستوردها لإظهار الأنماط عبر الوقت." },
+  CYCLE_TRACKING: { title: "حفظ سجل دورتي والأعراض", description: "تُحفظ تواريخ الدورة وإفرازات عنق الرحم واختبارات الإباضة والأعراض والمزاج التي تسجّلينها لإظهار نمط دورتك. يرى فريق رعايتك أطوال الدورات والعلامات، وليس ملاحظاتك." },
   PARTNER_SHARING: { title: "المشاركة مع شريكي المرتبط", description: "عند الربط يرى شريكك اسمك وعمرك وأي تقييم مشترك. لا تتم مشاركة نتائجك أو قراءاتك الخاصة أبدًا." },
   POPULATION_ANALYTICS: { title: "إدراجي في إحصاءات خدمة مجهولة الهوية", description: "أعداد ومتوسطات تساعد النظام الصحي على معرفة من يستفيد من النصيحة المبكرة. لا يمكن التعرّف عليك أبدًا." }
 };
@@ -162,5 +164,14 @@ export const LAB_AR: Record<string, string> = {
   SPERM_TOTAL_MOTILITY: "الحركة الكلية",
   SPERM_PROGRESSIVE_MOTILITY: "الحركة التقدّمية",
   SPERM_MORPHOLOGY: "الشكل الطبيعي",
-  SEMEN_VOLUME: "حجم السائل المنوي"
+  SEMEN_VOLUME: "حجم السائل المنوي",
+  LH: "هرمون LH (اليوم ٢–٤)",
+  ESTRADIOL: "الإستراديول (اليوم ٢–٤)",
+  PROGESTERONE: "البروجسترون (منتصف الطور الأصفري)",
+  TSH: "هرمون TSH",
+  FREE_T4: "هرمون T4 الحر",
+  PROLACTIN: "البرولاكتين",
+  HBA1C: "السكر التراكمي HbA1c",
+  FASTING_INSULIN: "الإنسولين الصائم",
+  VITAMIN_D: "فيتامين د (25-OH)"
 };

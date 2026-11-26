@@ -26,6 +26,8 @@ from pydantic import BaseModel, Field, model_validator
 import math
 
 MODEL_VERSION = "literature-spline-shapley-2.2"
+# WHO 2021 (6th ed.) lower reference limit for sperm concentration; Thiqa still uses 15 (WHO 2010) for its tiers.
+SEMEN_REFERENCE_LOWER = 16.0
 EVIDENCE_STATUS = "Literature-derived scoring. Runs in prototype. Not clinically validated."
 
 app = FastAPI(
@@ -58,6 +60,7 @@ class PredictionInput(BaseModel):
     infertility_duration_months: int | None = Field(default=None, ge=0, description="Months trying to conceive")
     prior_cycles: int | None = Field(default=None, ge=0, description="Prior IVF/treatment cycles")
     preservation_intent: bool = Field(default=False, description="Considering fertility preservation")
+    semen_sample_count: int | None = Field(default=None, ge=0, description="Semen analyses on record (WHO: confirm an abnormal result with a repeat test)")
 
     @model_validator(mode="before")
     @classmethod
@@ -99,6 +102,10 @@ class PredictionOutput(BaseModel):
     tier: str | None = None
     preservation_guidance: str | None = None
     age_adjusted_percentile: float | None = None
+    # True when the semen result is below the WHO reference but only one analysis
+    # is on record: the classification is provisional until a repeat test.
+    confirmation_required: bool = False
+    confirmation_note: str | None = None
 
 
 # Population expected log-odds contributions E[f_i(X)] (reference values used as
@@ -384,6 +391,20 @@ def predict_internal(inp: PredictionInput) -> PredictionOutput:
             "assess tubal patency, uterine factors or endometriosis."
         )
 
+    # WHO laboratory manual (6th ed., 2021) and WHO 2025: a single semen analysis
+    # varies a lot; an abnormal result needs a repeat test before it is classed.
+    confirmation_required = False
+    confirmation_note = None
+    if inp.sperm_count is not None and (scope == "COUPLE" or sex == "male"):
+        samples = inp.semen_sample_count or 1
+        if inp.sperm_count < SEMEN_REFERENCE_LOWER and samples < 2:
+            confirmation_required = True
+            confirmation_note = (
+                f"Sperm concentration {inp.sperm_count:g} M/mL is below the WHO reference ({SEMEN_REFERENCE_LOWER:g} M/mL) "
+                "on a single analysis. Provisional: confirm with a repeat semen analysis before classifying."
+            )
+            disclaimer = f"{disclaimer} {confirmation_note}"
+
     total_log_odds = intercept + sum(raw_scores.values())
     probability = round(sigmoid(total_log_odds) * 100, 1)
 
@@ -418,6 +439,8 @@ def predict_internal(inp: PredictionInput) -> PredictionOutput:
         factors=factors,
         disclaimer=disclaimer,
         tier=tier,
+        confirmation_required=confirmation_required,
+        confirmation_note=confirmation_note,
         preservation_guidance=preservation,
         age_adjusted_percentile=percentile,
     )

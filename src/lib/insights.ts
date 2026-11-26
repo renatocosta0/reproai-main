@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { consentingUserIds } from "@/lib/consent";
 import { evaluatePathways, type PathwayContext } from "@/lib/pathways";
 import type { LabPoint } from "@/lib/labs";
+import { PASSIVE_CODES, analyzeBbt, isSleep, isTemperature, sleepStats, type Point } from "@/lib/observation-analysis";
 
 export interface Cohort {
   id: string;
@@ -40,7 +41,14 @@ type UserWithData = Awaited<ReturnType<typeof loadUsers>>[number];
 async function loadUsers(where: { coupleId?: { in: string[] }; id?: { in: string[] } }) {
   return prisma.user.findMany({
     where: { role: "PATIENT", ...where },
-    include: { patientProfile: true, labResults: true, observations: { orderBy: { effectiveAt: "desc" }, take: 60 } }
+    include: {
+      patientProfile: true,
+      labResults: true,
+      // Both signals, about 3–4 cycles of daily readings, so the cycle-aware BBT rule can run.
+      observations: { where: { code: { notIn: [...PASSIVE_CODES] } }, orderBy: { effectiveAt: "desc" }, take: 240 },
+      // Latest released individual assessment: source of the AMH-for-age ratio.
+      predictions: { where: { scope: "INDIVIDUAL", status: "RELEASED" }, orderBy: { createdAt: "desc" }, take: 1 }
+    }
   });
 }
 
@@ -54,7 +62,11 @@ function contextFor(u: UserWithData): PathwayContext {
     collectedAt: l.collectedAt.toISOString(),
     source: l.source as LabPoint["source"]
   }));
-  const sleep = u.observations.filter((o) => o.code === "93832-4" || o.code.includes("sleep")).map((o) => o.value);
+  // Same wearable summary as the person record (src/lib/person-record.ts).
+  const oldestFirst = [...u.observations].reverse();
+  const toPoint = (o: { effectiveAt: Date; value: number }): Point => ({ date: new Date(o.effectiveAt), value: o.value });
+  const bbt = analyzeBbt(oldestFirst.filter((o) => isTemperature(o.code)).map(toPoint));
+  const sleep = sleepStats(oldestFirst.filter((o) => isSleep(o.code)).map(toPoint));
   return {
     sex: p?.sex === "female" || p?.sex === "male" ? p.sex : null,
     age: p?.age ?? null,
@@ -68,9 +80,9 @@ function contextFor(u: UserWithData): PathwayContext {
     smoking: p?.smoking ?? null,
     preservationIntent: p?.preservationIntent ?? null,
     labs,
-    amhPercentile: null,
-    meanSleepHours: sleep.length ? sleep.reduce((a, b) => a + b, 0) / sleep.length : null,
-    bbtMonophasic: false
+    amhPercentile: u.predictions[0]?.percentile ?? null,
+    meanSleepHours: sleep?.mean ?? null,
+    bbtMonophasic: bbt.status === "MONOPHASIC"
   };
 }
 

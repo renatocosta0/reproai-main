@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { hasConsent } from "@/lib/consent";
 import { audit } from "@/lib/audit";
-import { canAccessCase } from "@/lib/clinician-scope";
 import { normaliseObservation } from "@/lib/observation-analysis";
 import { analyseAndAlert } from "@/lib/observation-alerts";
+import { resolveObservationSubject } from "@/lib/observation-subject";
 
 interface ObservationItem {
   code: string;
@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => null);
-    const coupleId = body?.coupleId ? String(body.coupleId) : session.coupleId;
 
     if (!body || !Array.isArray(body.observations) || body.observations.length === 0) {
       return NextResponse.json(
@@ -37,14 +36,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Authorization: patients log only for their own couple; clinicians only for
-    // cases in their scope (prescribed or assigned).
+    // Authorization: patients log only into their own record; clinicians only for
+    // a named patient in a case in their scope. Readings are stored under that
+    // patient, never under the clinician.
     if (session.role === "PATIENT" && body.coupleId && session.coupleId !== body.coupleId) {
       return NextResponse.json({ error: "Forbidden: couple mismatch" }, { status: 403 });
     }
-    if (session.role === "CLINICIAN" && (!coupleId || !(await canAccessCase(session.userId, coupleId)))) {
-      return NextResponse.json({ error: "Forbidden: this case is not in your scope" }, { status: 403 });
+    const subject = await resolveObservationSubject(session, body.coupleId, body.userId);
+    if (!subject.ok) {
+      return NextResponse.json({ error: subject.error }, { status: subject.status });
     }
+    const coupleId = subject.coupleId;
 
     // Only temperature and sleep readings are accepted; one bad item rejects the
     // whole batch so nothing is half-saved. The unit is set by the server.
@@ -63,8 +65,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Reading ${i + 1}: enter a valid date that is not in the future.` }, { status: 400 });
       }
       validObservations.push({
-        coupleId: coupleId ?? null,
-        userId: session.userId,
+        coupleId,
+        userId: subject.userId,
         code: checked.code,
         value: checked.value,
         unit: checked.unit,
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Same longitudinal analysis and clinician-side alert as every other ingestion path.
-    const { alertTriggered, analytics } = await analyseAndAlert(session.userId, coupleId ?? null);
+    const { alertTriggered, analytics } = await analyseAndAlert(subject.userId, coupleId);
 
     await audit(session.userId, "bulk_observations_ingested", `couple:${coupleId}:${insertResult.count}`);
 

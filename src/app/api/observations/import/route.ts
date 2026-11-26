@@ -51,6 +51,16 @@ export async function POST(req: NextRequest) {
       : { count: 0 };
 
     let nightsSaved = 0;
+    // Sleep nights and passive daily summaries are one row per day, updated in place on re-import.
+    let dailySaved = 0;
+    for (const r of rows.filter((x) => x.kind === "daily")) {
+      await prisma.observation.upsert({
+        where: { userId_source_externalId: { userId: session.userId, source, externalId: r.externalId } },
+        create: { ...base, code: r.code, value: r.value, unit: r.unit, effectiveAt: r.effectiveAt, device: r.device, externalId: r.externalId },
+        update: { value: r.value, effectiveAt: r.effectiveAt, device: r.device }
+      });
+      dailySaved++;
+    }
     for (const r of rows.filter((x) => x.kind === "sleep")) {
       await prisma.observation.upsert({
         where: { userId_source_externalId: { userId: session.userId, source, externalId: r.externalId } },
@@ -61,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { alertTriggered, analytics } = await analyseAndAlert(session.userId, session.coupleId ?? null);
-    await audit(session.userId, "device_observations_imported", `source:${source}:temperature:${created.count}:sleep_nights:${nightsSaved}`);
+    await audit(session.userId, "device_observations_imported", `source:${source}:temperature:${created.count}:sleep_nights:${nightsSaved}:daily:${dailySaved}`);
 
     return NextResponse.json({
       ok: true,
@@ -69,6 +79,7 @@ export async function POST(req: NextRequest) {
       temperatureAdded: created.count,
       temperatureDuplicates: temps.length - created.count,
       sleepNightsSaved: nightsSaved,
+      dailySummariesSaved: dailySaved,
       skipped: skipped.length,
       skippedExamples: skipped.slice(0, 5),
       alertTriggered,

@@ -3,7 +3,7 @@
 // Two views share it: the care navigator (where you are, what comes next) and the
 // timeline (what has happened, newest first). Wording lives in the UI.
 
-import { isBelowLimit, type LabCode, type LabPoint, type LabSource } from "./labs";
+import { isOutsideReference, type LabCode, type LabPoint, type LabSource } from "./labs";
 import { analyzeBbt, type Point } from "./observation-analysis";
 import type { AppointmentStatus } from "./appointment";
 import type { PathwayOption } from "./pathways";
@@ -135,7 +135,7 @@ export function buildTimeline(input: JourneyInput, now: Date = new Date()): Time
     if (Number.isNaN(new Date(l.collectedAt).getTime())) continue;
     const day = l.collectedAt.slice(0, 10);
     const entry = labDays.get(day) ?? { date: l.collectedAt, items: [] };
-    entry.items.push({ id: l.id, code: l.code, value: l.value, unit: l.unit, source: l.source, below: isBelowLimit(l.code, l.value) });
+    entry.items.push({ id: l.id, code: l.code, value: l.value, unit: l.unit, source: l.source, below: isOutsideReference(l.code, l.value) });
     labDays.set(day, entry);
   }
   labDays.forEach((v, day) => events.push({ id: `lab-${day}`, kind: "lab", category: "results", date: v.date, items: v.items }));

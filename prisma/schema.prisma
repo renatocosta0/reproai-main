@@ -34,6 +34,8 @@ model User {
   labResults          LabResult[]
   consents            Consent[]
   conversations       ChatConversation[]
+  menstrualCycles     MenstrualCycle[]
+  dailyCycleLogs      DailyCycleLog[]
 }
 
 model Couple {
@@ -93,6 +95,9 @@ model Patient {
   historyFlags              String?
   familyEarlyMenopause      Boolean?
   intakeCompletedAt         DateTime?
+  /// What cycle tracking is for: TRYING_TO_CONCEIVE | HEALTH_TRACKING | HORMONAL_CONTRACEPTION | POSTPARTUM | PERIMENOPAUSE.
+  /// Ovulation predictions and anovulation alerts pause for contraception, postpartum and perimenopause.
+  trackingMode              String?
   createdAt       DateTime @default(now())
 }
 
@@ -281,4 +286,73 @@ model ChatTurn {
   createdAt      DateTime         @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+/// One menstrual cycle: day 1 is the first day of real flow (not spotting).
+/// Derived fields are recomputed when the next period is recorded.
+model MenstrualCycle {
+  id                String          @id @default(cuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate         DateTime
+  /// Day before the next period (set when the cycle is completed)
+  endDate           DateTime?
+  cycleLengthDays   Int?
+  /// Days with LIGHT | MEDIUM | HEAVY flow from day 1
+  periodLengthDays  Int?
+  ovulationDate     DateTime?
+  /// BBT_ROETZER | LH_SURGE | MUCUS_PEAK | CALENDAR | UNCONFIRMED
+  ovulationMethod   String?
+  lutealPhaseDays   Int?
+  /// REGULAR | SHORT (<24 d) | LONG (>38 d) | PROLONGED_BLEEDING (>8 d)  (FIGO AUB System 1, 2018)
+  regularityStatus  String?
+  /// OPEN | COMPLETED
+  status            String          @default("OPEN")
+  /// MANUAL | HEALTHKIT | HEALTH_CONNECT
+  source            String          @default("MANUAL")
+  dailyLogs         DailyCycleLog[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([userId, startDate])
+  @@index([userId, startDate])
+}
+
+/// One day of self-reported cycle signs (provenance: SELF_REPORTED).
+/// symptoms, mood, notes and intimacy are encrypted at rest (src/lib/encryption.ts).
+model DailyCycleLog {
+  id                  String          @id @default(cuid())
+  userId              String
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cycleId             String?
+  cycle               MenstrualCycle? @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  /// Calendar day, stored as 00:00 UTC of that date
+  logDate             DateTime
+  /// NONE | SPOTTING | LIGHT | MEDIUM | HEAVY
+  bleedingFlow        String?
+  /// DRY | STICKY | CREAMY | WATERY | EGG_WHITE
+  cervicalMucus       String?
+  /// NOT_TAKEN | NEGATIVE | POSITIVE | PEAK
+  ovulationTest       String?
+  /// Basal temperature for the day (also stored as Observation 8310-5)
+  basalTempCelsius    Float?
+  /// NONE | FEVER | ILLNESS | POOR_SLEEP | ALCOHOL | TRAVEL
+  tempConfounder      String?
+  /// Also stored as Observation 93832-4
+  sleepMinutes        Int?
+  waterIntakeMl       Int?
+  /// JSON array, e.g. ["CRAMPS","BLOATING","HEADACHE"]
+  symptoms            String?
+  /// JSON array, e.g. ["CALM","IRRITABLE"]
+  mood                String?
+  notes               String?
+  /// JSON {"activity":"NONE|PROTECTED|UNPROTECTED","orgasm":true|false}. Stored only with INTIMATE_LOGS consent; never shown to clinicians
+  intimacy            String?
+  /// MANUAL | HEALTHKIT | HEALTH_CONNECT
+  source              String          @default("MANUAL")
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([userId, logDate])
+  @@index([cycleId])
 }

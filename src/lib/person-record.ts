@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db";
 import { getConsents, type ConsentMap } from "@/lib/consent";
 import { evaluatePathways, type PathwayContext, type PathwayOption } from "@/lib/pathways";
 import { LABS, type LabCode, type LabPoint } from "@/lib/labs";
-import { analyzeBbt, isSleep, isTemperature, series, sleepStats } from "@/lib/observation-analysis";
+import { PASSIVE_CODES, analyzeBbt, isSleep, isTemperature, series, sleepStats } from "@/lib/observation-analysis";
+import { loadCycleRecord } from "@/lib/cycle-server";
 import type { ObservationRecord } from "@/types/patient";
 
 export interface AssessmentView {
@@ -131,11 +132,14 @@ export async function loadPersonRecord(userId: string, viewer: "PATIENT" | "CLIN
   });
 
   const obsRows = consents.WEARABLES.granted
-    ? await prisma.observation.findMany({ where: { userId }, orderBy: { effectiveAt: "desc" }, take: 120 })
+    ? await prisma.observation.findMany({ where: { userId, code: { notIn: [...PASSIVE_CODES] } }, orderBy: { effectiveAt: "desc" }, take: 120 })
     : [];
   const obs: ObservationRecord[] = obsRows.map((o) => ({ ...o, effectiveAt: o.effectiveAt.toISOString() }));
   const temps = series(obs, isTemperature);
-  const bbt = analyzeBbt(temps);
+  // Logged cycles (FIGO, luteal phase) and their period starts as BBT cycle boundaries.
+  const cycle =
+    profile?.sex !== "male" && consents.CYCLE_TRACKING?.granted ? (await loadCycleRecord(userId, viewer)).analysis : null;
+  const bbt = analyzeBbt(temps, cycle ? cycle.cycles.map((c) => new Date(`${c.startDate}T00:00:00.000Z`)) : []);
   const sleep = sleepStats(series(obs, isSleep));
 
   const assessments = preds.map(toAssessmentView);
@@ -156,7 +160,10 @@ export async function loadPersonRecord(userId: string, viewer: "PATIENT" | "CLIN
     labs,
     amhPercentile: latestIndividual?.percentile ?? null,
     meanSleepHours: sleep?.mean ?? null,
-    bbtMonophasic: bbt.status === "MONOPHASIC"
+    bbtMonophasic: bbt.status === "MONOPHASIC",
+    cycleFindings: cycle ? cycle.figo.findings.filter((f) => f.level === "P1").map((f) => f.code) : [],
+    shortLutealCycles: cycle?.ovulatory.shortLutealCycles ?? 0,
+    cyclePaused: cycle?.prediction.paused ?? false
   };
 
   return {

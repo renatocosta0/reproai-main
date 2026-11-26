@@ -9,7 +9,7 @@ import type { ConsentMap, Purpose, PurposeInfo } from "@/types/record";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import { PURPOSE_AR } from "@/lib/i18n";
 
-const ORDER: Purpose[] = ["CLINICIAN_ACCESS", "LAB_RESULTS", "WEARABLES", "PARTNER_SHARING", "POPULATION_ANALYTICS"];
+const ORDER: Purpose[] = ["CLINICIAN_ACCESS", "LAB_RESULTS", "WEARABLES", "CYCLE_TRACKING", "PARTNER_SHARING", "POPULATION_ANALYTICS"];
 
 // Granular, revocable consent. Each switch takes effect immediately in the API
 // and is recorded in the audit log.

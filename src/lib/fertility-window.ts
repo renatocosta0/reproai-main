@@ -2,10 +2,15 @@
 // Combines calendar-based calculation with biological biomarker calibration
 // using wearable Basal Body Temperature (BBT, LOINC 8310-5) and sleep (LOINC 93832-4).
 //
-// Clinical rationale (ACOG & ESHRE guidelines):
-// - The follicular phase has lower baseline body temperatures (typically 36.1–36.5 °C).
-// - Post-ovulatory progesterone rise causes a sustained thermal shift (+0.20 to +0.50 °C).
-// - Detecting this shift calibrates the true biological ovulation day vs. the static 14-day assumption.
+// Clinical rationale:
+// - Post-ovulatory progesterone causes a sustained thermal shift, confirmed
+//   retrospectively with the Roetzer / Sensiplan 3-over-6 rule.
+// - Detecting it calibrates the ovulation day vs. the static 14-day assumption.
+// - Calendar estimates are unreliable with irregular cycles or PCOS and are
+//   never a contraceptive method.
+//
+// Not wired into the app yet: it needs persisted period starts and cycle
+// lengths (see the proposed MenstrualCycle model).
 
 export interface TemperatureObservation {
   date: string; // ISO date or YYYY-MM-DD
@@ -44,6 +49,8 @@ export interface FertilityWindow {
   explanation: string;
 }
 
+import { FEVER_THRESHOLD_C, SLEEP_SHORT_H, findRoetzerShift } from "./observation-analysis";
+
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 /**
@@ -71,66 +78,43 @@ export function estimateFertilityWindow(input: CycleInput): FertilityWindow | nu
     .filter((t) => !Number.isNaN(t.date.getTime()) && t.date >= cycleStart)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // We need at least 3 temperature readings within the cycle to detect a baseline and shift
-  if (temps.length >= 3) {
-    // Early follicular readings (first 10 days of cycle or first 40% of observations)
-    const earlyTemps = temps.slice(0, Math.max(2, Math.floor(temps.length / 2)));
-    const baselineTemp =
-      earlyTemps.reduce((acc, curr) => acc + curr.value, 0) / earlyTemps.length;
+  // Roetzer / Sensiplan 3-over-6 rule (shared with the clinician alerts):
+  // three consecutive readings above the coverline (highest of the previous
+  // six), the third at least 0.2 °C higher. Fever readings are left out.
+  const valid = temps.filter((t) => t.value < FEVER_THRESHOLD_C);
+  const rise = findRoetzerShift(valid.map((t) => t.value));
+  if (rise) {
+    const current = valid[rise.index];
+    const baselineTemp = rise.coverline;
+    const delta = current.value - baselineTemp;
+    // Ovulation usually falls on the day before the first raised reading.
+    const detectedOvulation = new Date(current.date);
+    detectedOvulation.setDate(current.date.getDate() - 1);
+    calibratedOvulation = detectedOvulation;
+    thermalShiftDetected = true;
 
-    // Look for a sustained thermal shift: temperature rises >= 0.22 °C above baseline
-    // in the mid-cycle window (day 10 to day 24 of cycle)
-    const SHIFT_THRESHOLD = 0.22;
-    for (let i = 1; i < temps.length; i++) {
-      const current = temps[i];
-      const daysSinceCycleStart = Math.round(
-        (current.date.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24)
-      );
+    const daysDiff = Math.round((calibratedOvulation.getTime() - calendarOvulation.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Peri-ovulatory search window
-      if (daysSinceCycleStart >= 9 && daysSinceCycleStart <= 26) {
-        const delta = current.value - baselineTemp;
-        if (delta >= SHIFT_THRESHOLD) {
-          // Ovulation typically occurs 24-36h before the first sustained thermal shift
-          const detectedOvulation = new Date(current.date);
-          detectedOvulation.setDate(current.date.getDate() - 1);
-
-          calibratedOvulation = detectedOvulation;
-          thermalShiftDetected = true;
-
-          const daysDiff = Math.round(
-            (calibratedOvulation.getTime() - calendarOvulation.getTime()) /
-              (1000 * 60 * 60 * 24)
-          );
-
-          // Sleep quality assessment if sleep records exist (LOINC 93832-4)
-          let sleepAssessment: string | undefined;
-          if (input.sleepRecords && input.sleepRecords.length > 0) {
-            const validSleep = input.sleepRecords.filter((s) => s.hours > 0);
-            if (validSleep.length > 0) {
-              const avgHours =
-                validSleep.reduce((acc, s) => acc + s.hours, 0) / validSleep.length;
-              if (avgHours >= 6.5) {
-                sleepAssessment = `Optimal sleep average (${avgHours.toFixed(1)}h) confirms stable circadian baseline for BBT.`;
-              } else {
-                sleepAssessment = `Average sleep is ${avgHours.toFixed(1)}h (<6.5h); circadian fluctuations may mildly impact temperature readings.`;
-              }
-            }
-          }
-
-          calibrationDetails = {
-            baselineTempCelsius: Math.round(baselineTemp * 100) / 100,
-            ovulatoryTempCelsius: Math.round(current.value * 100) / 100,
-            shiftMagnitudeCelsius: Math.round(delta * 100) / 100,
-            shiftDate: isoDate(current.date),
-            daysAdjustedFromCalendar: daysDiff,
-            observationsAnalyzedCount: temps.length,
-            sleepQualityAssessment: sleepAssessment
-          };
-          break;
-        }
-      }
+    // Sleep context (LOINC 93832-4): short nights make morning readings less reliable.
+    let sleepAssessment: string | undefined;
+    const validSleep = (input.sleepRecords ?? []).filter((r) => r.hours > 0);
+    if (validSleep.length > 0) {
+      const avgHours = validSleep.reduce((acc, r) => acc + r.hours, 0) / validSleep.length;
+      sleepAssessment =
+        avgHours >= SLEEP_SHORT_H
+          ? `Average sleep ${avgHours.toFixed(1)}h (7h or more, AASM/SRS): morning readings are likely comparable.`
+          : `Average sleep is ${avgHours.toFixed(1)}h (under 7h); short nights can make morning temperature readings less reliable.`;
     }
+
+    calibrationDetails = {
+      baselineTempCelsius: Math.round(baselineTemp * 100) / 100,
+      ovulatoryTempCelsius: Math.round(current.value * 100) / 100,
+      shiftMagnitudeCelsius: Math.round(delta * 100) / 100,
+      shiftDate: isoDate(current.date),
+      daysAdjustedFromCalendar: daysDiff,
+      observationsAnalyzedCount: valid.length,
+      sleepQualityAssessment: sleepAssessment
+    };
   }
 
   // ── Construct Fertile Window ───────────────────────────────────────────────

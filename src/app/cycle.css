@@ -1,0 +1,796 @@
+/* Cycle tracking (patient "My cycle" page and the clinician cycle overlay).
+   Same tokens as reproai.css; dark colours are derived by postcss/dark-theme.js,
+   SVG colours use the variables below. */
+:root {
+  --cy-period: #e07a6d;
+  --cy-period-soft: #fbe6e2;
+  --cy-fertile: #3f9c86;
+  --cy-fertile-soft: #dff2e9;
+  --cy-luteal: #8aa6c8;
+  --cy-luteal-soft: #e8eef6;
+  --cy-ovulation: #0c655e;
+  --cy-track: #edf2ef;
+  --cy-late: #dca95f;
+}
+:root[data-theme="dark"] {
+  --cy-period: #ef877a;
+  --cy-period-soft: #4a2c28;
+  --cy-fertile: #5fc2b2;
+  --cy-fertile-soft: #22423a;
+  --cy-luteal: #8fb0d6;
+  --cy-luteal-soft: #263445;
+  --cy-ovulation: #7fd8c8;
+  --cy-track: #2b3633;
+  --cy-late: #d9a95e;
+}
+
+/* ── Hero: cycle ring + key dates ───────────────────────────────────────── */
+.cycle-hero {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.cycle-ring-card {
+  display: grid;
+  place-items: center;
+  padding: 22px 18px 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbf9 100%);
+}
+.cycle-ring {
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 1;
+}
+.cycle-ring .ring-center-day {
+  fill: #183632;
+  font: 700 38px var(--font-manrope), "Manrope", sans-serif;
+  letter-spacing: -0.04em;
+}
+.cycle-ring .ring-center-label {
+  fill: #75837f;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cycle-ring .ring-center-phase {
+  font-size: 14px;
+  font-weight: 700;
+}
+.ring-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 14px;
+  margin-top: 12px;
+  color: #6c7b77;
+  font-size: 12px;
+}
+.ring-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ring-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+.cycle-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  align-content: start;
+}
+.cycle-fact {
+  position: relative;
+  padding: 18px;
+  border: 1px solid #e1e8e4;
+  border-radius: 12px;
+  background: #fff;
+}
+.cycle-fact > span {
+  display: block;
+  color: #75837f;
+  font-size: 13px;
+}
+.cycle-fact > strong {
+  display: block;
+  margin-top: 14px;
+  color: #183632;
+  font: 700 22px var(--font-manrope), "Manrope", sans-serif;
+  letter-spacing: -0.03em;
+}
+.cycle-fact > small {
+  display: block;
+  margin-top: 6px;
+  color: #758783;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.cycle-fact .metric-icon {
+  top: 15px;
+  right: 15px;
+}
+.cycle-fact.wide {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fbfaf6;
+}
+.cycle-fact.wide p {
+  margin: 0;
+  color: #5d6d69;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.phase-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.phase-pill i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.phase-MENSTRUAL { color: #b5574c; background: #fbe9e6; }
+.phase-FOLLICULAR { color: #4f7895; background: #e8f0f4; }
+.phase-FERTILE { color: #2b7c69; background: #dff2e9; }
+.phase-LUTEAL { color: #5e6f9e; background: #ebeef8; }
+.phase-LATE { color: #9b6b36; background: #f8f0e2; }
+.phase-UNKNOWN { color: #6c7b77; background: #eef2f0; }
+.method-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid #dfe8e4;
+  color: #4f625e;
+  background: #f7faf8;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.method-chip.confirmed { color: #23705f; border-color: #bfe0d4; background: #ebf7f2; }
+.method-chip.probable { color: #4f7895; border-color: #cfe0ea; background: #eef5f9; }
+.method-chip.possible { color: #9b6b36; border-color: #efdcc0; background: #fbf4e8; }
+
+/* ── Daily log ─────────────────────────────────────────────────────────── */
+.cycle-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.daylog-body {
+  display: grid;
+  gap: 18px;
+  padding: 0 20px 20px;
+}
+.daylog-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.daylog-date button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e1e8e4;
+  border-radius: 9px;
+  background: #fff;
+  color: #4f625e;
+}
+.daylog-date input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #e1e8e4;
+  border-radius: 9px;
+  color: #2f4542;
+  font: inherit;
+  font-size: 13px;
+}
+.log-group > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.log-group > header strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #2f4542;
+  font-size: 13px;
+}
+.log-group > header small {
+  color: #8b9895;
+  font-size: 11.5px;
+}
+.tap-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.tap {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #e1e8e4;
+  border-radius: 999px;
+  background: #fff;
+  color: #4f625e;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.tap:hover {
+  border-color: #c7d8d1;
+  background: #f7faf8;
+}
+.tap:active {
+  transform: scale(0.97);
+}
+.tap:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+.tap[aria-pressed="true"] {
+  border-color: var(--teal);
+  background: #e4f2ee;
+  color: #0c5a53;
+}
+.tap.flow[aria-pressed="true"] {
+  border-color: #e07a6d;
+  background: #fbe9e6;
+  color: #a4473d;
+}
+.tap .drops {
+  display: inline-flex;
+  gap: 1px;
+  color: #e07a6d;
+}
+.inline-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.inline-inputs label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #5d6d69;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.inline-inputs input {
+  width: 96px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #e1e8e4;
+  border-radius: 9px;
+  color: #2f4542;
+  font: inherit;
+  font-size: 13px;
+}
+.water-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.water-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 8px;
+  background: var(--cy-track);
+  overflow: hidden;
+}
+.water-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7bb8d8, #4f8fb8);
+  transition: width 0.25s ease;
+}
+.daylog-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid #eef2f0;
+}
+.daylog-actions small {
+  color: #8b9895;
+  font-size: 11.5px;
+}
+.private-box {
+  padding: 12px 14px;
+  border: 1px dashed #dcd6ea;
+  border-radius: 11px;
+  background: #faf8fd;
+}
+.private-box summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5d5478;
+  font-size: 13px;
+  font-weight: 700;
+  list-style: none;
+}
+.private-box summary::-webkit-details-marker {
+  display: none;
+}
+.private-box p {
+  margin: 8px 0 10px;
+  color: #7a7390;
+  font-size: 12px;
+}
+
+/* ── Calendar ──────────────────────────────────────────────────────────── */
+.cal-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cal-head button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e1e8e4;
+  border-radius: 8px;
+  background: #fff;
+  color: #4f625e;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  padding: 0 20px 14px;
+}
+.cal-dow {
+  padding: 4px 0;
+  color: #9aa5a1;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cal-day {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #f8faf9;
+  color: #3a524e;
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+.cal-day:hover {
+  box-shadow: 0 2px 8px #31514814;
+}
+.cal-day.out {
+  opacity: 0.35;
+}
+.cal-day.future {
+  color: #9aa5a1;
+}
+.cal-day.period {
+  background: var(--cy-period);
+  color: #fff;
+}
+.cal-day.spotting {
+  background: var(--cy-period-soft);
+  color: #a4473d;
+}
+.cal-day.predicted-period {
+  border: 1.5px dashed var(--cy-period);
+  background: #fff;
+  color: #a4473d;
+}
+.cal-day.fertile {
+  background: var(--cy-fertile-soft);
+  color: #23705f;
+}
+.cal-day.ovulation {
+  background: var(--cy-fertile);
+  color: #fff;
+}
+.cal-day.today {
+  box-shadow: 0 0 0 2px var(--teal);
+}
+.cal-day.selected {
+  border-color: #183632;
+}
+.cal-day .logged {
+  position: absolute;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+.cal-day .rise {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 9px;
+  line-height: 1;
+}
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 0 20px 18px;
+  color: #6c7b77;
+  font-size: 11.5px;
+}
+.cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cal-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+/* ── Insight cards ─────────────────────────────────────────────────────── */
+.cycle-insights {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 16px 0;
+}
+.insight-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 18px;
+}
+.insight-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.insight-card header h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #233d39;
+  font-size: 14.5px;
+}
+.insight-card dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 10px;
+  margin: 0;
+  font-size: 13px;
+}
+.insight-card dt {
+  color: #75837f;
+}
+.insight-card dd {
+  margin: 0;
+  color: #233d39;
+  font-weight: 700;
+  text-align: end;
+}
+.insight-card p {
+  margin: 0;
+  color: #5d6d69;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.finding-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.finding-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: #4f625e;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.finding-list li svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* ── Cycle history bars (patient) and overlay (clinician) ──────────────── */
+.cycle-history {
+  display: grid;
+  gap: 8px;
+  padding: 0 20px 18px;
+}
+.history-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 120px 28px;
+  gap: 12px;
+  align-items: center;
+  font-size: 12.5px;
+}
+.history-row > span:first-child {
+  color: #4f625e;
+  font-weight: 600;
+}
+.history-bar {
+  position: relative;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--cy-luteal-soft);
+  overflow: hidden;
+}
+.history-bar .seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.history-bar .seg.period { background: var(--cy-period); }
+.history-bar .seg.fertile { background: var(--cy-fertile-soft); }
+.history-bar .seg.luteal { background: var(--cy-luteal); opacity: 0.55; }
+.history-bar .ov {
+  position: absolute;
+  top: -2px;
+  width: 4px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--cy-ovulation);
+}
+.history-row .meta {
+  color: #6c7b77;
+  text-align: end;
+}
+.history-row .meta b {
+  color: #233d39;
+}
+.history-row .icon-button {
+  width: 28px;
+  height: 28px;
+}
+.backfill {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 20px 18px;
+  border-top: 1px solid #eef2f0;
+  color: #5d6d69;
+  font-size: 12.5px;
+}
+.backfill input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #e1e8e4;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.passive-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 0 20px 18px;
+}
+.passive-tile {
+  padding: 12px 14px;
+  border: 1px solid #e8eeeb;
+  border-radius: 11px;
+  background: #fbfcfb;
+}
+.passive-tile span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #75837f;
+  font-size: 12px;
+}
+.passive-tile strong {
+  display: block;
+  margin-top: 6px;
+  color: #183632;
+  font: 700 18px var(--font-manrope), "Manrope", sans-serif;
+}
+.passive-tile small {
+  color: #8b9895;
+  font-size: 11.5px;
+}
+
+.mode-panel {
+  margin-bottom: 16px;
+}
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 0 20px 18px;
+}
+.mode-option {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #e1e8e4;
+  border-radius: 11px;
+  background: #fff;
+  text-align: start;
+  color: #2f4542;
+}
+.mode-option strong {
+  font-size: 13px;
+}
+.mode-option small {
+  color: #7d8b87;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.mode-option[aria-pressed="true"] {
+  border-color: var(--teal);
+  background: #eef8f4;
+  box-shadow: 0 0 0 1px var(--teal) inset;
+}
+
+/* Clinician overlay */
+.cycle-overlay {
+  margin-top: 6px;
+  padding: 18px 20px 20px;
+  border-top: 1px solid #eef2f0;
+}
+.overlay-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.overlay-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.overlay-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.overlay-svg text {
+  font-size: 10px;
+  fill: var(--chart-label);
+}
+.overlay-svg .row-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  fill: #4f625e;
+}
+.overlay-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 14px;
+}
+.timing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.timing-table th {
+  padding: 7px 8px;
+  border-bottom: 1px solid #e8eeeb;
+  color: #75837f;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: start;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.timing-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f0f3f1;
+  color: #2f4542;
+}
+.endocrine-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.endocrine-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 11px;
+  border: 1px solid #edf2ef;
+  border-radius: 10px;
+  font-size: 12.5px;
+}
+.endocrine-list li small {
+  display: block;
+  color: #8b9895;
+  font-size: 11px;
+}
+
+@media (max-width: 1100px) {
+  .cycle-facts { grid-template-columns: repeat(2, 1fr); }
+  .cycle-insights { grid-template-columns: 1fr 1fr; }
+  .overlay-grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .cycle-hero, .cycle-layout { grid-template-columns: 1fr; }
+  .cycle-insights, .passive-grid { grid-template-columns: 1fr; }
+  .history-row { grid-template-columns: 86px 1fr 28px; }
+  .history-row .meta { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tap, .cal-day, .water-track i { transition: none; }
+}
+
+/* ── Internal section tabs ───────────────────────────────────────────────── */
+.cycle-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  background: #edf2ef;
+  border: 1px solid #e1e8e4;
+}
+.cycle-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #5d6d69;
+  font: 600 13.5px var(--font-manrope), "Manrope", sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.cycle-tab:hover {
+  color: #183632;
+}
+.cycle-tab[aria-selected="true"] {
+  background: #ffffff;
+  color: #0c655e;
+  box-shadow: 0 1px 3px rgba(16, 42, 39, 0.08);
+}
+.cycle-layout.single {
+  grid-template-columns: minmax(0, 760px);
+}

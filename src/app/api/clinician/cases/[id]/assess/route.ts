@@ -47,6 +47,7 @@ async function memberInputs(userId: string) {
     amh: lab("AMH"),
     afc: lab("AFC"),
     sperm: lab("SPERM_CONCENTRATION"),
+    semenSamples: labs.filter((l) => l.code === "SPERM_CONCENTRATION").length,
     pcos: self(pcos),
     duration: self(duration),
     priorCycles: self(profile?.priorCycles)
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         age: val(used.age),
         amh: val(used.amh),
         sperm_count: val(used.sperm_count),
+        semen_sample_count: male.i.semenSamples,
         bmi: val(used.bmi),
         pcos_history: val(used.pcos_history),
         infertility_duration_months: val(used.infertility_duration_months),
@@ -128,6 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         amh: val(used.amh),
         antral_follicle_count: val(used.antral_follicle_count),
         sperm_count: val(used.sperm_count),
+        semen_sample_count: i.sex === "male" ? i.semenSamples : null,
         bmi: val(used.bmi),
         pcos_history: val(used.pcos_history),
         infertility_duration_months: val(used.infertility_duration_months)
@@ -171,7 +174,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         createdById: session.userId
       }
     });
-    return NextResponse.json({ status: "ok", assessment: toAssessmentView(pred), disclaimer: result.disclaimer }, { status: 201 });
+    return NextResponse.json(
+      {
+        status: "ok",
+        assessment: toAssessmentView(pred),
+        disclaimer: result.disclaimer,
+        confirmationRequired: result.confirmation_required ?? false,
+        confirmationNote: result.confirmation_note ?? null
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error("[POST /api/clinician/cases/:id/assess] error:", error);
     const unreachable = /fetch failed|ECONNREFUSED|ML service/i.test(error?.message ?? "");

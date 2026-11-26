@@ -6,6 +6,7 @@
 import type { CaseFacts } from "@/lib/copilot";
 import type { PersonRecord } from "@/lib/person-record";
 import { LABS } from "@/lib/labs";
+import type { CycleAnalysis } from "@/lib/cycle";
 
 export interface RecordPassage {
   id: string;
@@ -20,7 +21,7 @@ export interface RecordPassage {
 const day = (iso: string) => iso.slice(0, 10);
 const sourceWords = (s: string) => s.toLowerCase().replace(/_/g, " ");
 
-export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean): RecordPassage[] {
+export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean, cycle?: CycleAnalysis | null): RecordPassage[] {
   const out: RecordPassage[] = [];
   const p = rec.profile;
   if (p) {
@@ -94,6 +95,28 @@ export function patientRecordPassages(rec: PersonRecord, pendingReview: boolean)
       title: "Your wearable data",
       url: "/patient/wearables",
       text: `Your record has ${w.temperatureReadings} temperature readings and ${w.sleepNights} nights of sleep${w.meanSleepHours !== null ? `, averaging ${w.meanSleepHours} hours` : ""}. The temperature pattern is ${w.bbtStatus.toLowerCase().replace(/_/g, " ")}.`
+    });
+  }
+  if (cycle) {
+    const p = cycle.prediction;
+    const openPart = cycle.open
+      ? `Current cycle started ${cycle.open.startDate} (cycle day ${p.cycleDay ?? "?"}), current phase is ${p.phase.toLowerCase()}.`
+      : "No open menstrual cycle is logged yet.";
+    const windowPart = p.paused
+      ? "Ovulation and fertile window predictions are paused for your selected tracking mode."
+      : p.windowStart && p.windowEnd
+        ? `Estimated fertile window is ${p.windowStart} to ${p.windowEnd} (method: ${p.method.toLowerCase().replace(/_/g, " ")}, expected cycle length ${p.expectedLength} days, confidence ${p.lengthConfidence}).`
+        : p.variableMode
+          ? "Your cycles vary, so ReproAI is in variable mode and tracks signs rather than pinning a calendar fertile window."
+          : "Not enough cycle data yet to estimate a fertile window.";
+    const figoPart = `FIGO cycle regularity status: ${cycle.figo.status.toLowerCase().replace(/_/g, " ")} (${cycle.figo.cyclesAnalysed} cycles analysed${cycle.figo.meanLength !== null ? `, mean length ${cycle.figo.meanLength} days` : ""}).`;
+    const ovPart = `Confirmed ovulatory cycles: ${cycle.ovulatory.confirmedCycles}${cycle.ovulatory.medianLutealDays !== null ? `, typical luteal phase ${cycle.ovulatory.medianLutealDays} days` : ""}${cycle.ovulatory.shortLutealCycles > 0 ? `, short luteal cycles (<10 days): ${cycle.ovulatory.shortLutealCycles}` : ""}.`;
+    const pmsPart = `Premenstrual pattern status: ${cycle.pms.status.toLowerCase().replace(/_/g, " ")}.`;
+    out.push({
+      id: "REC-CYCLE",
+      title: "Your menstrual cycle and fertile window",
+      url: "/patient/cycle",
+      text: `${openPart} ${windowPart} ${figoPart} ${ovPart} ${pmsPart}`
     });
   }
   return out;

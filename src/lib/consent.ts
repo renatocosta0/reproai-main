@@ -8,7 +8,7 @@
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 
-export const PURPOSES = ["CLINICIAN_ACCESS", "LAB_RESULTS", "WEARABLES", "PARTNER_SHARING", "POPULATION_ANALYTICS"] as const;
+export const PURPOSES = ["CLINICIAN_ACCESS", "LAB_RESULTS", "WEARABLES", "CYCLE_TRACKING", "PARTNER_SHARING", "POPULATION_ANALYTICS"] as const;
 export type Purpose = (typeof PURPOSES)[number];
 
 export const PURPOSE_INFO: Record<Purpose, { title: string; description: string; defaultGranted: boolean }> = {
@@ -25,6 +25,11 @@ export const PURPOSE_INFO: Record<Purpose, { title: string; description: string;
   WEARABLES: {
     title: "Store my temperature and sleep readings",
     description: "Readings you log or import are kept to show patterns over time.",
+    defaultGranted: true
+  },
+  CYCLE_TRACKING: {
+    title: "Store my cycle and symptom log",
+    description: "Period dates, cervical mucus, ovulation tests, symptoms and mood you log are kept to show your cycle pattern. Your care team sees cycle lengths and signs, not your notes.",
     defaultGranted: true
   },
   PARTNER_SHARING: {

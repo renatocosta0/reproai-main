@@ -13,6 +13,8 @@ export interface PredictionInput {
   prior_cycles?: number | null;
   preservation_intent?: boolean;
   antral_follicle_count?: number | null;
+  /** Semen analyses on record; WHO asks for a repeat before an abnormal result is classed. */
+  semen_sample_count?: number | null;
 }
 
 export interface FeatureImportance {
@@ -40,6 +42,9 @@ export interface PredictionOutput {
   tier?: string | null;
   preservation_guidance?: string | null;
   age_adjusted_percentile?: number | null;
+  /** Semen result below the WHO reference on a single analysis: provisional until repeated. */
+  confirmation_required?: boolean;
+  confirmation_note?: string | null;
 }
 
 const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8000";

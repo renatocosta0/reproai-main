@@ -285,10 +285,13 @@ export async function groundedAnswer(question: string, o: AskOptions): Promise<G
     ? await retrieve(searchText, { audience, top: 4, scope })
     : { query: searchText, hits: [], abstain: false, engine: "bm25-local", reason: "Record-only question: guidance was not searched." };
 
-  const approvedHits = retrieval.hits.filter((hit) => {
+  const asksHowAppEstimates = intent === "clinical_personal" && /\b(reproai|estimate[ds]?|calculat|method|how .* work|variable mode|paused)\b/i.test(q);
+  const productRetrieval = asksHowAppEstimates ? await retrieve(searchText, { audience, top: 2, scope: "product" }) : null;
+  const approvedHits = [...retrieval.hits, ...(productRetrieval?.hits ?? [])].filter((hit) => {
     const canonical = PASSAGE_BY_ID[hit.passage.id];
     if (!canonical) return false;
-    return scope === "product" ? canonical.status === "internal" : canonical.status !== "internal";
+    if (scope === "product") return canonical.status === "internal";
+    return asksHowAppEstimates ? true : canonical.status !== "internal";
   });
   const passageIds = [...recordHits.map((r) => r.id), ...approvedHits.map((h) => h.passage.id)];
   const passageText = new Map<string, string>(passageIds.map((id) => [id, recordMap.get(id)?.text ?? PASSAGE_BY_ID[id]?.text ?? ""]));

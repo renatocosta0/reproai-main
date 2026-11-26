@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { canAccessCase } from "@/lib/clinician-scope";
 import { loadPersonRecord, toAssessmentView } from "@/lib/person-record";
+import { PASSIVE_CODES } from "@/lib/observation-analysis";
 
 // GET /api/clinician/cases/:id — the longitudinal record for one care case
 // (one individual, or two paired partners). Clinician only, and only for cases
@@ -38,7 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         const access = record?.consents.CLINICIAN_ACCESS.granted ?? false;
         const observations =
           access && record?.consents.WEARABLES.granted
-            ? (await prisma.observation.findMany({ where: { userId: u.id }, orderBy: { effectiveAt: "desc" }, take: 120 })).map((o) => ({
+            ? (await prisma.observation.findMany({ where: { userId: u.id, code: { notIn: [...PASSIVE_CODES] } }, orderBy: { effectiveAt: "desc" }, take: 120 })).map((o) => ({
                 ...o,
                 effectiveAt: o.effectiveAt.toISOString()
               }))

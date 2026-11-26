@@ -42,6 +42,7 @@ import {
   sleepStats
 } from "@/lib/observation-analysis";
 import { tierCopy, WHO_SPERM_LOWER_LIMIT } from "@/lib/tiers";
+import { CycleTodayPill } from "@/components/cycle/CycleTodayPill";
 
 const S = {
   en: {
@@ -379,6 +380,7 @@ export default function OverviewPage() {
           </h1>
           <span>{L.subtitle}</span>
         </div>
+        {sex === "female" && <CycleTodayPill locale={ar ? "ar" : "en"} />}
       </div>
 
       <AppointmentCard />

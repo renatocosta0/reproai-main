@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-11-25T02:05:10.060Z",
+  "generatedAt": "2026-11-26T00:25:39.871Z",
   "corpus": {
-    "passages": 44,
+    "passages": 51,
     "byStatus": {
-      "primary": 25,
+      "primary": 31,
       "summary": 6,
       "review": 1,
       "scope": 3,
-      "internal": 9
+      "internal": 10
     }
   },
   "questions": {
@@ -89,11 +89,11 @@
     },
     "llm": {
       "en": {
-        "numerator": 18,
+        "numerator": 17,
         "denominator": 22,
-        "rate": 0.8181818181818182,
-        "low": 0.6148297802336213,
-        "high": 0.9269323397589488
+        "rate": 0.7727272727272727,
+        "low": 0.5655964393704065,
+        "high": 0.8987710920517964
       },
       "ar": {
         "numerator": 9,
@@ -104,7 +104,14 @@
       },
       "runs": 27
     },
-    "misses": []
+    "misses": [
+      {
+        "q": "Is her AMH below the Thiqa threshold?",
+        "expected": "clinical_personal",
+        "rules": "clinical_personal",
+        "llm": "patient_data"
+      }
+    ]
   },
   "retrieval": {
     "hitAt4": {
@@ -134,11 +141,11 @@
     "judge": true,
     "llmFallbacks": 0,
     "answered": {
-      "numerator": 44,
+      "numerator": 42,
       "denominator": 46,
-      "rate": 0.9565217391304348,
-      "low": 0.8546747708094659,
-      "high": 0.9879948064111691
+      "rate": 0.9130434782608695,
+      "low": 0.796750643647758,
+      "high": 0.9656646881232924
     },
     "correctAbstention": {
       "numerator": 12,
@@ -148,25 +155,25 @@
       "high": 1
     },
     "expectedSourceCited": {
-      "numerator": 44,
-      "denominator": 44,
-      "rate": 1,
-      "low": 0.9197016822179859,
-      "high": 0.9999999999999999
+      "numerator": 41,
+      "denominator": 42,
+      "rate": 0.9761904761904762,
+      "low": 0.8767851883475174,
+      "high": 0.9957847045008997
     },
     "citationValidity": {
-      "numerator": 115,
-      "denominator": 115,
+      "numerator": 106,
+      "denominator": 106,
       "rate": 1,
-      "low": 0.9676746189886368,
-      "high": 0.9999999999999999
+      "low": 0.9650260010779157,
+      "high": 0.9999999999999998
     },
     "supportedSentences": {
-      "numerator": 105,
-      "denominator": 115,
-      "rate": 0.9130434782608695,
-      "low": 0.8473013610685256,
-      "high": 0.952082019835131
+      "numerator": 97,
+      "denominator": 106,
+      "rate": 0.9150943396226415,
+      "low": 0.8464647063757682,
+      "high": 0.9546889548964639
     }
   },
   "caveats": [
@@ -217,10 +224,9 @@
       "status": "abstained",
       "mode": "llm",
       "shown": 0,
-      "removed": 2,
+      "removed": 1,
       "cites": [],
       "issues": [
-        "outcome wording not in source (\"get pregnant\")",
         "judge: not supported"
       ]
     },
@@ -262,13 +268,13 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 1,
       "cites": [
         "THQ-4"
       ],
       "issues": [
-        "judge: not supported"
+        "wording not found in cited passage (passage, mention, irregular, specifically)"
       ]
     },
     {
@@ -286,13 +292,13 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 1,
       "cites": [
         "THQ-4"
       ],
       "issues": [
-        "wording not found in cited passage (reason, earlier, assessment)"
+        "number not in cited passage: 37, 7"
       ]
     },
     {
@@ -380,11 +386,12 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 4,
       "removed": 0,
       "cites": [
+        "THQ-6",
         "THQ-17",
-        "THQ-6"
+        "ESHRE-1"
       ],
       "issues": []
     },
@@ -404,7 +411,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 4,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "THQ-7",
@@ -427,7 +434,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 2,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "THQ-7"
@@ -457,7 +464,7 @@
         "THQ-20"
       ],
       "issues": [
-        "number not in cited passage: 37"
+        "judge: not supported"
       ]
     },
     {
@@ -477,7 +484,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "THQ-10"
@@ -500,11 +507,10 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 2,
+      "shown": 1,
       "removed": 0,
       "cites": [
-        "THQ-10",
-        "THQ-7"
+        "THQ-10"
       ],
       "issues": []
     },
@@ -545,7 +551,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 2,
+      "shown": 1,
       "removed": 0,
       "cites": [
         "THQ-13"
@@ -569,42 +575,15 @@
       ],
       "retrievalAbstained": false,
       "hit": true,
-      "status": "answered",
-      "mode": "llm",
-      "shown": 1,
+      "status": "abstained",
+      "mode": "none",
+      "shown": 0,
       "removed": 0,
-      "cites": [
-        "THQ-17",
-        "THQ-16"
-      ],
+      "cites": [],
       "issues": []
     },
     {
       "q": "Who is eligible for social egg freezing?",
-      "kind": "guidance",
-      "lang": "en",
-      "answerable": true,
-      "expect": [
-        "THQ-18"
-      ],
-      "retrieved": [
-        "THQ-18",
-        "ESHRE-1",
-        "THQ-17"
-      ],
-      "retrievalAbstained": false,
-      "hit": true,
-      "status": "answered",
-      "mode": "llm",
-      "shown": 4,
-      "removed": 0,
-      "cites": [
-        "THQ-18"
-      ],
-      "issues": []
-    },
-    {
-      "q": "Do I need a psychological assessment before freezing my eggs?",
       "kind": "guidance",
       "lang": "en",
       "answerable": true,
@@ -628,6 +607,30 @@
       "issues": []
     },
     {
+      "q": "Do I need a psychological assessment before freezing my eggs?",
+      "kind": "guidance",
+      "lang": "en",
+      "answerable": true,
+      "expect": [
+        "THQ-18"
+      ],
+      "retrieved": [
+        "THQ-18",
+        "ESHRE-1",
+        "THQ-17"
+      ],
+      "retrievalAbstained": false,
+      "hit": true,
+      "status": "answered",
+      "mode": "llm",
+      "shown": 2,
+      "removed": 0,
+      "cites": [
+        "THQ-18"
+      ],
+      "issues": []
+    },
+    {
       "q": "How many social egg freezing cycles are covered in a lifetime?",
       "kind": "guidance",
       "lang": "en",
@@ -638,14 +641,14 @@
       "retrieved": [
         "THQ-18",
         "ESHRE-1",
-        "THQ-16",
-        "THQ-17"
+        "THQ-17",
+        "THQ-16"
       ],
       "retrievalAbstained": false,
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 2,
+      "shown": 1,
       "removed": 0,
       "cites": [
         "THQ-18"
@@ -689,14 +692,11 @@
       ],
       "retrievalAbstained": false,
       "hit": true,
-      "status": "answered",
-      "mode": "llm",
-      "shown": 2,
+      "status": "abstained",
+      "mode": "none",
+      "shown": 0,
       "removed": 0,
-      "cites": [
-        "THQ-19",
-        "THQ-16"
-      ],
+      "cites": [],
       "issues": []
     },
     {
@@ -792,11 +792,13 @@
       "status": "answered",
       "mode": "llm",
       "shown": 3,
-      "removed": 0,
+      "removed": 1,
       "cites": [
         "WHO25-8"
       ],
-      "issues": []
+      "issues": [
+        "wording not found in cited passage (strong, guide, individual, vary)"
+      ]
     },
     {
       "q": "What does Thiqa say about age?",
@@ -842,7 +844,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 4,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "WHO25-8"
@@ -867,14 +869,15 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
-      "removed": 0,
+      "shown": 2,
+      "removed": 1,
       "cites": [
         "WHO25-7",
-        "WHO25-2",
         "ACOG-EVAL-1"
       ],
-      "issues": []
+      "issues": [
+        "judge: not supported"
+      ]
     },
     {
       "q": "What lifestyle changes does WHO recommend?",
@@ -892,11 +895,13 @@
       "status": "answered",
       "mode": "llm",
       "shown": 2,
-      "removed": 0,
+      "removed": 1,
       "cites": [
         "WHO25-7"
       ],
-      "issues": []
+      "issues": [
+        "judge: not supported"
+      ]
     },
     {
       "q": "Does smoking affect fertility?",
@@ -907,7 +912,8 @@
         "WHO25-2"
       ],
       "retrieved": [
-        "WHO25-2"
+        "WHO25-2",
+        "SLEEP-1"
       ],
       "retrievalAbstained": false,
       "hit": true,
@@ -935,14 +941,12 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
-      "removed": 1,
+      "shown": 2,
+      "removed": 0,
       "cites": [
         "WHO25-3"
       ],
-      "issues": [
-        "wording not found in cited passage (therefore, apply, husband, well)"
-      ]
+      "issues": []
     },
     {
       "q": "Do we have to go straight to IVF?",
@@ -959,12 +963,14 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
-      "removed": 0,
+      "shown": 1,
+      "removed": 1,
       "cites": [
         "WHO25-4"
       ],
-      "issues": []
+      "issues": [
+        "judge: not supported"
+      ]
     },
     {
       "q": "I feel anxious and low about not getting pregnant.",
@@ -981,15 +987,12 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
-      "removed": 2,
+      "shown": 2,
+      "removed": 0,
       "cites": [
         "WHO25-5"
       ],
-      "issues": [
-        "wording not found in cited passage (feel, anxious, low, gett)",
-        "wording not found in cited passage (find, helpful, seek)"
-      ]
+      "issues": []
     },
     {
       "q": "How does sleep affect fertility?",
@@ -1006,7 +1009,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 4,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "SLEEP-1"
@@ -1030,7 +1033,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 4,
       "removed": 0,
       "cites": [
         "ACOG-BBT-1",
@@ -1075,13 +1078,14 @@
       "retrieved": [
         "ACOG-BBT-1",
         "ACOG-BBT-2",
-        "RAI-8"
+        "RAI-8",
+        "RAI-10"
       ],
       "retrievalAbstained": false,
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 4,
       "removed": 0,
       "cites": [
         "ACOG-BBT-1",
@@ -1110,7 +1114,7 @@
         "RAI-1"
       ],
       "issues": [
-        "judge: not supported"
+        "wording not found in cited passage (rule, infertility)"
       ]
     },
     {
@@ -1123,7 +1127,8 @@
       ],
       "retrieved": [
         "RAI-2",
-        "RAI-3"
+        "RAI-3",
+        "RAI-10"
       ],
       "retrievalAbstained": false,
       "hit": true,
@@ -1133,7 +1138,8 @@
       "removed": 0,
       "cites": [
         "RAI-2",
-        "RAI-3"
+        "RAI-3",
+        "RAI-10"
       ],
       "issues": []
     },
@@ -1152,7 +1158,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "RAI-3"
@@ -1174,14 +1180,12 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
-      "removed": 1,
+      "shown": 3,
+      "removed": 0,
       "cites": [
         "RAI-4"
       ],
-      "issues": [
-        "judge: not supported"
-      ]
+      "issues": []
     },
     {
       "q": "Who can see my data, and can I withdraw consent?",
@@ -1198,7 +1202,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 4,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "RAI-5"
@@ -1246,12 +1250,11 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 4,
+      "shown": 3,
       "removed": 0,
       "cites": [
         "RAI-8",
-        "RAI-7",
-        "RAI-5"
+        "RAI-7"
       ],
       "issues": []
     },
@@ -1497,13 +1500,15 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
-      "removed": 0,
+      "shown": 2,
+      "removed": 1,
       "cites": [
         "THQ-3",
         "THQ-4"
       ],
-      "issues": []
+      "issues": [
+        "judge: not supported"
+      ]
     },
     {
       "q": "ما مستوى هرمون AMH الذي يُعتبر انخفاضاً في مخزون المبيض؟",
@@ -1522,7 +1527,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 1,
+      "shown": 2,
       "removed": 0,
       "cites": [
         "THQ-10"
@@ -1547,7 +1552,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 4,
       "removed": 0,
       "cites": [
         "THQ-18"
@@ -1614,11 +1619,13 @@
       "status": "answered",
       "mode": "llm",
       "shown": 2,
-      "removed": 0,
+      "removed": 1,
       "cites": [
         "WHO25-3"
       ],
-      "issues": []
+      "issues": [
+        "judge: not supported"
+      ]
     },
     {
       "q": "لماذا لا أستطيع رؤية تقييمي الجديد بعد؟",
@@ -1712,7 +1719,7 @@
       "hit": true,
       "status": "answered",
       "mode": "llm",
-      "shown": 3,
+      "shown": 5,
       "removed": 0,
       "cites": [
         "ACOG-EVAL-1"

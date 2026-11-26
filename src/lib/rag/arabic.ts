@@ -50,7 +50,7 @@ const LEXICON: Record<string, string> = {
   "لازم": "necessary", "مبكرا": "early", "مبكر": "early", "مبكره": "early",
   "سنه": "year", "شهر": "month", "اشهر": "month",
   "تخصصي": "specialist", "اخصائي": "specialist", "طبيب": "doctor",
-  "استشاره": "consultation", "الاستشاره": "consultation", "يحدث": "happen", "احاله": "referral", "لاحاله": "referral", "فحص": "test",
+  "مخاط": "mucus", "افرازات": "mucus", "عنق": "cervical", "الاباضه": "ovulation", "اباضه": "ovulation", "نافذه": "window", "دورتي": "cycle", "اصفري": "luteal", "استشاره": "consultation", "الاستشاره": "consultation", "يحدث": "happen", "احاله": "referral", "لاحاله": "referral", "فحص": "test",
   "للفحص": "test", "تحاليل": "test", "تحليل": "test", "انتظار": "wait",
   // Labs, hormones, reserve
   "مستوي": "level", "هرمون": "hormone", "هرمونات": "hormone",

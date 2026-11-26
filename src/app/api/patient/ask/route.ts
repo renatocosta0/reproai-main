@@ -4,6 +4,8 @@ import { audit } from "@/lib/audit";
 import { recordTurn } from "@/lib/chat-history";
 import { prisma } from "@/lib/db";
 import { loadPersonRecord } from "@/lib/person-record";
+import { hasConsent } from "@/lib/consent";
+import { loadCycleRecord } from "@/lib/cycle-server";
 import { groundedAnswer, answerText } from "@/lib/rag/answer";
 import { patientRecordPassages } from "@/lib/rag/record-passages";
 
@@ -28,14 +30,18 @@ export async function POST(req: NextRequest) {
     const context = typeof body?.context === "string" ? body.context.trim().slice(0, 300) : undefined;
     const locale = body?.locale === "ar" ? "ar" : "en";
 
-    const record = await loadPersonRecord(session.userId, "PATIENT");
+    const [record, cycleAllowed] = await Promise.all([
+      loadPersonRecord(session.userId, "PATIENT"),
+      hasConsent(session.userId, "CYCLE_TRACKING")
+    ]);
+    const cycleRecord = cycleAllowed ? await loadCycleRecord(session.userId, "PATIENT") : null;
     const pending = await prisma.prediction.count({
       where: {
         status: "DRAFT",
         OR: [{ userId: session.userId }, ...(session.coupleId ? [{ coupleId: session.coupleId, scope: "COUPLE" }] : [])]
       }
     });
-    const passages = record ? patientRecordPassages(record, pending > 0) : [];
+    const passages = record ? patientRecordPassages(record, pending > 0, cycleRecord?.analysis ?? null) : [];
 
     const answer = await groundedAnswer(question, { audience: "patient", record: passages, previousQuestion, context, locale });
     await audit(session.userId, "patient_ask", `status:${answer.status};mode:${answer.mode};removed:${answer.removed}`);

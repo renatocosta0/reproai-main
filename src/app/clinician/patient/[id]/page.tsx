@@ -12,6 +12,7 @@ import { CancelAppointmentModal } from "@/components/clinician/CancelAppointment
 import { OpenFollowUpModal } from "@/components/clinician/OpenFollowUpModal";
 import { parseSlotFromNote } from "@/lib/appointment";
 import { LabEntry } from "@/components/clinician/LabEntry";
+import { CycleOverlay } from "@/components/clinician/CycleOverlay";
 import { MarkerTrend } from "@/components/charts/MarkerTrend";
 import { TemperatureChart } from "@/components/charts/TemperatureChart";
 import { SleepChart } from "@/components/charts/SleepChart";
@@ -23,7 +24,7 @@ import { api, userMessage } from "@/lib/api-client";
 import { analyzeBbt, isSleep, isTemperature, series, sleepStats, formatHours } from "@/lib/observation-analysis";
 import { caseInitials } from "@/lib/format";
 import { STATUS_LABELS, type FollowUpStatus } from "@/lib/follow-up";
-import { HISTORY_FLAGS, LABS, type LabCode } from "@/lib/labs";
+import { HISTORY_FLAGS, LABS, referenceText, type LabCode } from "@/lib/labs";
 import type { CaseDetail, CaseMember } from "@/types/clinician";
 import { LAB_AR } from "@/lib/i18n";
 import { statusLabel } from "@/lib/i18n-clinician";
@@ -545,9 +546,11 @@ function MemberSection({
         )}
         <LabEntry caseId={caseId} userId={m.userId} sex={m.sex} onSaved={onChanged} />
         <small className="muted-note">
-          {L.referenceLimits} {Object.values(LABS).filter((l) => l.sex === m.sex && l.lowerLimit !== undefined).map((l, i) => <span key={l.code}>{i ? " · " : ""}{ar ? LAB_AR[l.code] ?? l.label : l.label} <span dir="ltr">{l.lowerLimit} {l.unit}</span></span>)}.
+          {L.referenceLimits} {Object.values(LABS).filter((l) => (l.sex === m.sex || l.sex === "any") && (l.lowerLimit !== undefined || l.upperLimit !== undefined)).map((l, i) => <span key={l.code}>{i ? " · " : ""}{ar ? LAB_AR[l.code] ?? l.label : l.label} <span dir="ltr">{referenceText(l.code)}</span></span>)}.
         </small>
       </div>
+
+      {m.sex === "female" && <CycleOverlay caseId={caseId} userId={m.userId} />}
 
       {(temps.length >= 2 || sleep.length >= 2) && (
         <div className="member-wearables">

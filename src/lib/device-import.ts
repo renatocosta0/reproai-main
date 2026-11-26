@@ -10,10 +10,15 @@
 //   thermometer reading taken in ReproAI. Fahrenheit is converted to Celsius.
 // - Sleep: one reading per night (the date the sleep ended), summing asleep time.
 //   With stage data, awake and in-bed stages are excluded.
+// - Passive signals (resting heart rate, HRV, sleeping wrist temperature,
+//   steps, exercise minutes, water) are reduced on the server to ONE summary per
+//   day (mean for rates and temperature, sum for counts), so minute-level data
+//   never leaves the phone's health store as individual rows. They are context
+//   only: never used for ovulation confirmation or clinical alerts.
 // - Every reading keeps its source, device and a stable external id, so
 //   re-importing the same data never creates duplicates.
 
-import { normaliseObservation } from "@/lib/observation-analysis";
+import { CODES, normaliseObservation } from "@/lib/observation-analysis";
 
 export const DEVICE_SOURCES = ["BLUETOOTH", "HEALTH_CONNECT", "HEALTHKIT", "ULTRAHUMAN"] as const;
 export type DeviceSource = (typeof DEVICE_SOURCES)[number];
@@ -46,8 +51,18 @@ export interface ImportRow {
   effectiveAt: Date;
   device: string | null;
   externalId: string;
-  kind: "temperature" | "sleep";
+  kind: "temperature" | "sleep" | "daily";
 }
+
+/** HealthKit / Health Connect type → daily summary code and how a day is reduced. */
+export const DAILY_TYPES: Record<string, { code: string; reduce: "mean" | "sum"; label: string }> = {
+  restingHeartRate: { code: CODES.restingHeartRate.code, reduce: "mean", label: "Resting heart rate" },
+  heartRateVariability: { code: CODES.hrv.code, reduce: "mean", label: "Heart rate variability" },
+  appleSleepingWristTemperature: { code: CODES.wristTemperature.code, reduce: "mean", label: "Sleeping wrist temperature" },
+  steps: { code: CODES.steps.code, reduce: "sum", label: "Steps" },
+  exerciseTime: { code: CODES.exercise.code, reduce: "sum", label: "Exercise minutes" },
+  dietaryWater: { code: CODES.water.code, reduce: "sum", label: "Water" }
+};
 
 export interface MapResult {
   rows: ImportRow[];
@@ -72,6 +87,7 @@ export function mapDeviceSamples(samples: DeviceSample[], source: DeviceSource, 
   const rows: ImportRow[] = [];
   const skipped: MapResult["skipped"] = [];
   const nights = new Map<string, { minutes: number; end: Date; device: string | null }>();
+  const days = new Map<string, { code: string; reduce: "mean" | "sum"; total: number; n: number; end: Date; device: string | null }>();
   const now = Date.now() + 86_400_000;
 
   samples.forEach((s, index) => {
@@ -119,6 +135,27 @@ export function mapDeviceSamples(samples: DeviceSample[], source: DeviceSource, 
       return;
     }
 
+    const daily = DAILY_TYPES[s.dataType];
+    if (daily) {
+      let v = Number(s.value);
+      if (!Number.isFinite(v)) return skipped.push({ index, reason: "Not a number." });
+      if (s.dataType === "appleSleepingWristTemperature" && (s.unit === "fahrenheit" || v > 50)) v = ((v - 32) * 5) / 9;
+      if (s.dataType === "dietaryWater" && s.unit === "liter") v = v * 1000;
+      // Wrist temperature belongs to the night it ends; activity to the day it starts.
+      const day = (s.dataType === "appleSleepingWristTemperature" ? end : start).toISOString().slice(0, 10);
+      const key = `${daily.code}|${day}`;
+      const cur = days.get(key);
+      days.set(key, {
+        code: daily.code,
+        reduce: daily.reduce,
+        total: (cur?.total ?? 0) + v,
+        n: (cur?.n ?? 0) + 1,
+        end: cur && cur.end > end ? cur.end : end,
+        device: cur?.device ?? deviceName(s, fallbackDevice)
+      });
+      return;
+    }
+
     skipped.push({ index, reason: `Data type "${String(s.dataType)}" is not used by ReproAI.` });
   });
 
@@ -129,6 +166,16 @@ export function mapDeviceSamples(samples: DeviceSample[], source: DeviceSource, 
       continue;
     }
     rows.push({ code: checked.code, value: checked.value, unit: checked.unit, effectiveAt: n.end, device: n.device, externalId: `sleep-night:${night}`, kind: "sleep" });
+  }
+  for (const [key, d] of days) {
+    const day = key.split("|")[1];
+    const raw = d.reduce === "mean" ? d.total / d.n : d.total;
+    const checked = normaliseObservation(d.code, Math.round(raw * 100) / 100);
+    if (!checked.ok) {
+      skipped.push({ index: -1, reason: `${day}: ${checked.error}` });
+      continue;
+    }
+    rows.push({ code: checked.code, value: checked.value, unit: checked.unit, effectiveAt: d.end, device: d.device, externalId: `${d.code}:day:${day}`, kind: "daily" });
   }
   return { rows, skipped };
 }

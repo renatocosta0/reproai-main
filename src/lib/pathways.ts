@@ -38,6 +38,12 @@ export interface PathwayContext {
   amhPercentile: number | null;
   meanSleepHours: number | null;
   bbtMonophasic: boolean;
+  /** FIGO findings from logged cycles that need clinician review (P1), e.g. ["LONG_CYCLES"]. */
+  cycleFindings?: string[];
+  /** Ovulatory cycles with a luteal phase under 10 days (last 6 cycles). */
+  shortLutealCycles?: number;
+  /** Contraception, postpartum or perimenopause: cycle and ovulation rules pause. */
+  cyclePaused?: boolean;
 }
 
 const WHO25 = "WHO guideline on infertility (2025)";
@@ -59,17 +65,104 @@ export function evaluatePathways(c: PathwayContext): PathwayOption[] {
   const age = c.age;
 
   // ── Red flags: earlier specialist review regardless of time trying ─────────
-  if (female && (c.cycleRegularity === "AMENORRHEA" || c.cycleRegularity === "IRREGULAR")) {
+  // Logged cycles (FIGO AUB System 1, 2018) take priority over the intake answer.
+  const logged = c.cyclePaused ? [] : c.cycleFindings ?? [];
+  const loggedAmenorrhoea = logged.includes("AMENORRHOEA");
+  if (female && (logged.length > 0 || c.cycleRegularity === "AMENORRHEA" || c.cycleRegularity === "IRREGULAR")) {
+    const absent = loggedAmenorrhoea || (!logged.length && c.cycleRegularity === "AMENORRHEA");
     out.push({
       ruleId: "RF-CYCLE",
       kind: "RED_FLAG",
       priority: 1,
-      title: c.cycleRegularity === "AMENORRHEA" ? "Absent periods should be checked" : "Irregular cycles are worth checking",
+      title: absent ? "Absent periods should be checked" : "Irregular cycles are worth checking",
       patientText:
         "Periods that are irregular or absent can have treatable causes, such as thyroid or hormonal conditions. It is worth seeing a doctor rather than waiting.",
-      clinicianText: "Oligo/amenorrhoea: assess for anovulation (PCOS, thyroid, prolactin) without waiting 12 months.",
-      reason: `Cycle pattern reported as ${c.cycleRegularity.toLowerCase()}.`,
-      source: `${THIQA}: oligo/amenorrhoea; ${WHO25}`
+      clinicianText: `Oligo/amenorrhoea or irregular cycles${logged.length ? ` on logged cycles (${logged.join(", ").toLowerCase().replace(/_/g, " ")})` : ""}: assess for anovulation (PCOS, thyroid, prolactin) without waiting 12 months.`,
+      reason: logged.length ? "Your logged cycles are outside the usual range (FIGO)." : `Cycle pattern reported as ${c.cycleRegularity!.toLowerCase()}.`,
+      source: `${THIQA}: oligo/amenorrhoea; FIGO AUB System 1 (2018); ${WHO25}`
+    });
+  }
+  if (female && !c.cyclePaused && (c.shortLutealCycles ?? 0) >= 2) {
+    out.push({
+      ruleId: "LUTEAL-SHORT",
+      kind: "TEST",
+      priority: 2,
+      title: "Ask about the second half of your cycle",
+      patientText:
+        "In two or more cycles, the time from ovulation to your period was shorter than 10 days. This can be normal, but a timed blood test (progesterone about a week after ovulation) can check it.",
+      clinicianText: `Luteal phase < 10 days in ${c.shortLutealCycles} ovulatory cycles: consider mid-luteal progesterone, TSH and prolactin. Clinical significance is debated (ASRM 2021).`,
+      reason: `Short luteal phase in ${c.shortLutealCycles} logged cycles.`,
+      source: "ASRM Practice Committee: clinical relevance of luteal phase deficiency (2021)"
+    });
+  }
+
+  // ── Endocrine and metabolic results ───────────────────────────────────────
+  const tsh = v("TSH");
+  if (tsh !== undefined && (tsh > LABS.TSH.upperLimit! || tsh < LABS.TSH.lowerLimit!)) {
+    out.push({
+      ruleId: "LAB-TSH",
+      kind: "TEST",
+      priority: trying ? 1 : 2,
+      title: "Your thyroid result should be reviewed",
+      patientText: "Your TSH (thyroid) result is outside the usual range. Thyroid levels affect cycles and pregnancy, and are treatable. Your doctor may repeat it with free T4.",
+      clinicianText: `TSH ${tsh} mIU/L outside ${LABS.TSH.lowerLimit}–${LABS.TSH.upperLimit}: repeat with free T4 ± TPO antibodies; treat overt disease before conception.`,
+      reason: `TSH ${tsh} mIU/L.`,
+      source: "ASRM Practice Committee: subclinical hypothyroidism in the infertile female (2015)"
+    });
+  }
+  const prl = v("PROLACTIN");
+  if (prl !== undefined && prl > LABS.PROLACTIN.upperLimit!) {
+    out.push({
+      ruleId: "LAB-PRL",
+      kind: "TEST",
+      priority: 2,
+      title: "A raised prolactin result is usually repeated",
+      patientText: "Prolactin can rise with stress, sleep or some medicines. A repeat test, ideally in the morning and rested, is the usual first step.",
+      clinicianText: `Prolactin ${prl} ng/mL (> ${LABS.PROLACTIN.upperLimit}): repeat; exclude macroprolactin, medicines and hypothyroidism before imaging.`,
+      reason: `Prolactin ${prl} ng/mL.`,
+      source: "Endocrine Society hyperprolactinaemia guideline (2011)"
+    });
+  }
+  const a1c = v("HBA1C");
+  if (a1c !== undefined && a1c >= 5.7) {
+    const diabetes = a1c >= 6.5;
+    out.push({
+      ruleId: "LAB-HBA1C",
+      kind: diabetes ? "REFER" : "OPTIMISE",
+      priority: diabetes ? 1 : 2,
+      title: diabetes ? "Your HbA1c needs a doctor's review before pregnancy" : "Your HbA1c suggests a chance to improve blood sugar",
+      patientText: diabetes
+        ? "Your HbA1c is in the diabetes range. Getting blood sugar under control before pregnancy protects you and the baby."
+        : "Your HbA1c is in the prediabetes range. Activity, diet and weight changes can bring it down and support fertility.",
+      clinicianText: `HbA1c ${a1c}% (${diabetes ? "≥ 6.5 % diabetes range" : "5.7–6.4 % prediabetes"}): ${diabetes ? "confirm, preconception glycaemic control (target < 6.5 %)" : "lifestyle programme; screen for insulin resistance / PCOS"}.`,
+      reason: `HbA1c ${a1c}%.`,
+      source: "ADA Standards of Care (diagnosis; preconception care)"
+    });
+  }
+  const p4 = v("PROGESTERONE");
+  if (female && p4 !== undefined && p4 < LABS.PROGESTERONE.lowerLimit!) {
+    out.push({
+      ruleId: "LAB-P4",
+      kind: "COUNSEL",
+      priority: 2,
+      title: "Your progesterone result may need context",
+      patientText: "A low progesterone result can mean ovulation did not happen in that cycle, or that the test was taken on a different day than planned. Your doctor can check the timing against your cycle log.",
+      clinicianText: `Progesterone ${p4} ng/mL (< ${LABS.PROGESTERONE.lowerLimit}): check timing against the cycle (≈ 7 days after ovulation); repeat in a timed cycle before concluding anovulation.`,
+      reason: `Progesterone ${p4} ng/mL.`,
+      source: "ASRM 2015; NICE CG156"
+    });
+  }
+  const vitd = v("VITAMIN_D");
+  if (vitd !== undefined && vitd < LABS.VITAMIN_D.lowerLimit!) {
+    out.push({
+      ruleId: "LAB-VITD",
+      kind: "OPTIMISE",
+      priority: 3,
+      title: "Your vitamin D is low",
+      patientText: "Low vitamin D is common in the UAE. Your doctor can advise on a supplement.",
+      clinicianText: `25-OH vitamin D ${vitd} ng/mL (< ${LABS.VITAMIN_D.lowerLimit}): supplement per local guidance.`,
+      reason: `Vitamin D ${vitd} ng/mL.`,
+      source: "Endocrine Society clinical practice guideline (2011)"
     });
   }
   const riskHistory = c.historyFlags.filter((f) =>
@@ -205,7 +298,7 @@ export function evaluatePathways(c: PathwayContext): PathwayOption[] {
   }
 
   // ── Counselling ────────────────────────────────────────────────────────────
-  if (c.bbtMonophasic) {
+  if (c.bbtMonophasic && !c.cyclePaused) {
     out.push({
       ruleId: "BBT-MONO",
       kind: "COUNSEL",
@@ -213,8 +306,8 @@ export function evaluatePathways(c: PathwayContext): PathwayOption[] {
       title: "Ask your clinician about your temperature pattern",
       patientText:
         "Your temperature readings have not shown the usual rise after ovulation yet. This varies between cycles and is not a diagnosis, but it is worth reviewing with your clinician.",
-      clinicianText: "Monophasic BBT pattern: consider ovulation confirmation (mid-luteal progesterone).",
-      reason: "No sustained temperature rise across your recent readings.",
+      clinicianText: "No confirmed BBT rise (Roetzer 3-over-6) in the current cycle, fever readings excluded: consider ovulation confirmation (mid-luteal progesterone).",
+      reason: "No confirmed temperature rise in your current cycle yet.",
       source: WHO25
     });
   }
@@ -290,7 +383,7 @@ export function evaluatePathways(c: PathwayContext): PathwayOption[] {
       patientText: "Regular, sufficient sleep supports the hormones involved in fertility.",
       clinicianText: `Mean sleep ${c.meanSleepHours.toFixed(1)} h.`,
       reason: `Your average sleep is ${c.meanSleepHours.toFixed(1)} hours.`,
-      source: "General health advice; no guideline citation yet (to be sourced)"
+      source: "AASM/SRS consensus statement (Watson et al., Sleep 2015): adults 7 h or more; WHO 2025 (lifestyle)"
     });
   }
   if (out.length === 0) {

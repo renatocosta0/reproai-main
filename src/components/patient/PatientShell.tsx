@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Activity, HeartHandshake, Home, Languages, LineChart, Lock, MessageCircle, PenLine, UserRound, Route } from "lucide-react";
+import { Activity, CalendarHeart, HeartHandshake, Home, Languages, LineChart, Lock, MessageCircle, PenLine, UserRound, Route } from "lucide-react";
 import { PortalShell, type NavItem } from "@/components/portal/PortalShell";
 import { useLocale } from "@/components/i18n/LocaleContext";
 import type { StringKey } from "@/lib/i18n";
@@ -14,6 +14,7 @@ const NAV: { href: string; key: StringKey; icon: NavItem["icon"]; dividerBefore?
   { href: "/patient/overview", key: "navToday", icon: Home },
   { href: "/patient/journey", key: "navJourney", icon: Route },
   { href: "/patient/assessment", key: "navTrajectory", icon: LineChart },
+  { href: "/patient/cycle", key: "navCycle", icon: CalendarHeart },
   { href: "/patient/wearables", key: "navTracking", icon: Activity },
   { href: "/patient/assistant", key: "navAssistant", icon: MessageCircle },
   { href: "/patient/about", key: "navAbout", icon: PenLine, dividerBefore: true },
@@ -54,7 +55,7 @@ export function PatientShell({ children }: { children: ReactNode }) {
     <PortalShell
       theme="patient"
       navLabel={t("navLabel")}
-      nav={NAV.map((n) => ({ href: n.href, label: t(n.key), icon: n.icon, dividerBefore: n.dividerBefore }))}
+      nav={NAV.filter((n) => !(n.href === "/patient/cycle" && data?.profile.sex === "male")).map((n) => ({ href: n.href, label: t(n.key), icon: n.icon, dividerBefore: n.dividerBefore }))}
       user={{
         name: name ?? t("yourAccount"),
         subtitle: data?.isPaired ? t("coupleWorkspace") : t("individualWorkspace"),
