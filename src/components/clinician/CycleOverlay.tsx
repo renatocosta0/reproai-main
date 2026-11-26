@@ -7,6 +7,7 @@ import { LABS, isAboveLimit, isOutsideReference, referenceText, type LabCode } f
 import { LAB_AR } from "@/lib/i18n";
 import { diffDays, type CycleSummary, type LabAlignment } from "@/lib/cycle";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { AskChip } from "@/components/patient/AskPanel";
 import type { ClinicianCycleResponse } from "@/types/cycle";
 
 const C = {
@@ -104,11 +105,11 @@ export function CycleOverlay({ caseId, userId }: { caseId: string; userId: strin
 
   if (error) return <div className="cycle-overlay"><p className="muted-note">{error}</p></div>;
   if (!data) return <div className="cycle-overlay"><p className="muted-note">{T.loading}</p></div>;
-  return <CycleOverlayView data={data} ar={ar} date={date} />;
+  return <CycleOverlayView data={data} ar={ar} date={date} caseId={caseId} />;
 }
 
 /** Presentational part of the overlay (also used for previews and tests). */
-export function CycleOverlayView({ data, ar, date }: { data: ClinicianCycleResponse; ar: boolean; date: (d: string) => string }) {
+export function CycleOverlayView({ data, ar, date, caseId }: { data: ClinicianCycleResponse; ar: boolean; date: (d: string) => string; caseId?: string }) {
   const T = C[ar ? "ar" : "en"];
   const labName = (c: string) => (ar ? LAB_AR[c] ?? LABS[c as LabCode]?.label ?? c : LABS[c as LabCode]?.label ?? c);
   if (!data.shared) {
@@ -129,7 +130,10 @@ export function CycleOverlayView({ data, ar, date }: { data: ClinicianCycleRespo
     <div className="cycle-overlay">
       <div className="overlay-head">
         <div>
-          <h4 className="mini-title" style={{ margin: 0 }}><CalendarRange size={15} /> {T.title}</h4>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <h4 className="mini-title" style={{ margin: 0 }}><CalendarRange size={15} /> {T.title}</h4>
+            <AskChip topic={{ title: T.title, caseId, context: "FIGO normal menstrual cycle parameters Roetzer 3-over-6 BBT luteal phase", autoExplain: "How should I interpret the FIGO cycle regularity, Roetzer BBT shift and luteal phase in this chart?", questions: ["What are the FIGO 2018 normal menstrual limits?", "When does a short luteal phase warrant investigation?", "How is ovulation confirmed by BBT?"] }} />
+          </div>
           <small className="muted-note">{T.sub}</small>
         </div>
         <div className="overlay-chips">
@@ -163,7 +167,10 @@ export function CycleOverlayView({ data, ar, date }: { data: ClinicianCycleRespo
 
       <div className="overlay-grid-2">
         <div>
-          <h4 className="mini-title"><FlaskConical size={14} /> {T.timing}</h4>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+            <h4 className="mini-title" style={{ margin: 0 }}><FlaskConical size={14} /> {T.timing}</h4>
+            <AskChip topic={{ title: T.timing, caseId, context: "FSH LH estradiol cycle day 2-4 mid-luteal progesterone sample timing", autoExplain: "Why does cycle timing matter for FSH, LH, estradiol and mid-luteal progesterone?", questions: ["Why must FSH and estradiol be drawn on cycle day 2 to 4?", "What mid-luteal progesterone level confirms ovulation?"] }} />
+          </div>
           {alignment.filter((a) => TIMED.has(a.code)).length === 0 ? (
             <p className="muted-note">{T.noTimed}</p>
           ) : (

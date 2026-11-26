@@ -285,7 +285,7 @@ export async function groundedAnswer(question: string, o: AskOptions): Promise<G
     ? await retrieve(searchText, { audience, top: 4, scope })
     : { query: searchText, hits: [], abstain: false, engine: "bm25-local", reason: "Record-only question: guidance was not searched." };
 
-  const asksHowAppEstimates = intent === "clinical_personal" && /\b(reproai|estimate[ds]?|calculat|method|how .* work|variable mode|paused)\b/i.test(q);
+  const asksHowAppEstimates = (intent === "clinical_personal" || (o.audience === "clinician" && intent === "clinical_general")) && /\b(reproai|estimate[ds]?|calculat|method|how .* work|variable mode|paused|wilson|shapley|cohort|suppressed|simulation|evidence|interval|read this)\b/i.test(`${q} ${ctx ?? ""}`);
   const productRetrieval = asksHowAppEstimates ? await retrieve(searchText, { audience, top: 2, scope: "product" }) : null;
   const approvedHits = [...retrieval.hits, ...(productRetrieval?.hits ?? [])].filter((hit) => {
     const canonical = PASSAGE_BY_ID[hit.passage.id];

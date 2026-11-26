@@ -29,6 +29,7 @@ import type { CaseDetail, CaseMember } from "@/types/clinician";
 import { LAB_AR } from "@/lib/i18n";
 import { statusLabel } from "@/lib/i18n-clinician";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { AskChip } from "@/components/patient/AskPanel";
 
 interface Insufficient {
   key: string;
@@ -396,6 +397,7 @@ export default function CaseDetailPage({ params }: { params: { id: string } }) {
                 <h2>{data.isCouple ? L.jointHistory : L.estimateHistory}</h2>
                 <p>{L.historySubtitle(history.length)}</p>
               </div>
+              <AskChip topic={{ title: data.isCouple ? L.jointHistory : L.estimateHistory, caseId: data.id, context: "ReproAI estimate model Shapley 95% confidence interval", autoExplain: "How is the ReproAI estimate and 95% confidence interval calculated for this case?", questions: ["What does the 95% confidence interval reflect?", "What factors shaped this patient's latest assessment?"] }} />
             </div>
             {history.length > 0 ? (
             <div className="large-chart-wrap" dir="ltr">
@@ -540,7 +542,7 @@ function MemberSection({
         ) : (
           <div className="marker-grid">
             {codes.map((c) => (
-              <MarkerTrend key={c} code={c} points={m.labs.filter((l) => l.code === c)} audience="clinician" />
+              <MarkerTrend key={c} code={c} points={m.labs.filter((l) => l.code === c)} audience="clinician" caseId={caseId} />
             ))}
           </div>
         )}
@@ -556,6 +558,7 @@ function MemberSection({
         <div className="member-wearables">
           <h4 className="mini-title">
             {L.wearableSignals} <SourceChip source="SELF_REPORTED" audience="clinician" />{" "}
+            <AskChip topic={{ title: L.wearableSignals, caseId, context: "basal body temperature BBT wearable sleep fertility", autoExplain: "How should I interpret this patient's BBT pattern and sleep duration clinically?", questions: ["What does a monophasic BBT pattern suggest?", "How does sleep duration affect fertility?"] }} />{" "}
             <small>
               {L.wearableCounts(temps.length, sleep.length)}
               {bbt.status === "BIPHASIC" ? L.biphasic(bbt.shift.toFixed(2)) : bbt.status === "MONOPHASIC" ? L.monophasic(bbt.shift.toFixed(2)) : ""}

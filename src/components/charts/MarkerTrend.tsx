@@ -14,7 +14,7 @@ import { AskChip } from "@/components/patient/AskPanel";
  * One marker over time against its reference limit, with the person's first
  * value as their baseline and a plain-language direction-of-change sentence.
  */
-export function MarkerTrend({ code, points, audience = "patient" }: { code: LabCode; points: LabPoint[]; audience?: "patient" | "clinician" }) {
+export function MarkerTrend({ code, points, audience = "patient", caseId }: { code: LabCode; points: LabPoint[]; audience?: "patient" | "clinician"; caseId?: string }) {
   const { locale } = useLocale();
   const ar = locale === "ar";
   // Clinician Arabic: neutral wording (not "your result") and Arabic dates.
@@ -63,7 +63,7 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
         </div>
         <div className="marker-actions">
           <SourceChip source={last.source} audience={audience} />
-          {audience === "patient" && <AskChip topic={{ title: label, context: `${def.label} ${code} lab result`, autoExplain: markerQuestions(code, def.label)[0], questions: markerQuestions(code, def.label) }} />}
+          <AskChip topic={{ title: label, caseId, context: `${def.label} ${code} lab result`, autoExplain: markerQuestions(code, def.label, audience)[0], questions: markerQuestions(code, def.label, audience) }} />
         </div>
       </header>
       <div className="marker-plot">
@@ -113,10 +113,28 @@ export function MarkerTrend({ code, points, audience = "patient" }: { code: LabC
 }
 
 /** Suggested questions for a marker's Ask panel (English: the guidance library is English). */
-function markerQuestions(code: LabCode, label: string): string[] {
+function markerQuestions(code: LabCode, label: string, audience: "patient" | "clinician" = "patient"): string[] {
   switch (code) {
     case "AMH":
-      return ["What does my AMH result mean?", "Does AMH tell me whether I can get pregnant?", "Why can AMH differ between tests?"];
+      return audience === "clinician"
+        ? ["How should I interpret this patient's AMH result and Thiqa reserve threshold?", "What are the ESHRE/POSEIDON criteria for reduced ovarian reserve?", "When is fertility preservation indicated?"]
+        : ["What does my AMH result mean?", "Does AMH tell me whether I can get pregnant?", "Why can AMH differ between tests?"];
+    case "TSH":
+    case "FREE_T4":
+      return ["How does TSH and thyroid function affect fertility?", "What TSH range is recommended in infertility care?"];
+    case "PROLACTIN":
+      return ["Why should an elevated prolactin result be repeated before investigating?", "How does hyperprolactinaemia affect ovulation?"];
+    case "FSH":
+    case "LH":
+    case "ESTRADIOL":
+      return ["Why must FSH, LH and estradiol be collected on cycle day 2 to 4?", "What happens if these hormones are taken outside day 2 to 4?"];
+    case "PROGESTERONE":
+      return ["How does mid-luteal progesterone confirm ovulation?", "When in the cycle should progesterone be collected?"];
+    case "HBA1C":
+    case "FASTING_INSULIN":
+      return ["How do HbA1c and insulin resistance relate to PCOS and preconception care?", "What are the ADA HbA1c thresholds?"];
+    case "VITAMIN_D":
+      return ["What is the Endocrine Society threshold for vitamin D deficiency?"];
     case "AFC":
       return ["What is an antral follicle count?", "How does antral follicle count relate to AMH?"];
     case "FSH":

@@ -124,6 +124,34 @@ export const SOURCES: Record<string, SourceDoc> = {
     year: 2023,
     url: "https://www.acog.org/womens-health/faqs"
   },
+  ASRM_ENDOCRINE: {
+    id: "ASRM_ENDOCRINE",
+    title: "ASRM Practice Committee Guidance: Diagnostic Evaluation of the Infertile Female & Subclinical Hypothyroidism",
+    publisher: "American Society for Reproductive Medicine (ASRM)",
+    year: 2015,
+    url: "https://www.asrm.org"
+  },
+  NICE_CG156: {
+    id: "NICE_CG156",
+    title: "Fertility problems: assessment and treatment (CG156)",
+    publisher: "National Institute for Health and Care Excellence (NICE)",
+    year: 2017,
+    url: "https://www.nice.org.uk/guidance/cg156"
+  },
+  ENDO_SOC: {
+    id: "ENDO_SOC",
+    title: "Endocrine Society Clinical Practice Guidelines: Hyperprolactinaemia & Vitamin D Deficiency",
+    publisher: "The Endocrine Society",
+    year: 2011,
+    url: "https://www.endocrine.org"
+  },
+  ADA_CARE: {
+    id: "ADA_CARE",
+    title: "Standards of Care in Diabetes: Classification, Diagnosis & Preconception Care",
+    publisher: "American Diabetes Association (ADA)",
+    year: 2025,
+    url: "https://diabetesjournals.org/care"
+  },
   REPROAI: {
     id: "REPROAI",
     title: "ReproAI technical documentation and rules engine",
@@ -377,6 +405,37 @@ export const PASSAGES: Passage[] = [
     terms: ["pms", "premenstrual", "mood", "bloating", "cramps", "breast tenderness", "headache", "symptoms", "cycle symptoms"]
   },
 
+  {
+    id: "ASRM-TSH-1", doc: "ASRM_ENDOCRINE", section: "Subclinical hypothyroidism in infertility", status: "primary", audience: "both",
+    title: "TSH and Free T4 in fertility evaluation",
+    text: "Thyroid dysfunction can disrupt ovulation and early pregnancy. A typical laboratory reference range for TSH is 0.4 to 4.0 mIU/L (with Free T4 around 0.8 to 1.8 ng/dL, varying by lab). ASRM guidance notes that evaluating TSH is recommended in infertile women and subclinical hypothyroidism should be assessed carefully before or during fertility care.",
+    terms: ["tsh", "thyroid", "free t4", "hypothyroidism", "subclinical", "endocrine"]
+  },
+  {
+    id: "ENDO-PRL-1", doc: "ENDO_SOC", section: "Diagnosis of hyperprolactinaemia", status: "primary", audience: "both",
+    title: "Prolactin testing and repeat confirmation",
+    text: "Elevated prolactin above 25 ng/mL can suppress ovulation and cause irregular or absent periods. Because stress, exercise or venepuncture can transiently raise prolactin, the Endocrine Society 2011 guideline recommends repeating an elevated prolactin measurement before pursuing pituitary imaging or further investigation.",
+    terms: ["prolactin", "hyperprolactinaemia", "repeat", "pituitary", "endocrine"]
+  },
+  {
+    id: "NICE-TIMED-1", doc: "NICE_CG156", section: "1.2 Initial assessment: hormone timing", status: "primary", audience: "both",
+    title: "Why FSH, LH, estradiol and progesterone are timed to the cycle",
+    text: "Baseline FSH, LH and estradiol are measured in the early follicular phase on cycle day 2 to 4 so ovarian and pituitary feedback are at their resting baseline; samples taken outside day 2 to 4 can be misleading. Mid-luteal serum progesterone is measured about 7 days before the expected period (typically 5 to 9 days after ovulation), where a level of 3 ng/mL or higher supports that ovulation occurred.",
+    terms: ["fsh", "lh", "estradiol", "progesterone", "cycle day 2", "day 2-4", "mid-luteal", "sample timing", "out of window", "in window"]
+  },
+  {
+    id: "ADA-HBA1C-1", doc: "ADA_CARE", section: "Glycaemic targets and preconception care", status: "primary", audience: "both",
+    title: "HbA1c and fasting insulin in metabolic and PCOS screening",
+    text: "Under ADA Standards of Care, an HbA1c of 5.7 to 6.4 percent indicates prediabetes and 6.5 percent or higher indicates diabetes. Screening HbA1c and fasting insulin helps identify insulin resistance, which is common in PCOS and relevant to ovulation and preconception risk.",
+    terms: ["hba1c", "fasting insulin", "insulin", "prediabetes", "diabetes", "metabolic", "pcos", "glucose"]
+  },
+  {
+    id: "ENDO-VITD-1", doc: "ENDO_SOC", section: "Evaluation of vitamin D status", status: "primary", audience: "both",
+    title: "Vitamin D (25-OH) reference threshold",
+    text: "The Endocrine Society 2011 guideline defines a serum 25-hydroxyvitamin D level below 20 ng/mL as vitamin D deficiency. Checking vitamin D is part of general preconception and endocrine health optimisation.",
+    terms: ["vitamin d", "25-oh", "deficiency", "20 ng/ml", "metabolic", "endocrine"]
+  },
+
   // ── Scope-only references ───────────────────────────────────────────────
   {
     id: "ESHRE-1", doc: "ESHRE_FFP", section: "Guideline scope", status: "scope", audience: "both",
@@ -451,6 +510,18 @@ export const PASSAGES: Passage[] = [
     title: "How ReproAI estimates your cycle phase and fertile window",
     text: "ReproAI estimates cycle length from up to your last six logged cycles, uses your personal median luteal length (or 14 days when fewer than two ovulations are confirmed) for a calendar baseline, adjusts the fertile window when fertile cervical mucus or a positive LH test is logged, and confirms ovulation retrospectively using the Roetzer 3-over-6 basal temperature rule. When cycles vary widely or PCOS is recorded, ReproAI switches to variable mode instead of pinning a calendar date, and predictions pause during hormonal contraception, postpartum or perimenopause. Passive watch signals such as resting heart rate, HRV and wrist temperature are shown for context only and never confirm ovulation.",
     terms: ["estimate", "how reproai estimates", "cycle phase", "fertile window", "variable mode", "paused", "passive signals", "wrist temperature", "resting heart rate", "hrv", "roetzer", "calendar"]
+  },
+  {
+    id: "RAI-11", doc: "REPROAI", section: "Evidence & safety dashboard", status: "internal", audience: "clinician",
+    title: "How to read the Evidence & Safety dashboard",
+    text: "The Evidence & Safety page separates live clinic pathway metrics (baseline coverage, median days from signal to appointment, and clinician oversight release vs discard counts) from a labelled synthetic-cohort simulation. Binomial rates show 95 percent Wilson score confidence intervals so small denominators are never overstated. Synthetic simulation checks calibration and false-reassurance rates of the pipeline only and is not clinical validation.",
+    terms: ["evidence", "wilson", "confidence interval", "oversight", "discard", "simulation", "synthetic", "calibration", "brier", "false reassurance"]
+  },
+  {
+    id: "RAI-12", doc: "REPROAI", section: "Population insights", status: "internal", audience: "clinician",
+    title: "How to read Population Insights cohorts",
+    text: "Population Insights groups patients using the same deterministic pathway rules shown in individual records (red flags, due referral, reduced reserve, missing baseline, preservation window, male factor and lifestyle). Your Panel shows named patients who granted clinician access, whereas Across Service shows anonymous counts of patients who opted into population analytics, with any cell below 5 suppressed to protect privacy.",
+    terms: ["insights", "cohort", "cohorts", "population", "suppressed", "below 5", "panel", "across service"]
   }
 ];
 
@@ -471,7 +542,11 @@ export function citationLabel(p: Passage): string {
     p.doc === "DOH_ABUDHABI" ? "DoH Abu Dhabi ART framework" :
     p.doc === "ASRM_OVULATION" ? "ASRM fertility & luteal guidance" :
     p.doc === "FIGO_2018" ? "FIGO normal menstrual parameters, 2018" :
-    p.doc === "ACOG_PMS" ? "ACOG PMS guidance" : d.title;
+    p.doc === "ACOG_PMS" ? "ACOG PMS guidance" :
+    p.doc === "ASRM_ENDOCRINE" ? "ASRM endocrine guidance 2015" :
+    p.doc === "NICE_CG156" ? "NICE CG156 fertility guideline" :
+    p.doc === "ENDO_SOC" ? "Endocrine Society guideline 2011" :
+    p.doc === "ADA_CARE" ? "ADA Standards of Care" : d.title;
   return p.page ? `${short}, p. ${p.page}` : `${short}, ${p.section}`;
 }
 

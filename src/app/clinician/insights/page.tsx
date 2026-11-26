@@ -8,6 +8,7 @@ import { api, userMessage } from "@/lib/api-client";
 import type { PanelCohort, SystemCohort } from "@/lib/insights";
 import { cohortArabic } from "@/lib/i18n-clinician";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { AskChip } from "@/components/patient/AskPanel";
 
 interface InsightsResponse {
   panel: { total: number; sharing: number; cohorts: PanelCohort[] };
@@ -37,6 +38,9 @@ export default function InsightsPage() {
           <p className="date-label">{L.insightsEyebrow}</p>
           <h1>{L.insightsTitle}</h1>
           <span>{L.insightsSubtitle}</span>
+        </div>
+        <div className="heading-actions">
+          <AskChip topic={{ title: L.insightsTitle, context: "Population Insights cohorts suppressed below 5 panel across service", autoExplain: "How are these population cohorts grouped and why are counts below 5 suppressed?", questions: ["What rules define the Red Flags and Due Referral cohorts?", "Who is included in Across Service counts?"] }} />
         </div>
       </div>
 

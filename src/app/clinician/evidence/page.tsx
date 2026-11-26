@@ -8,6 +8,7 @@ import { api, userMessage } from "@/lib/api-client";
 import type { LiveMetrics, Proportion, SimulationReport } from "@/lib/evaluation";
 import { longDateL, type ClinicianStrings } from "@/lib/i18n-clinician";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
+import { AskChip } from "@/components/patient/AskPanel";
 
 interface EvidenceResponse {
   live: LiveMetrics;
@@ -68,6 +69,7 @@ export default function EvidencePage() {
           <span>{L.evidenceSubtitle}</span>
         </div>
         <div className="heading-actions">
+          <AskChip topic={{ title: L.evidenceTitle, context: "Evidence & Safety dashboard Wilson confidence interval synthetic simulation calibration", autoExplain: "How should I read the Wilson 95% confidence intervals, oversight counts and synthetic simulation?", questions: ["What do the Wilson 95% confidence intervals show?", "Why is the simulation labelled synthetic and not clinical validation?"] }} />
           <Link className="secondary" href="/model-card">
             <FileText size={16} /> {L.modelCardLink}
           </Link>

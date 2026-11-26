@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
     if (!question) return NextResponse.json({ error: "messages are required" }, { status: 400 });
 
     const caseId = typeof body?.caseId === "string" && body.caseId ? body.caseId : null;
+    const context = typeof body?.context === "string" ? body.context.trim().slice(0, 300) : undefined;
+    const locale = body?.locale === "ar" ? "ar" : "en";
     if (caseId && !(await canAccessCase(session.userId, caseId))) {
       return NextResponse.json({ error: "This case is not in your care list" }, { status: 403 });
     }
@@ -38,7 +40,9 @@ export async function POST(req: NextRequest) {
     const answer = await groundedAnswer(question, {
       audience: "clinician",
       record: facts ? casePassages(facts) : [],
-      previousQuestion: userTurns[userTurns.length - 2]
+      previousQuestion: userTurns[userTurns.length - 2],
+      context,
+      locale
     });
     await audit(session.userId, "copilot_query", `${caseId ? `couple:${caseId}` : "general"};status:${answer.status};flagged:${answer.flagged}`);
 

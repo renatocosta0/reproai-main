@@ -9,10 +9,10 @@ import { GroundedReply } from "@/components/assistant/GroundedReply";
 import type { GroundedAnswer } from "@/lib/rag/answer";
 
 /**
- * "Ask" chips next to a result open this side panel with questions about that result.
- * Answers come only from /api/patient/ask, i.e. src/lib/rag/answer.ts: retrieval first,
- * a cited passage for every sentence, abstention when nothing relevant is found.
- * Nothing here writes or explains on its own.
+ * "Ask" chips next to a result or chart open this side panel with questions about it.
+ * Answers come only from /api/patient/ask (for patients) or /api/clinician/copilot (for
+ * clinicians), i.e. src/lib/rag/answer.ts: retrieval first, a cited passage for every
+ * sentence, abstention when nothing relevant is found.
  */
 
 export interface AskTopic {
@@ -20,10 +20,12 @@ export interface AskTopic {
   title: string;
   /** Suggested questions for this result (English: the guidance library is English). */
   questions: string[];
-  /** Active data/card context sent to /api/patient/ask so generic questions ("Explain this") resolve to it. */
+  /** Active data/card context sent to the backend so generic questions ("Explain this") resolve to it. */
   context?: string;
   /** Automatically asks an initial explanation as soon as the panel opens. */
   autoExplain?: boolean | string;
+  /** Optional clinician case ID when opened from a clinician patient record. */
+  caseId?: string;
 }
 
 interface Turn {
@@ -37,27 +39,33 @@ const T = {
     ask: "Ask",
     askAbout: "Ask about",
     sub: "Answers come only from cited guidance and your released record.",
+    subClinician: "Answers come only from the case record and cited clinical guidance.",
     placeholder: "Ask your own question…",
     send: "Send",
     thinking: "Finding the guidance…",
     failed: "The assistant couldn't answer just now. Please try again in a moment.",
     unavailable: "The assistant isn't available yet: your clinic hasn't enabled it.",
     more: "Continue in Ask ReproAI",
+    moreClinician: "Continue in Clinical Copilot",
     close: "Close",
-    note: "Educational guidance only. Your clinician makes clinical decisions with you."
+    note: "Educational guidance only. Your clinician makes clinical decisions with you.",
+    noteClinician: "Decision support only. Clinical judgement and decisions stay with you."
   },
   ar: {
     ask: "اسأل",
     askAbout: "اسأل عن",
     sub: "الإجابات من الإرشادات الموثّقة ومن سجلك المعتمد فقط.",
+    subClinician: "الإجابات من سجل الحالة والإرشادات السريرية الموثّقة فقط.",
     placeholder: "اطرح سؤالك…",
     send: "إرسال",
     thinking: "جارٍ البحث في الإرشادات…",
     failed: "تعذّر على المساعد الإجابة الآن. يُرجى المحاولة بعد قليل.",
     unavailable: "المساعد غير متاح بعد لأن عيادتك لم تفعّله.",
     more: "المتابعة في «اسأل ReproAI»",
+    moreClinician: "المتابعة في المساعد السريري",
     close: "إغلاق",
-    note: "إرشادات تثقيفية فقط. يتخذ طبيبك القرارات السريرية معك."
+    note: "إرشادات تثقيفية فقط. يتخذ طبيبك القرارات السريرية معك.",
+    noteClinician: "لدعم القرار فقط. القرار السريري يبقى للطبيب."
   }
 };
 
@@ -67,7 +75,7 @@ export function useAsk() {
   return useContext(AskContext);
 }
 
-export function AskProvider({ children }: { children: ReactNode }) {
+export function AskProvider({ children, audience = "patient" }: { children: ReactNode; audience?: "patient" | "clinician" }) {
   const { locale } = useLocale();
   const L = T[locale];
   const [topic, setTopic] = useState<AskTopic | null>(null);
@@ -88,16 +96,31 @@ export function AskProvider({ children }: { children: ReactNode }) {
     setText("");
     setBusy(true);
     try {
-      const res = await api<{ answer: GroundedAnswer; conversationId: string | null }>("/api/patient/ask", {
-        method: "POST",
-        body: JSON.stringify({
-          question: q,
-          previousQuestion,
-          context: activeTopic?.context ?? activeTopic?.title,
-          locale,
-          conversationId: activeConvId
-        })
-      });
+      const res =
+        audience === "clinician"
+          ? await api<{ answer: GroundedAnswer; conversationId: string | null }>("/api/clinician/copilot", {
+              method: "POST",
+              body: JSON.stringify({
+                caseId: activeTopic?.caseId ?? null,
+                context: activeTopic?.context ?? activeTopic?.title,
+                locale,
+                conversationId: activeConvId,
+                messages: [
+                  ...(previousQuestion ? [{ role: "user", content: previousQuestion }] : []),
+                  { role: "user", content: q }
+                ]
+              })
+            })
+          : await api<{ answer: GroundedAnswer; conversationId: string | null }>("/api/patient/ask", {
+              method: "POST",
+              body: JSON.stringify({
+                question: q,
+                previousQuestion,
+                context: activeTopic?.context ?? activeTopic?.title,
+                locale,
+                conversationId: activeConvId
+              })
+            });
       if (res.conversationId) setConversationId(res.conversationId);
       setTurns((t) => t.map((x, i) => (i === t.length - 1 ? { ...x, answer: res.answer } : x)));
     } catch (err) {
@@ -106,7 +129,7 @@ export function AskProvider({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false);
     }
-  }, [busy, turns, conversationId, locale, L.unavailable, L.failed]);
+  }, [audience, busy, turns, conversationId, locale, L.unavailable, L.failed]);
 
   const open = useCallback((t: AskTopic) => {
     opener.current = document.activeElement as HTMLElement | null;
@@ -147,6 +170,12 @@ export function AskProvider({ children }: { children: ReactNode }) {
   }
 
   const asked = new Set(turns.map((t) => t.question));
+  const moreHref =
+    audience === "clinician"
+      ? topic?.caseId
+        ? `/clinician/assistant?case=${encodeURIComponent(topic.caseId)}`
+        : "/clinician/assistant"
+      : "/patient/assistant";
 
   return (
     <AskContext.Provider value={open}>
@@ -161,7 +190,7 @@ export function AskProvider({ children }: { children: ReactNode }) {
                   <Sparkles size={13} aria-hidden /> {L.askAbout}
                 </span>
                 <h2>{topic.title}</h2>
-                <p>{L.sub}</p>
+                <p>{audience === "clinician" ? L.subClinician : L.sub}</p>
               </div>
               <button type="button" className="ghost compact" onClick={close} aria-label={L.close}>
                 <X size={17} />
@@ -173,7 +202,7 @@ export function AskProvider({ children }: { children: ReactNode }) {
                 <div key={i} className="ask-turn">
                   <p className="ask-question" dir="auto">{t.question}</p>
                   {t.answer ? (
-                    <GroundedReply answer={t.answer} audience="patient" locale={locale} />
+                    <GroundedReply answer={t.answer} audience={audience} locale={locale} />
                   ) : t.error ? (
                     <p className="ask-error">{t.error}</p>
                   ) : (
@@ -203,9 +232,9 @@ export function AskProvider({ children }: { children: ReactNode }) {
               </button>
             </form>
             <footer>
-              <small>{L.note}</small>
-              <Link href="/patient/assistant" onClick={close}>
-                {L.more} <ArrowRight size={13} className="flip-rtl" />
+              <small>{audience === "clinician" ? L.noteClinician : L.note}</small>
+              <Link href={moreHref} onClick={close}>
+                {audience === "clinician" ? L.moreClinician : L.more} <ArrowRight size={13} className="flip-rtl" />
               </Link>
             </footer>
           </aside>

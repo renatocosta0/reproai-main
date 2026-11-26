@@ -8,6 +8,7 @@ import { PrescribeModal } from "@/components/clinician/PrescribeModal";
 import { useClinicianText } from "@/components/clinician/useClinicianText";
 import { NotificationSubscriber } from "@/components/patient/NotificationSubscriber";
 import { NotificationInbox } from "@/components/notifications/NotificationInbox";
+import { AskProvider } from "@/components/patient/AskPanel";
 
 type NavKey = "navOverview" | "navFollowUp" | "navInsights" | "navCopilot" | "navEvidence";
 
@@ -25,7 +26,7 @@ export function ClinicianShell({ children }: { children: ReactNode }) {
   const local = email?.split("@")[0] ?? "";
 
   return (
-    <>
+    <AskProvider audience="clinician">
       <NotificationSubscriber />
       <PortalShell
         theme="clinician"
@@ -66,6 +67,6 @@ export function ClinicianShell({ children }: { children: ReactNode }) {
         {children}
       </PortalShell>
       {prescribeOpen && <PrescribeModal onClose={closePrescribe} />}
-    </>
+    </AskProvider>
   );
 }
