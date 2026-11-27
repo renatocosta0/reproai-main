@@ -5,6 +5,7 @@ import "./landing.css";
 import "./chat-history.css";
 import "./cycle.css";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "ReproAI — Reproductive Potential & Life-Course Healthcare",
@@ -19,7 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
