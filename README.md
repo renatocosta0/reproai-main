@@ -36,6 +36,7 @@
   - [Key features](#key-features)
   - [Built With](#built-with)
   - [Architecture](#architecture)
+- [Screenshots (Web & Mobile)](#screenshots-web--mobile)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -79,7 +80,11 @@ The model is **B2B2C and physician-led**: a clinician prescribes access, the pat
 - **Arabic.** Right-to-left patient experience for the trajectory, options and consent screens (prototype translation, pending clinical review).
 - **Guided demo.** A twelve-step tour at `/tour`, including a missing-data case and a no-consent case.
 - **Longitudinal readings.** Patients can enter basal body temperature (LOINC 8310-5) and sleep duration (LOINC 93832-4) manually; a supported Bluetooth thermometer can provide temperature readings. The Capacitor app bundles a static export of the existing patient portal screens, including the same wearable page, which calls the native HealthKit/Health Connect plugin when available. Native device access still requires a configured API origin, platform permissions/signing, and real-device validation.
-- **Closed-loop follow-up.** Wearable and assessment signals support the clinician's review; the clinician can open an alert with a patient-facing recommendation, which moves through *alert raised → consultation requested → appointment scheduled → in follow-up → closed* on a board.
+- **Menstrual cycle, ovulation & fertility tracking (`My Cycle`).** Organized into three progressive tabs (*Today & log*, *Calendar & history*, *Patterns & signals*) with collapsible symptom/mood/hydration drawers. Applies **FIGO 2018** regularity limits (24–38 d, variation ≤ 7–9 d, bleeding ≤ 8 d), **Roetzer 3-over-6** BBT confirmation, cervical mucus & urinary LH calibration, **ASRM** short luteal phase (< 10 d) detection, **ACOG** premenstrual pattern checks, PCOS/variable-cycle mode, and paused predictions for contraception/postpartum/perimenopause. Basal temperature and sleep are displayed read-only from **Health Tracking** to avoid duplicate entry.
+- **Clinician cycle & endocrine/metabolic alignment.** Clinicians see a 6-cycle day-1 overlay with Roetzer coverlines, sample-timing verification (Day 2–4 FSH/LH/estradiol; mid-luteal progesterone), and an endocrine & metabolic panel (`TSH`, `Free T4`, `Prolactin`, `HbA1c`, `Fasting Insulin`, `Vitamin D`).
+- **Contextual inline AI (`Ask` chips) for patients & clinicians.** Both portals feature inline `"Ask"` buttons on biomarker charts, cycle timelines, sample-timing tables, wearable graphs, Population Insights, and Evidence & Safety metrics—opening with `autoExplain` and resolving deictic questions (*"Explain this"*) against the active chart and verified clinical guidelines (`Daman Thiqa ART v3.6`, `DoH Abu Dhabi`, `WHO 2025`, `ACOG`, `ASRM`, `FIGO 2018`, `NICE CG156`, `Endocrine Society`, `ADA`).
+- **Interactive closed-loop appointments & role-scoped notifications.** Patients can request consultations, clinicians can suggest or confirm slots with date/time, and either side can cancel with an optional note—backed by a durable role-separated `CareNotification` inbox.
+- **Biometric login & native mobile sync.** Supports FaceID / TouchID / WebAuthn passkeys and Capacitor 8 iOS/Android wrappers with `@capgo/capacitor-health`.
 - **Sex-adaptive interface.** Female views focus on ovarian reserve, AFC and temperature; male views on semen parameters against the WHO 2010 reference limits used by the Daman Thiqa guideline; paired views on the joint estimate.
 - **Grounded assistant with citations.** Ask ReproAI retrieves from a cited library (Thiqa ART guideline v3.6 with page numbers, WHO 2025 infertility guideline, ReproAI's own rules) and the patient's released record before answering, cites a source for every sentence, removes any sentence it cannot verify, and says "not in the guidance" rather than guess. It has no tools and cannot compute a score. Azure OpenAI is preferred, Groq is the fallback. Measured with `npm run rag:eval`; results are on the Evidence page.
 - **Interoperability.** One-click FHIR R4 export (`Patient`, `Observation`, `RiskAssessment`) designed for Abu Dhabi's Malafi and Sahhatna exchanges.
@@ -128,6 +133,30 @@ flowchart LR
 ```
 
 More detail: [`docs/architecture.md`](docs/architecture.md) · [`docs/data-governance.md`](docs/data-governance.md) · [`docs/azure-integration.md`](docs/azure-integration.md) · [`docs/fhir-interoperability.md`](docs/fhir-interoperability.md)
+
+## Screenshots (Web & Mobile)
+
+> Add your captured screenshots to `docs/images/screenshots/` using the filenames below (or update the paths) so competition judges can inspect both the **Web Portal** and **Mobile App** experiences.
+
+### Web Application (Desktop — Clinician & Patient Portals)
+
+| Screen | Why it matters for judges | Screenshot |
+| --- | --- | --- |
+| **Public Landing & Guided Tour (`/tour`)** | Shows bilingual EN/AR entry, evidence transparency, and safety framing | ![Landing & Tour](docs/images/screenshots/web-landing-tour.png) |
+| **Patient `My Cycle` (3-Tab View + Calendar)** | Demonstrates progressive disclosure, FIGO regularity, Roetzer BBT, and fertile window | ![Patient My Cycle](docs/images/screenshots/web-patient-cycle.png) |
+| **Patient `Trajectory` & Contextual `Ask` AI** | Shows AMH-for-age trajectory, cited options, and `autoExplain` grounded AI | ![Patient Trajectory & Ask](docs/images/screenshots/web-patient-ask.png) |
+| **Clinician Patient Record & `CycleOverlay`** | Shows 6-cycle alignment, Day 2–4 / mid-luteal lab timing, and endocrine panel | ![Clinician CycleOverlay](docs/images/screenshots/web-clinician-record.png) |
+| **Clinician Follow-Up Board & Appointments** | Shows closed-loop alerts, appointment scheduling/cancellation, and SLA tracking | ![Clinician Follow-Up](docs/images/screenshots/web-clinician-followup.png) |
+| **Evidence & Safety + Population Insights** | Shows Wilson 95% CIs, clinician oversight counts, and `< 5` privacy suppression | ![Evidence & Insights](docs/images/screenshots/web-evidence-insights.png) |
+
+### Mobile App (iOS / Android — Capacitor 8 & Responsive Web)
+
+| Screen | Why it matters for judges | Screenshot |
+| --- | --- | --- |
+| **Biometric Sign-In (FaceID / TouchID)** | Secure prescription-gated mobile onboarding | ![Mobile Biometric Login](docs/images/screenshots/mobile-login-biometrics.png) |
+| **Mobile `My Cycle` Daily Log** | One-tap flow, mucus, LH, and collapsible symptoms/mood on mobile | ![Mobile My Cycle](docs/images/screenshots/mobile-cycle-log.png) |
+| **Apple Health / Health Connect Sync** | Native HealthKit / Health Connect consent-gated import | ![Mobile Health Sync](docs/images/screenshots/mobile-health-sync.png) |
+| **Mobile Contextual `Ask ReproAI`** | Instant chart explanation with verified inline citations | ![Mobile Ask AI](docs/images/screenshots/mobile-ask-ai.png) |
 
 ## Getting Started
 
@@ -202,7 +231,7 @@ Check everything is up with `curl http://localhost:8000/health` and `curl http:/
 | `MCP_SERVER_URL`, `MCP_SERVER_TOKEN` | No | External MCP server exposing extra agent tools |
 | `REPROAI_PARTNER_API_KEY` | No | Key for the B2B partner prediction API (`/api/v1/external/predict`) |
 | `ALLOW_CLINICIAN_SIGNUP` | No | `true` allows creating a clinician through `/api/auth/register`; for bootstrapping only |
-| `RESEND_API_KEY`, `EMAIL_FROM` | No | Email clinician invitations through Resend. `EMAIL_FROM` needs a verified domain; without it only the Resend account owner receives mail. Turn off open and click tracking for the domain in Resend. Unset: the link is shared by hand |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | No | Email clinician invitations via **Nodemailer (SMTP)** (clinic relay, UAE-hosted SMTP, or app-password SMTP). Unset `SMTP_HOST`: the clinician shares the link by hand |
 | `APP_URL` | No | Public base URL used in emailed links (defaults to the request origin) |
 | `DEMO_LOGIN_ENABLED` | No | `true` shows one-click demo sign-in on the login page (see [Demo access](#demo-access)) |
 | `DEMO_CLINICIAN_EMAIL`, `DEMO_FEMALE_EMAIL`, `DEMO_MALE_EMAIL`, `DEMO_COUPLE_EMAIL` | No | Accounts used by demo sign-in (defaults match `npm run demo:setup`) |
@@ -225,7 +254,7 @@ ReproAI has two roles, and patients can't sign themselves up.
 
    Then sign in at `/login` with the Clinician tab.
 
-2. **Prescribe care.** From the clinician dashboard, use **Prescribe digital care** to invite an individual or a couple. ReproAI shows an activation link (`/register?token=…`) to share securely; it does not send email yet. A couple link works once for each of the two invited emails, and the partners are paired automatically.
+2. **Prescribe care.** From the clinician dashboard, use **Prescribe digital care** to invite an individual or a couple. ReproAI emails the discreet bilingual activation link (`/register?token=…`) via **Nodemailer SMTP** when `SMTP_HOST` is configured, and always displays the link to copy/share if SMTP is not set. A couple link works once for each of the two invited emails, and the partners are paired automatically.
 
 3. **Patient.** The patient opens the link, sets a password and their details, and lands on **Today**. From there they can run an assessment, log or import temperature and sleep readings, ask the assistant, and invite a partner from **Couple link** (`/pair?token=…`).
 
@@ -266,8 +295,8 @@ src/
 ├── app/
 │   ├── (auth)/login, (auth)/register   Sign-in and prescription-gated activation
 │   ├── pair/                            Partner pairing link landing page
-│   ├── patient/                         Today, assessment, wearables, assistant, pairing
-│   ├── clinician/                       Dashboard, follow-up board, patient record
+│   ├── patient/                         Today, journey, assessment, cycle, wearables, assistant, pairing
+│   ├── clinician/                       Dashboard, follow-up board, insights, assistant, evidence, patient record
 │   └── api/                             Route handlers (see API reference)
 ├── components/                          Portal shell, charts, patient and clinician UI
 ├── lib/                                 Auth, Prisma client, ML client, agents, analysis helpers
@@ -299,6 +328,9 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 | `/api/clinician/copilot` | POST | Clinician | Case copilot on the grounded pipeline: cited sentences, unsupported ones flagged, scripted fallback |
 | `/api/patient/ask` | POST | Patient | Grounded assistant: corpus + released record, per-sentence verification, abstention |
 | `/api/patient/what-if` | POST | Patient | Illustrative BMI what-if; nothing is saved |
+| `/api/patient/cycle`, `/period`, `/settings` | GET / POST / DELETE / PATCH | Patient | Menstrual cycle tracking, daily logs, period starts, tracking mode |
+| `/api/clinician/cases/:id/cycles` | GET | Clinician | 6-cycle alignment, lab sample timing, endocrine/metabolic panel |
+| `/api/notifications` | GET / PATCH | Patient / Clinician | Role-scoped durable in-app care notification inbox |
 | `/api/observations`, `/api/observations/bulk` | GET / POST | Patient | Own readings; manual entry (single or pasted), source `MANUAL`, with pattern analysis |
 | `/api/observations/import` | POST | Patient | Accepts device-import payloads `{ source: BLUETOOTH \| HEALTH_CONNECT \| HEALTHKIT \| ULTRAHUMAN, device?, samples }` in the `@capgo/capacitor-health` sample shape; accepts basal temperature and nightly sleep only, skips duplicates. The existing patient wearable screen reads Apple Health/Health Connect in the native bundle and sends only returned samples. |
 | `/api/pairing/invite`, `accept`, `revoke`, `status` | POST / GET | Patient | Partner pairing with revocable consent |
@@ -321,11 +353,11 @@ Build ReproAI Fertility Platform/        Figma Make design reference (visual ref
 
 See the [open issues](https://github.com/renatocosta0/reproai-main/issues) for the full list. Known next steps:
 
-- Pairing emails, SMS and UAE Pass delivery (clinician invitations are already emailed through Resend when configured); move email to a UAE-hosted sender before real patient data
+- Pairing emails, SMS and UAE Pass delivery (clinician invitations are already emailed via Nodemailer SMTP when `SMTP_HOST` is configured); point SMTP to a UAE-hosted relay before real patient data
 - Malaffi live API ingestion (FHIR R4); screening-programme invitations (premarital, IFHAS) and a TAMM entry point
 - Real-world calibration and external validation before any probability is shown outside clinician review
 - Replace the SQLite-era migration history with a PostgreSQL baseline migration
-- Automated tests (Vitest is installed) and CI for the new UI
+- Expand automated UI/E2E tests and CI (15 Vitest unit/integration suites / 162 tests + `rag:eval` already passing)
 - Clinical review of the Arabic translation, and Arabic for the remaining patient pages
 
 ## Contributing

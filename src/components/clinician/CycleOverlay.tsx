@@ -44,7 +44,7 @@ const C = {
     current: "current",
     ovMethod: { BBT_ROETZER: "BBT", LH_SURGE: "LH", MUCUS_PEAK: "mucus", CALENDAR: "calendar", UNCONFIRMED: "unconfirmed" } as Record<string, string>,
     findings: "Findings",
-    selfReported: "Self-reported cycle log; notes and the private intimacy log are never shown."
+    selfReported: "Self-reported cycle log; personal notes are never shown."
   },
   ar: {
     title: "الدورات وتوقيت التحاليل",
@@ -79,7 +79,7 @@ const C = {
     current: "الحالية",
     ovMethod: { BBT_ROETZER: "حرارة", LH_SURGE: "LH", MUCUS_PEAK: "إفرازات", CALENDAR: "تقويم", UNCONFIRMED: "غير مؤكدة" } as Record<string, string>,
     findings: "النتائج",
-    selfReported: "سجل دورة بإبلاغ ذاتي؛ لا تُعرض الملاحظات ولا السجل الخاص أبدًا."
+    selfReported: "سجل دورة بإبلاغ ذاتي؛ لا تُعرض الملاحظات الشخصية أبدًا."
   }
 };
 
